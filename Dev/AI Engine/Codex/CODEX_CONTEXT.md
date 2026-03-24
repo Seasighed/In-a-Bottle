@@ -45,4 +45,3 @@
 - Godot has recently shown intermittent editor crashes in `coreclr.dll` during editor usage.
 - This should be treated as an environment risk, not an excuse to skip verification automatically.
 - If compilation appears correlated with instability, note that risk explicitly while still respecting the user's preference for verification.
-

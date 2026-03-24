@@ -1,0 +1,42 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://Scripts/UI/SectionOutlinePanel.gd" id="1"]
+
+[node name="SectionOutlinePanel" type="PanelContainer"]
+custom_minimum_size = Vector2(290, 0)
+size_flags_vertical = 3
+script = ExtResource("1")
+
+[node name="Stack" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="TitleLabel" type="Label" parent="Stack"]
+layout_mode = 2
+text = "Survey Map"
+autowrap_mode = 3
+
+[node name="SubtitleLabel" type="Label" parent="Stack"]
+layout_mode = 2
+text = "Sections and questions update as answers come in."
+autowrap_mode = 3
+
+[node name="CurrentSectionLabel" type="Label" parent="Stack"]
+layout_mode = 2
+text = "Section"
+autowrap_mode = 3
+
+[node name="CurrentQuestionLabel" type="Label" parent="Stack"]
+layout_mode = 2
+text = "Question"
+autowrap_mode = 3
+
+[node name="SectionScroll" type="ScrollContainer" parent="Stack"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="SectionList" type="VBoxContainer" parent="Stack/SectionScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8

@@ -1,0 +1,160 @@
+{
+  "id": "starter_survey",
+  "title": "Starter Survey",
+  "description": "Minimal authoring template for building a new questionnaire.",
+  "onboarding_subject": "your game feedback questionnaire",
+  "audience_profiles": [
+    {
+      "id": "new_player",
+      "label": "New Player",
+      "description": "Early impressions and first-session friction."
+    },
+    {
+      "id": "everyday_player",
+      "label": "Everyday Player",
+      "description": "Regular engagement without high-intensity play."
+    },
+    {
+      "id": "whale",
+      "label": "Whale",
+      "description": "High-engagement or high-spend player feedback."
+    }
+  ],
+  "sections": [
+    {
+      "id": "section_one",
+      "title": "Section One",
+      "description": "Replace these examples with your own prompts.",
+      "icon": "generic",
+      "questions": [
+        {
+          "id": "intro_text",
+          "prompt": "What should we call this response?",
+          "type": "text",
+          "required": true,
+          "placeholder": "Participant 001",
+          "topic_tags": [
+            "identity",
+            "profile"
+          ],
+          "keywords": [
+            "name",
+            "response label"
+          ],
+          "emoji": "\u270d\ufe0f"
+        },
+        {
+          "id": "sentiment",
+          "prompt": "How would you rate the overall experience?",
+          "type": "rating",
+          "min_value": 1,
+          "max_value": 5,
+          "left_label": "Poor",
+          "right_label": "Excellent",
+          "rating": {
+            "enabled": true,
+            "label": "Overall experience"
+          },
+          "topic_tags": [
+            "satisfaction",
+            "overall experience"
+          ],
+          "keywords": [
+            "rating",
+            "sentiment",
+            "quality"
+          ],
+          "audience_tags": [
+            "new_player",
+            "everyday_player",
+            "whale"
+          ],
+          "emoji": "\ud83d\udcca"
+        },
+        {
+          "id": "priorities",
+          "prompt": "Which areas matter most?",
+          "type": "checkbox",
+          "choices": [
+            "Usability",
+            "Clarity",
+            "Performance",
+            "Accessibility"
+          ],
+          "topic_tags": [
+            "priorities",
+            "focus areas"
+          ],
+          "keywords": [
+            "matters most",
+            "themes",
+            "priority"
+          ],
+          "emoji": "\u2611\ufe0f"
+        },
+        {
+          "id": "follow_up",
+          "prompt": "Anything else we should know?",
+          "type": "textarea",
+          "placeholder": "Add notes here",
+          "topic_tags": [
+            "open feedback",
+            "final notes"
+          ],
+          "keywords": [
+            "comments",
+            "notes",
+            "feedback"
+          ],
+          "emoji": "\ud83d\udcdd"
+        }
+      ],
+      "emoji": "\ud83e\udde9"
+    }
+  ],
+  "guided_presets": [
+    {
+      "id": "new_player_first_impressions",
+      "label": "New Player First Impressions",
+      "description": "Start with early sentiment, naming, and first-priority issues.",
+      "audience_id": "new_player",
+      "topic_tags": [
+        "overall experience",
+        "identity",
+        "focus areas"
+      ]
+    },
+    {
+      "id": "everyday_player_priority_check",
+      "label": "Everyday Player Priority Check",
+      "description": "Focus on steady usage, priorities, and broad sentiment.",
+      "audience_id": "everyday_player",
+      "topic_tags": [
+        "satisfaction",
+        "priorities",
+        "focus areas"
+      ]
+    },
+    {
+      "id": "whale_feedback_deep_dive",
+      "label": "Whale Feedback Deep Dive",
+      "description": "Blend satisfaction, priority signals, and open-ended follow-up.",
+      "audience_id": "whale",
+      "topic_tags": [
+        "satisfaction",
+        "open feedback",
+        "final notes"
+      ]
+    }
+  ],
+  "faq_items": [
+    {
+      "id": "random_mode_probability",
+      "question": "How does Random Mode calculate the odds?",
+      "answer": "Random Mode samples uniformly from the eligible question pool. There are {eligible_question_count} eligible questions across {eligible_section_count} section(s) in {whitelist_summary}, so each question currently has {per_question_fraction} = {per_question_probability} chance per spin. {section_probability_breakdown}"
+    }
+  ],
+  "format": "survey_template",
+  "version": 2
+}
+

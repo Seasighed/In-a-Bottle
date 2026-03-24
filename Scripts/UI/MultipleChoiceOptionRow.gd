@@ -1,0 +1,43 @@
+class_name MultipleChoiceOptionRow
+extends Button
+
+const SURVEY_UI_FEEDBACK = preload("res://Scripts/UI/SurveyUiFeedback.gd")
+
+signal selected(value: String)
+
+var _value: String = ""
+var _is_configuring := false
+
+func _ready() -> void:
+	size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	toggle_mode = true
+	toggled.connect(_on_toggled)
+	_update_style()
+
+func configure(value: String, pressed: bool = false, group: ButtonGroup = null) -> void:
+	_is_configuring = true
+	_value = value
+	text = value
+	button_group = group
+	button_pressed = pressed
+	_is_configuring = false
+	_update_style()
+
+func get_value() -> String:
+	return _value
+
+func get_primary_control() -> Control:
+	return self
+
+func _on_toggled(pressed: bool) -> void:
+	_update_style()
+	if _is_configuring:
+		return
+	if pressed:
+		SURVEY_UI_FEEDBACK.play_answer_select()
+		SURVEY_UI_FEEDBACK.pulse(self, 0.05, 0.16)
+		selected.emit(_value)
+
+func _update_style() -> void:
+	SurveyStyle.apply_answer_button(self, button_pressed)
+

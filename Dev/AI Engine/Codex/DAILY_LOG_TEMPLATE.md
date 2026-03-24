@@ -1,4 +1,4 @@
-﻿---
+---
 date: YYYY-MM-DD
 project: Odyssea
 agent: Codex
@@ -51,4 +51,3 @@ Session stats should mirror the Tools tab keys when available.
 ### Next Steps
 
 - Follow-up item.
-

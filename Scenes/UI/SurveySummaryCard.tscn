@@ -1,0 +1,88 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://Scripts/UI/SurveySummaryCard.gd" id="1"]
+
+[node name="SurveySummaryCard" type="PanelContainer"]
+size_flags_horizontal = 3
+script = ExtResource("1")
+
+[node name="Stack" type="VBoxContainer" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 14
+
+[node name="EyebrowLabel" type="Label" parent="Stack"]
+layout_mode = 2
+text = "Opinion Summary"
+
+[node name="HeadingLabel" type="Label" parent="Stack"]
+layout_mode = 2
+autowrap_mode = 3
+text = "Survey"
+
+[node name="SubtitleLabel" type="Label" parent="Stack"]
+layout_mode = 2
+autowrap_mode = 3
+text = "Single-page snapshot of rating-enabled answers, section scores, and overall sentiment."
+
+[node name="StatsGrid" type="GridContainer" parent="Stack"]
+layout_mode = 2
+size_flags_horizontal = 3
+columns = 2
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 10
+
+[node name="SentimentPanel" type="PanelContainer" parent="Stack"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="SentimentStack" type="VBoxContainer" parent="Stack/SentimentPanel"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="SentimentHeadingLabel" type="Label" parent="Stack/SentimentPanel/SentimentStack"]
+layout_mode = 2
+text = "General sentiment"
+
+[node name="SentimentValueLabel" type="Label" parent="Stack/SentimentPanel/SentimentStack"]
+layout_mode = 2
+text = "No sentiment signal yet"
+
+[node name="SentimentSummaryLabel" type="Label" parent="Stack/SentimentPanel/SentimentStack"]
+layout_mode = 2
+autowrap_mode = 3
+text = "Answer rating-enabled questions to generate a sentiment snapshot."
+
+[node name="AdjectivesHeadingLabel" type="Label" parent="Stack"]
+layout_mode = 2
+text = "How does this feel overall?"
+
+[node name="AdjectivesSummaryLabel" type="Label" parent="Stack"]
+layout_mode = 2
+autowrap_mode = 3
+text = "Pick from the suggested adjectives, edit the text yourself, or do both."
+
+[node name="AdjectiveField" type="LineEdit" parent="Stack"]
+layout_mode = 2
+placeholder_text = "Example: hopeful, conflicted, energized"
+
+[node name="SuggestionsHeadingLabel" type="Label" parent="Stack"]
+layout_mode = 2
+text = "Suggested adjectives"
+
+[node name="SuggestionFlow" type="HFlowContainer" parent="Stack"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 8
+
+[node name="SectionsHeadingLabel" type="Label" parent="Stack"]
+layout_mode = 2
+text = "Section scorecards"
+
+[node name="SectionsList" type="VBoxContainer" parent="Stack"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10

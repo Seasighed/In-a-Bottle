@@ -1,0 +1,836 @@
+{
+  "id": "minecraft_modder",
+  "title": "Minecraft Modder Pulse",
+  "subtitle": "A survey for Minecraft mod developers about the state of their mod, the modding experience, and where the project goes next.",
+  "onboarding_subject": "your Minecraft mod",
+  "audience_profiles": [
+	{
+	  "id": "hobbyist_modder",
+	  "label": "Hobbyist Modder",
+	  "description": "Building the mod part-time as a passion project."
+	},
+	{
+	  "id": "solo_modder",
+	  "label": "Solo Modder",
+	  "description": "Owning most decisions and implementation alone."
+	},
+	{
+	  "id": "team_maintainer",
+	  "label": "Team Maintainer",
+	  "description": "Working with collaborators on content, engineering, or release flow."
+	},
+	{
+	  "id": "full_time_creator",
+	  "label": "Full-Time Creator",
+	  "description": "Treating the mod as a major ongoing product or income-supported project."
+	}
+  ],
+  "sections": [
+	{
+	  "id": "project_snapshot",
+	  "title": "Project Snapshot",
+	  "description": "Ground the response in what the mod is, who builds it, and where it sits right now.",
+	  "icon": "profile",
+	  "header_template": "spotlight",
+	  "questions": [
+		{
+		  "id": "mod_name",
+		  "prompt": "What is the name of your mod?",
+		  "description": "Use the public name or an internal codename.",
+		  "type": "short_text",
+		  "required": true,
+		  "placeholder": "Example: Clockwork Depths",
+		  "topic_tags": [
+			"identity",
+            "project name"
+		  ],
+		  "keywords": [
+			"mod name",
+			"title",
+            "project identity"
+		  ],
+		  "emoji": "\ud83e\udeaa"
+		},
+		{
+		  "id": "primary_loader",
+		  "prompt": "Which loader or platform best describes the main release target?",
+		  "type": "dropdown",
+		  "required": true,
+		  "options": [
+			"Fabric",
+			"Forge",
+			"NeoForge",
+			"Quilt",
+			"Paper / Spigot plugin",
+            "Multiple loaders"
+		  ],
+		  "topic_tags": [
+			"platform",
+            "loader"
+		  ],
+		  "keywords": [
+			"fabric",
+			"forge",
+			"neoforge",
+			"quilt",
+            "platform"
+		  ],
+		  "emoji": "\ud83d\udcc2"
+		},
+		{
+		  "id": "supported_versions",
+		  "prompt": "Which Minecraft versions are you actively supporting or targeting?",
+		  "description": "Select all that apply.",
+		  "type": "multi_choice",
+		  "options": [
+			"1.21.x",
+			"1.20.x",
+			"1.19.x",
+			"Older legacy versions",
+			"Snapshots / experimental branches",
+            "Still deciding"
+		  ],
+		  "topic_tags": [
+			"version support",
+            "compatibility"
+		  ],
+		  "keywords": [
+			"minecraft version",
+			"supported versions",
+            "porting"
+		  ],
+		  "emoji": "\u2611\ufe0f"
+		},
+		{
+		  "id": "mod_categories",
+		  "prompt": "Which categories best describe your mod?",
+		  "description": "Select as many as fit.",
+		  "type": "multi_choice",
+		  "options": [
+			"Technology / automation",
+			"Magic / progression",
+			"World generation",
+			"Adventure / exploration",
+			"Quality of life",
+			"Performance / optimization",
+			"Building / decoration",
+			"Server / admin tools",
+            "Social / minigame"
+		  ],
+		  "topic_tags": [
+			"genre",
+            "scope"
+		  ],
+		  "keywords": [
+			"category",
+			"theme",
+			"design niche",
+            "mod type"
+		  ],
+		  "emoji": "\u2611\ufe0f"
+		},
+		{
+		  "id": "project_stage",
+		  "prompt": "What stage is the mod currently in?",
+		  "type": "single_choice",
+		  "options": [
+			"Concept / pre-production",
+			"Prototype",
+			"Closed alpha",
+			"Public beta",
+			"Stable live release",
+            "Maintenance mode"
+		  ],
+		  "topic_tags": [
+			"project stage",
+            "release state"
+		  ],
+		  "keywords": [
+			"alpha",
+			"beta",
+			"release",
+            "maintenance"
+		  ],
+		  "emoji": "\ud83d\udd18"
+		},
+		{
+		  "id": "team_shape",
+		  "prompt": "How is the mod currently staffed?",
+		  "type": "dropdown",
+		  "options": [
+			"Just me",
+			"Me plus one collaborator",
+			"Small team (3-5)",
+			"Larger team (6+)",
+            "Fluid volunteer contributors"
+		  ],
+		  "topic_tags": [
+			"team structure",
+            "staffing"
+		  ],
+		  "keywords": [
+			"solo",
+			"team",
+			"contributors",
+            "collaborators"
+		  ],
+		  "audience_tags": [
+			"solo_modder",
+            "team_maintainer"
+		  ],
+		  "emoji": "\ud83d\udcc2"
+		}
+	  ],
+	  "emoji": "\ud83d\udee0\ufe0f"
+	},
+	{
+	  "id": "current_mod_health",
+	  "title": "Current Mod Health",
+	  "description": "Measure confidence, satisfaction, and where the project currently feels strong or fragile.",
+	  "icon": "review",
+	  "header_template": "spotlight",
+	  "questions": [
+		{
+		  "id": "pride_in_mod",
+		  "prompt": "How good do you feel about the mod in its current state?",
+		  "description": "Choose the score that best matches your honest feeling right now.",
+		  "type": "scale",
+		  "required": true,
+		  "min_value": 1,
+		  "max_value": 5,
+		  "left_label": "Worried",
+		  "right_label": "Proud",
+		  "view_template": "scale_chips",
+		  "topic_tags": [
+			"satisfaction",
+            "project health"
+		  ],
+		  "keywords": [
+			"confidence",
+			"quality",
+            "current state"
+		  ],
+		  "audience_tags": [
+			"hobbyist_modder",
+			"solo_modder",
+			"team_maintainer",
+            "full_time_creator"
+		  ],
+		  "emoji": "\ud83d\udcca"
+		},
+		{
+		  "id": "recommend_to_players",
+		  "prompt": "How likely are you to recommend this mod to players who enjoy its niche?",
+		  "type": "nps",
+		  "required": true,
+		  "min_value": 0,
+		  "max_value": 10,
+		  "left_label": "Not likely",
+		  "right_label": "Extremely likely",
+		  "topic_tags": [
+			"player fit",
+            "recommendation"
+		  ],
+		  "keywords": [
+			"nps",
+			"recommend",
+			"audience fit",
+            "player appeal"
+		  ],
+		  "emoji": "\ud83c\udfae"
+		},
+		{
+		  "id": "release_confidence",
+		  "prompt": "How confident are you in your next release or update?",
+		  "type": "scale",
+		  "min_value": 1,
+		  "max_value": 5,
+		  "left_label": "Not confident",
+		  "right_label": "Very confident",
+		  "view_template": "scale_chips",
+		  "topic_tags": [
+			"release confidence",
+            "shipping"
+		  ],
+		  "keywords": [
+			"release",
+			"update",
+            "shipping confidence"
+		  ],
+		  "emoji": "\ud83d\udcc5"
+		},
+		{
+		  "id": "health_matrix",
+		  "prompt": "Rate the current health of each area of the project.",
+		  "description": "Pick one response per row.",
+		  "type": "matrix",
+		  "required": true,
+		  "rows": [
+			"The core gameplay loop is fun",
+			"Technical stability is acceptable",
+			"Documentation and onboarding are clear",
+			"The current content scope feels coherent",
+            "The mod still matches the original vision"
+		  ],
+		  "options": [
+			"Strongly disagree",
+			"Disagree",
+			"Neutral",
+			"Agree",
+            "Strongly agree"
+		  ],
+		  "view_template": "matrix",
+		  "topic_tags": [
+			"stability",
+			"vision",
+            "documentation"
+		  ],
+		  "keywords": [
+			"health",
+			"likert",
+			"quality check",
+            "coherence"
+		  ],
+		  "emoji": "\ud83d\udcca"
+		},
+		{
+		  "id": "top_frictions",
+		  "prompt": "What is creating the most friction for the mod right now?",
+		  "description": "Select every issue that is meaningfully slowing you down.",
+		  "type": "multi_choice",
+		  "options": [
+			"Performance problems",
+			"Cross-version support",
+			"Loader compatibility",
+			"Bug volume",
+			"Content balance",
+			"Art / asset production",
+			"Documentation",
+			"Community management",
+			"Scope creep",
+            "Time / burnout"
+		  ],
+		  "topic_tags": [
+			"pain points",
+            "risk"
+		  ],
+		  "keywords": [
+			"friction",
+			"problems",
+			"bottlenecks",
+            "risk areas"
+		  ],
+		  "emoji": "\u2611\ufe0f"
+		},
+		{
+		  "id": "best_current_feature",
+		  "prompt": "Which part of the mod feels strongest right now, and why?",
+		  "type": "long_text",
+		  "placeholder": "Describe the feature, system, or experience you feel best about.",
+		  "topic_tags": [
+			"strengths",
+            "best feature"
+		  ],
+		  "keywords": [
+			"strongest part",
+			"favorite system",
+            "best feature"
+		  ],
+		  "emoji": "\ud83d\udcdd"
+		}
+	  ],
+	  "emoji": "\ud83d\udcc8"
+	},
+	{
+	  "id": "modding_experience",
+	  "title": "Modding Experience",
+	  "description": "Focus on the day-to-day craft of building, debugging, updating, and maintaining the mod.",
+	  "icon": "review",
+	  "header_template": "spotlight",
+	  "questions": [
+		{
+		  "id": "tooling_matrix",
+		  "prompt": "How well is the current modding workflow serving you?",
+		  "description": "Rate the parts of the workflow you rely on most.",
+		  "type": "matrix",
+		  "rows": [
+			"Setting up the workspace",
+			"Working with mappings and API docs",
+			"Debugging runtime issues",
+			"Porting to new Minecraft versions",
+            "Publishing builds and changelogs"
+		  ],
+		  "options": [
+			"Very poor",
+			"Poor",
+			"Mixed",
+			"Good",
+            "Excellent"
+		  ],
+		  "view_template": "matrix",
+		  "topic_tags": [
+			"tooling",
+            "workflow"
+		  ],
+		  "keywords": [
+			"workspace",
+			"debugging",
+			"porting",
+            "build pipeline"
+		  ],
+		  "emoji": "\ud83e\udded"
+		},
+		{
+		  "id": "update_cadence",
+		  "prompt": "How often are you currently able to work on or ship meaningful progress?",
+		  "type": "single_choice",
+		  "options": [
+			"Multiple times a week",
+			"Weekly",
+			"Every few weeks",
+			"Monthly",
+			"Only around major milestones",
+            "Currently paused"
+		  ],
+		  "topic_tags": [
+			"cadence",
+            "momentum"
+		  ],
+		  "keywords": [
+			"update frequency",
+			"progress pace",
+            "shipping cadence"
+		  ],
+		  "audience_tags": [
+			"hobbyist_modder",
+            "full_time_creator"
+		  ],
+		  "emoji": "\ud83d\udd18"
+		},
+		{
+		  "id": "burnout_level",
+		  "prompt": "Where are you on the energy-to-burnout spectrum with this mod?",
+		  "type": "scale",
+		  "min_value": 1,
+		  "max_value": 5,
+		  "left_label": "Energized",
+		  "right_label": "Burned out",
+		  "rating": {
+			"enabled": true,
+			"reverse": true,
+			"label": "Creator energy"
+		  },
+		  "view_template": "scale_chips",
+		  "topic_tags": [
+			"burnout",
+            "creator energy"
+		  ],
+		  "keywords": [
+			"motivation",
+			"fatigue",
+			"energy",
+            "burnout"
+		  ],
+		  "audience_tags": [
+			"solo_modder",
+			"hobbyist_modder",
+            "full_time_creator"
+		  ],
+		  "emoji": "\ud83d\udcca"
+		},
+		{
+		  "id": "modding_improvement_rank",
+		  "prompt": "Rank the improvements that would most improve your modding experience.",
+		  "description": "Drag the most important improvement to the top.",
+		  "type": "ranked_choice",
+		  "options": [
+			"Better documentation and examples",
+			"More stable APIs",
+			"Easier version porting",
+			"Stronger debugging and profiling tools",
+			"Less loader fragmentation",
+            "More community help and maintainers"
+		  ],
+		  "view_template": "ranked_choice",
+		  "topic_tags": [
+			"workflow improvements",
+            "tooling priorities"
+		  ],
+		  "keywords": [
+			"rank improvements",
+			"better tooling",
+            "modding pain"
+		  ],
+		  "emoji": "\ud83c\udfc1"
+		},
+		{
+		  "id": "hardest_part_of_modding",
+		  "prompt": "What part of modding this project still feels harder than it should?",
+		  "type": "long_text",
+		  "placeholder": "Call out one recurring frustration or structural problem.",
+		  "topic_tags": [
+			"pain points",
+            "tooling"
+		  ],
+		  "keywords": [
+			"hardest part",
+			"frustration",
+            "workflow problem"
+		  ],
+		  "emoji": "\ud83d\udcdd"
+		}
+	  ],
+	  "emoji": "\u2699\ufe0f"
+	},
+	{
+	  "id": "players_and_community",
+	  "title": "Players and Community",
+	  "description": "Look at player signals, requests, and how clearly the community helps shape the mod.",
+	  "icon": "review",
+	  "header_template": "spotlight",
+	  "questions": [
+		{
+		  "id": "feedback_channels",
+		  "prompt": "Where do you most often receive player feedback?",
+		  "description": "Select all channels that regularly influence development.",
+		  "type": "multi_choice",
+		  "options": [
+			"Discord",
+			"GitHub issues",
+			"Modrinth comments",
+			"CurseForge comments",
+			"YouTube / Twitch creators",
+			"Reddit or forums",
+			"Private testers",
+			"In-game analytics or telemetry",
+            "I do not have a strong feedback loop yet"
+		  ],
+		  "topic_tags": [
+			"community feedback",
+            "channels"
+		  ],
+		  "keywords": [
+			"discord",
+			"github",
+			"modrinth",
+			"curseforge",
+            "feedback sources"
+		  ],
+		  "emoji": "\ud83c\udfae"
+		},
+		{
+		  "id": "feedback_signal_clarity",
+		  "prompt": "How clearly can you tell what players actually want next?",
+		  "type": "scale",
+		  "min_value": 1,
+		  "max_value": 5,
+		  "left_label": "Mostly noise",
+		  "right_label": "Very clear",
+		  "view_template": "scale_chips",
+		  "topic_tags": [
+			"player insight",
+            "community feedback"
+		  ],
+		  "keywords": [
+			"signal clarity",
+			"player requests",
+            "feedback quality"
+		  ],
+		  "emoji": "\ud83c\udfae"
+		},
+		{
+		  "id": "weekly_issue_volume",
+		  "prompt": "About how many actionable bug reports, suggestions, or issues do you get in a typical week?",
+		  "type": "number",
+		  "placeholder": "12",
+		  "topic_tags": [
+			"issue volume",
+            "community load"
+		  ],
+		  "keywords": [
+			"how many issues",
+			"weekly volume",
+            "bug reports"
+		  ],
+		  "emoji": "\ud83d\udd22"
+		},
+		{
+		  "id": "audience_fit_matrix",
+		  "prompt": "Rate how well different player groups are currently served by the mod.",
+		  "type": "matrix",
+		  "rows": [
+			"New players can understand the mod quickly",
+			"Experienced players have enough depth to explore",
+			"Server owners can configure it reliably",
+            "Modpack makers can integrate it cleanly"
+		  ],
+		  "options": [
+			"Strongly disagree",
+			"Disagree",
+			"Neutral",
+			"Agree",
+            "Strongly agree"
+		  ],
+		  "view_template": "matrix",
+		  "topic_tags": [
+			"audience fit",
+            "onboarding"
+		  ],
+		  "keywords": [
+			"new players",
+			"server owners",
+			"modpacks",
+            "usability"
+		  ],
+		  "emoji": "\ud83c\udfae"
+		},
+		{
+		  "id": "community_request_rank",
+		  "prompt": "Rank the kinds of player requests you feel most pressure to act on.",
+		  "type": "ranked_choice",
+		  "options": [
+			"New content",
+			"Balance changes",
+			"Performance fixes",
+			"Compatibility updates",
+			"Documentation and tutorials",
+            "Quality-of-life polish"
+		  ],
+		  "view_template": "ranked_choice",
+		  "topic_tags": [
+			"community pressure",
+            "request priorities"
+		  ],
+		  "keywords": [
+			"player requests",
+			"pressure",
+            "rank requests"
+		  ],
+		  "emoji": "\ud83c\udfae"
+		},
+		{
+		  "id": "favorite_player_story",
+		  "prompt": "What player reaction, story, or use case made you feel the mod was worth building?",
+		  "type": "long_text",
+		  "placeholder": "Share one memorable player moment or response.",
+		  "topic_tags": [
+			"community wins",
+            "motivation"
+		  ],
+		  "keywords": [
+			"player story",
+			"community moment",
+            "why it matters"
+		  ],
+		  "emoji": "\ud83c\udfae"
+		}
+	  ],
+	  "emoji": "\ud83d\udcac"
+	},
+	{
+	  "id": "future_of_the_mod",
+	  "title": "Future of the Mod",
+	  "description": "Close on roadmap clarity, sustainability, and what success looks like from here.",
+	  "icon": "closeout",
+	  "header_template": "spotlight",
+	  "questions": [
+		{
+		  "id": "future_direction",
+		  "prompt": "Which direction best describes the next phase of the mod?",
+		  "type": "single_choice",
+		  "options": [
+			"Expand aggressively with major features",
+			"Focus on polish and stability",
+			"Maintain with smaller updates",
+			"Prepare for a major rewrite",
+			"Sunset the project gracefully",
+            "I am still deciding"
+		  ],
+		  "topic_tags": [
+			"future planning",
+            "roadmap"
+		  ],
+		  "keywords": [
+			"future",
+			"direction",
+			"roadmap",
+            "next phase"
+		  ],
+		  "emoji": "\ud83d\udd18"
+		},
+		{
+		  "id": "roadmap_focus",
+		  "prompt": "Which areas are most likely to define your next season of work?",
+		  "description": "Select all that are likely to matter.",
+		  "type": "multi_choice",
+		  "options": [
+			"New gameplay features",
+			"Performance and optimization",
+			"Compatibility and version support",
+			"Multiplayer or server support",
+			"Documentation and tutorials",
+			"Visual polish and assets",
+			"Community support and moderation",
+            "Team process and maintainability"
+		  ],
+		  "topic_tags": [
+			"roadmap",
+            "investment areas"
+		  ],
+		  "keywords": [
+			"future work",
+			"focus areas",
+            "next priorities"
+		  ],
+		  "emoji": "\u2611\ufe0f"
+		},
+		{
+		  "id": "future_confidence",
+		  "prompt": "How confident are you that the mod has a healthy future?",
+		  "type": "scale",
+		  "min_value": 1,
+		  "max_value": 5,
+		  "left_label": "Uncertain",
+		  "right_label": "Confident",
+		  "view_template": "scale_chips",
+		  "topic_tags": [
+			"future confidence",
+            "sustainability"
+		  ],
+		  "keywords": [
+			"healthy future",
+			"confidence",
+            "sustainability"
+		  ],
+		  "emoji": "\ud83d\udd2e"
+		},
+		{
+		  "id": "future_matrix",
+		  "prompt": "How strongly do you agree with the following statements about the mod's future?",
+		  "type": "matrix",
+		  "rows": [
+			"I can realistically keep maintaining this mod for the next 12 months",
+			"I know which features should come next",
+			"Community demand still justifies the investment",
+            "The current codebase can support the roadmap"
+		  ],
+		  "options": [
+			"Strongly disagree",
+			"Disagree",
+			"Neutral",
+			"Agree",
+            "Strongly agree"
+		  ],
+		  "view_template": "matrix",
+		  "topic_tags": [
+			"sustainability",
+            "future planning"
+		  ],
+		  "keywords": [
+			"next year",
+			"maintainability",
+            "roadmap health"
+		  ],
+		  "emoji": "\ud83d\udd2e"
+		},
+		{
+		  "id": "largest_future_blocker",
+		  "prompt": "What is the single biggest thing that could stop this mod from reaching the future you want for it?",
+		  "type": "long_text",
+		  "placeholder": "Describe the biggest blocker as concretely as you can.",
+		  "topic_tags": [
+			"risk",
+            "future blocker"
+		  ],
+		  "keywords": [
+			"blocker",
+			"threat",
+            "what could stop it"
+		  ],
+		  "emoji": "\ud83d\udd2e"
+		},
+		{
+		  "id": "success_definition",
+		  "prompt": "If this mod goes well over the next year, what would success look like to you?",
+		  "type": "long_text",
+		  "placeholder": "Describe the outcome that would make the effort feel worth it.",
+		  "topic_tags": [
+			"success",
+            "vision"
+		  ],
+		  "keywords": [
+			"success definition",
+			"future goal",
+            "what winning looks like"
+		  ],
+		  "emoji": "\ud83d\udcdd"
+		}
+	  ],
+	  "emoji": "\ud83d\udd2e"
+	}
+  ],
+  "guided_presets": [
+	{
+	  "id": "solo_burnout_check",
+	  "label": "Solo Burnout Check",
+	  "description": "Jump into workload, motivation, friction, and the future of a mostly one-person project.",
+	  "audience_id": "solo_modder",
+	  "topic_tags": [
+		"burnout",
+		"pain points",
+		"future confidence",
+        "future blocker"
+	  ]
+	},
+	{
+	  "id": "release_readiness",
+	  "label": "Release Readiness",
+	  "description": "Focus on stability, shipping confidence, onboarding, and issue pressure before the next update.",
+	  "audience_id": "team_maintainer",
+	  "topic_tags": [
+		"release confidence",
+		"stability",
+		"documentation",
+        "issue volume"
+	  ]
+	},
+	{
+	  "id": "community_signal_pass",
+	  "label": "Community Signal Pass",
+	  "description": "Surface questions about player feedback, request pressure, and who the mod is serving well.",
+	  "audience_id": "hobbyist_modder",
+	  "topic_tags": [
+		"community feedback",
+		"player insight",
+		"audience fit",
+        "community pressure"
+	  ]
+	},
+	{
+	  "id": "future_of_the_mod",
+	  "label": "Future of the Mod",
+	  "description": "Go straight to roadmap clarity, sustainability, blockers, and success criteria.",
+	  "audience_id": "full_time_creator",
+	  "topic_tags": [
+		"future planning",
+		"roadmap",
+		"sustainability",
+        "success"
+	  ]
+	}
+  ],
+  "faq_items": [
+	{
+	  "id": "random_mode_probability",
+	  "question": "How does Random Mode calculate the odds for this survey?",
+	  "answer": "Random Mode samples uniformly from the eligible question pool. There are {eligible_question_count} eligible questions across {eligible_section_count} section(s) in {whitelist_summary}, so each question currently has {per_question_fraction} = {per_question_probability} chance per spin. {section_probability_breakdown}"
+	},
+	{
+	  "id": "guided_match_scope",
+	  "question": "What does Guided Match actually do?",
+	  "answer": "Guided Match does not permanently hide content. It uses your creator profile and selected topics to surface the highest-signal questions first, so you can move quickly to the areas most relevant to your mod right now."
+	}
+  ],
+  "format": "survey_template",
+  "version": 2
+}

@@ -1,0 +1,454 @@
+{
+  "id": "studio_feedback",
+  "title": "Survey Studio",
+  "subtitle": "A modular questionnaire shell with section navigation, reusable views, and export-ready data.",
+  "onboarding_subject": "the survey shell",
+  "audience_profiles": [
+    {
+      "id": "participant",
+      "label": "Participant",
+      "description": "Answering as someone taking the questionnaire."
+    },
+    {
+      "id": "playtester",
+      "label": "Playtester",
+      "description": "Answering from hands-on use and friction points."
+    },
+    {
+      "id": "team_member",
+      "label": "Team Member",
+      "description": "Using the questionnaire to support design, research, or production work."
+    },
+    {
+      "id": "researcher",
+      "label": "Researcher",
+      "description": "Reviewing the questionnaire for insight quality and reuse."
+    }
+  ],
+  "sections": [
+    {
+      "id": "participant_profile",
+      "title": "Participant Profile",
+      "description": "Basic respondent details and segmentation fields.",
+      "icon": "profile",
+      "header_template": "spotlight",
+      "questions": [
+        {
+          "id": "display_name",
+          "prompt": "What name should appear in the response export?",
+          "description": "Use a participant code if you want anonymous exports.",
+          "type": "short_text",
+          "required": true,
+          "placeholder": "Participant 014",
+          "topic_tags": [
+            "identity",
+            "participant profile"
+          ],
+          "keywords": [
+            "name",
+            "participant",
+            "export name"
+          ],
+          "emoji": "\ud83e\udeaa"
+        },
+        {
+          "id": "email",
+          "prompt": "What email address should we use for follow-up?",
+          "type": "email",
+          "placeholder": "name@example.com",
+          "topic_tags": [
+            "follow up",
+            "contact"
+          ],
+          "keywords": [
+            "email",
+            "follow-up",
+            "contact"
+          ],
+          "emoji": "\u2709\ufe0f"
+        },
+        {
+          "id": "role",
+          "prompt": "Which best describes this respondent?",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Customer",
+            "Playtester",
+            "Team member",
+            "Research volunteer"
+          ],
+          "topic_tags": [
+            "segmentation",
+            "role"
+          ],
+          "keywords": [
+            "player type",
+            "role",
+            "segment"
+          ],
+          "audience_tags": [
+            "team_member",
+            "researcher"
+          ],
+          "emoji": "\ud83d\udcc2"
+        },
+        {
+          "id": "focus_areas",
+          "prompt": "Which themes should this response emphasize?",
+          "description": "Choose as many as apply.",
+          "type": "multi_choice",
+          "options": [
+            "Clarity",
+            "Usability",
+            "Visual design",
+            "Performance",
+            "Accessibility"
+          ],
+          "topic_tags": [
+            "priorities",
+            "focus areas"
+          ],
+          "keywords": [
+            "themes",
+            "focus",
+            "priority"
+          ],
+          "emoji": "\u2611\ufe0f"
+        },
+        {
+          "id": "session_date",
+          "prompt": "When was this survey completed?",
+          "type": "date",
+          "placeholder": "2026-03-24",
+          "topic_tags": [
+            "session",
+            "timing"
+          ],
+          "keywords": [
+            "date",
+            "completion",
+            "timeline"
+          ],
+          "emoji": "\ud83d\udcc5"
+        }
+      ],
+      "emoji": "\ud83e\uddd1"
+    },
+    {
+      "id": "experience_review",
+      "title": "Experience Review",
+      "description": "Common survey question families: dropdown, NPS, matrix, ranking, number, and open text.",
+      "icon": "review",
+      "header_template": "spotlight",
+      "questions": [
+        {
+          "id": "ease_of_use",
+          "prompt": "How easy was the survey flow to follow?",
+          "description": "Rendered with a chip-based scale template.",
+          "type": "scale",
+          "required": true,
+          "min_value": 1,
+          "max_value": 5,
+          "left_label": "Hard",
+          "right_label": "Easy",
+          "view_template": "scale_chips",
+          "topic_tags": [
+            "usability",
+            "navigation"
+          ],
+          "keywords": [
+            "easy",
+            "flow",
+            "follow"
+          ],
+          "audience_tags": [
+            "participant",
+            "playtester"
+          ],
+          "emoji": "\ud83d\udcca"
+        },
+        {
+          "id": "nps_recommendation",
+          "prompt": "How likely are you to recommend this survey shell to a teammate?",
+          "description": "Net Promoter Score style question from 0 to 10.",
+          "type": "nps",
+          "required": true,
+          "min_value": 0,
+          "max_value": 10,
+          "left_label": "Not likely",
+          "right_label": "Extremely likely",
+          "topic_tags": [
+            "recommendation",
+            "satisfaction"
+          ],
+          "keywords": [
+            "recommend",
+            "nps",
+            "team"
+          ],
+          "emoji": "\ud83d\udcc8"
+        },
+        {
+          "id": "workflow_frequency",
+          "prompt": "How often would this questionnaire run in your workflow?",
+          "type": "single_choice",
+          "options": [
+            "One-time intake",
+            "Weekly check-in",
+            "Monthly review",
+            "Event-based follow-up"
+          ],
+          "topic_tags": [
+            "workflow",
+            "frequency"
+          ],
+          "keywords": [
+            "how often",
+            "cadence",
+            "usage"
+          ],
+          "audience_tags": [
+            "team_member",
+            "researcher"
+          ],
+          "emoji": "\ud83d\udd18"
+        },
+        {
+          "id": "weekly_usage",
+          "prompt": "About how many responses would this team collect in a typical week?",
+          "type": "number",
+          "placeholder": "25",
+          "topic_tags": [
+            "volume",
+            "usage"
+          ],
+          "keywords": [
+            "responses",
+            "weekly",
+            "count"
+          ],
+          "audience_tags": [
+            "team_member",
+            "researcher"
+          ],
+          "emoji": "\ud83d\udd22"
+        },
+        {
+          "id": "topic_ratings",
+          "prompt": "Rate each area of the questionnaire.",
+          "description": "This is a matrix / Likert-style question with one answer per row.",
+          "type": "matrix",
+          "required": true,
+          "rows": [
+            "Instructions were clear",
+            "Navigation felt predictable",
+            "The visual hierarchy made sense"
+          ],
+          "options": [
+            "Strongly disagree",
+            "Disagree",
+            "Neutral",
+            "Agree",
+            "Strongly agree"
+          ],
+          "view_template": "matrix",
+          "topic_tags": [
+            "clarity",
+            "visual hierarchy",
+            "navigation"
+          ],
+          "keywords": [
+            "rate",
+            "likert",
+            "instructions"
+          ],
+          "emoji": "\ud83d\udcca"
+        },
+        {
+          "id": "improvement_rank",
+          "prompt": "Rank the areas you would improve first.",
+          "description": "Move the most urgent follow-up to the top.",
+          "type": "ranked_choice",
+          "options": [
+            "Navigation",
+            "Question wording",
+            "Visual hierarchy",
+            "Export clarity"
+          ],
+          "view_template": "ranked_choice",
+          "topic_tags": [
+            "prioritization",
+            "improvements"
+          ],
+          "keywords": [
+            "rank",
+            "improve",
+            "priority"
+          ],
+          "audience_tags": [
+            "playtester",
+            "team_member",
+            "researcher"
+          ],
+          "emoji": "\ud83c\udfc1"
+        },
+        {
+          "id": "pain_points",
+          "prompt": "What would you change first?",
+          "type": "long_text",
+          "placeholder": "Call out friction points, missing states, or extra data you would want to collect.",
+          "topic_tags": [
+            "pain points",
+            "feedback"
+          ],
+          "keywords": [
+            "change",
+            "friction",
+            "issues"
+          ],
+          "audience_tags": [
+            "participant",
+            "playtester",
+            "team_member",
+            "researcher"
+          ],
+          "emoji": "\ud83d\udcdd"
+        }
+      ],
+      "emoji": "\ud83e\udded"
+    },
+    {
+      "id": "closeout",
+      "title": "Closeout",
+      "description": "Consent and wrap-up questions before export.",
+      "icon": "closeout",
+      "header_template": "spotlight",
+      "questions": [
+        {
+          "id": "recommendation",
+          "prompt": "Would you use this survey shell for a real questionnaire?",
+          "type": "boolean",
+          "required": true,
+          "rating": {
+            "enabled": true,
+            "label": "Real-world fit"
+          },
+          "topic_tags": [
+            "adoption",
+            "fit"
+          ],
+          "keywords": [
+            "use",
+            "real survey",
+            "adopt"
+          ],
+          "emoji": "\u2705"
+        },
+        {
+          "id": "best_fit_team",
+          "prompt": "Which team would benefit most from this tool first?",
+          "type": "dropdown",
+          "options": [
+            "Research",
+            "Design",
+            "Production",
+            "Support"
+          ],
+          "topic_tags": [
+            "team fit",
+            "rollout"
+          ],
+          "keywords": [
+            "benefit",
+            "team",
+            "first rollout"
+          ],
+          "audience_tags": [
+            "team_member",
+            "researcher"
+          ],
+          "emoji": "\ud83d\udcc2"
+        },
+        {
+          "id": "follow_up_notes",
+          "prompt": "Any final notes for the designer?",
+          "type": "long_text",
+          "placeholder": "Write a final summary or leave this blank.",
+          "topic_tags": [
+            "final notes",
+            "wrap up"
+          ],
+          "keywords": [
+            "summary",
+            "notes",
+            "designer"
+          ],
+          "emoji": "\ud83d\udcdd"
+        }
+      ],
+      "emoji": "\ud83c\udfc1"
+    }
+  ],
+  "guided_presets": [
+    {
+      "id": "participant_flow_review",
+      "label": "Participant Flow Review",
+      "description": "Jump into clarity, navigation, and first-hand friction as a respondent.",
+      "audience_id": "participant",
+      "topic_tags": [
+        "usability",
+        "navigation",
+        "clarity"
+      ]
+    },
+    {
+      "id": "playtest_friction_pass",
+      "label": "Playtest Friction Pass",
+      "description": "Prioritize rough edges, ranking, and flow issues from hands-on use.",
+      "audience_id": "playtester",
+      "topic_tags": [
+        "improvements",
+        "navigation",
+        "pain points"
+      ]
+    },
+    {
+      "id": "team_rollout_review",
+      "label": "Team Rollout Review",
+      "description": "Focus on workflow fit, weekly volume, and rollout readiness.",
+      "audience_id": "team_member",
+      "topic_tags": [
+        "workflow",
+        "volume",
+        "team fit"
+      ]
+    },
+    {
+      "id": "research_quality_review",
+      "label": "Research Quality Review",
+      "description": "Look at insight quality, prioritization, and final synthesis.",
+      "audience_id": "researcher",
+      "topic_tags": [
+        "clarity",
+        "prioritization",
+        "final notes"
+      ]
+    }
+  ],
+  "faq_items": [
+    {
+      "id": "random_mode_probability",
+      "question": "How does Random Mode calculate the odds?",
+      "answer": "Random Mode samples uniformly from the eligible question pool. There are {eligible_question_count} eligible questions across {eligible_section_count} section(s) in {whitelist_summary}, so each question currently has {per_question_fraction} = {per_question_probability} chance per spin. {section_probability_breakdown}"
+    },
+    {
+      "id": "guided_match_scope",
+      "question": "What does Guided Match actually filter by?",
+      "answer": "Guided Match uses the audience profile plus the selected topic tags to score related questions. It does not remove answers you have already given or rewrite the survey template."
+    }
+  ],
+  "format": "survey_template",
+  "version": 2
+}
+

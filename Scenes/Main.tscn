@@ -1,0 +1,134 @@
+[gd_scene format=3 uid="uid://ba0im3kf6myuw"]
+
+[ext_resource type="Script" uid="uid://rfmt8gb4ngn6" path="res://Scripts/UI/SurveyApp.gd" id="1"]
+[ext_resource type="PackedScene" path="res://Scenes/UI/SectionOutlinePanel.tscn" id="2"]
+[ext_resource type="PackedScene" path="res://Scenes/UI/OverlayMenu.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://Scenes/UI/SurveySearchOverlay.tscn" id="4"]
+[ext_resource type="PackedScene" path="res://Scenes/UI/SurveyOnboardingOverlay.tscn" id="5"]
+[ext_resource type="PackedScene" path="res://Scenes/UI/SurveySettingsOverlay.tscn" id="6"]
+[ext_resource type="PackedScene" path="res://Scenes/UI/SurveySummaryOverlay.tscn" id="7"]
+
+[node name="SurveyApp" type="Control" unique_id=433136951]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+use_saved_dev_data = false
+
+[node name="Background" type="ColorRect" parent="." unique_id=730983087]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Margin" type="MarginContainer" parent="." unique_id=1020147814]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 28
+
+[node name="Shell" type="HBoxContainer" parent="Margin" unique_id=1179552813]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="OutlinePanel" parent="Margin/Shell" unique_id=2027670480 instance=ExtResource("2")]
+layout_mode = 2
+
+[node name="MainColumn" type="VBoxContainer" parent="Margin/Shell" unique_id=264068250]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 18
+
+[node name="ContentCard" type="PanelContainer" parent="Margin/Shell/MainColumn" unique_id=1157448256]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="ContentStack" type="VBoxContainer" parent="Margin/Shell/MainColumn/ContentCard" unique_id=56113260]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="SectionTitleLabel" type="Label" parent="Margin/Shell/MainColumn/ContentCard/ContentStack" unique_id=109158568]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="SectionDescriptionLabel" type="Label" parent="Margin/Shell/MainColumn/ContentCard/ContentStack" unique_id=2022479889]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="SectionHeaderHost" type="VBoxContainer" parent="Margin/Shell/MainColumn/ContentCard/ContentStack" unique_id=1066555963]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="FilterRow" type="HBoxContainer" parent="Margin/Shell/MainColumn/ContentCard/ContentStack" unique_id=588388077]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="FilterField" type="LineEdit" parent="Margin/Shell/MainColumn/ContentCard/ContentStack/FilterRow" unique_id=417157910]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Filter questions, sections, or answer options"
+clear_button_enabled = true
+
+[node name="ClearFilterButton" type="Button" parent="Margin/Shell/MainColumn/ContentCard/ContentStack/FilterRow" unique_id=1186672981]
+layout_mode = 2
+disabled = true
+text = "Clear"
+
+[node name="FilterStatusLabel" type="Label" parent="Margin/Shell/MainColumn/ContentCard/ContentStack" unique_id=1761663158]
+layout_mode = 2
+text = "Filter questions by keyword, section, or answer option."
+autowrap_mode = 3
+
+[node name="QuestionScroll" type="ScrollContainer" parent="Margin/Shell/MainColumn/ContentCard/ContentStack" unique_id=44587380]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="QuestionStack" type="VBoxContainer" parent="Margin/Shell/MainColumn/ContentCard/ContentStack/QuestionScroll" unique_id=1394745833]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 14
+
+[node name="StatusLabel" type="Label" parent="Margin/Shell/MainColumn/ContentCard/ContentStack" unique_id=951458973]
+visible = false
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="NavRow" type="HBoxContainer" parent="Margin/Shell/MainColumn" unique_id=1360210777]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="PreviousButton" type="Button" parent="Margin/Shell/MainColumn/NavRow" unique_id=419249170]
+layout_mode = 2
+text = "Previous Section"
+
+[node name="NavSpacer" type="Control" parent="Margin/Shell/MainColumn/NavRow" unique_id=1527274694]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="NextButton" type="Button" parent="Margin/Shell/MainColumn/NavRow" unique_id=1266800890]
+layout_mode = 2
+text = "Next Section"
+
+[node name="SearchOverlay" parent="." unique_id=875113150 instance=ExtResource("4")]
+
+[node name="OnboardingOverlay" parent="." unique_id=1239743082 instance=ExtResource("5")]
+
+[node name="SettingsOverlay" parent="." unique_id=1891704512 instance=ExtResource("6")]
+
+[node name="SummaryOverlay" parent="." unique_id=1185172037 instance=ExtResource("7")]
+
+[node name="OverlayMenu" parent="." unique_id=1717271867 instance=ExtResource("3")]
