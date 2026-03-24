@@ -90,7 +90,10 @@ var _random_section_whitelist: Array[int] = []
 var _random_spin_token := 0
 var _random_is_spinning := false
 var _random_faq_revealed := false
+var _random_reserved_content_height := 0.0
 var _result_cache: Array[Dictionary] = []
+var _allow_template_import := true
+var _allow_template_folder_open := true
 @export_range(0.2, 2.0, 0.05) var random_spin_duration := 0.5
 
 func _ready() -> void:
@@ -119,6 +122,7 @@ func _ready() -> void:
 
 	for button in [_close_button, _import_template_button, _template_folder_button, _template_continue_button, _explore_button, _search_mode_button, _topics_button, _guided_button, _random_button, _continue_button, _search_button, _random_pick_button, _random_faq_button]:
 		_wire_feedback(button)
+	_apply_external_template_action_state()
 
 func refresh_theme() -> void:
 	_dimmer.color = SurveyStyle.OVERLAY_DIMMER
@@ -175,6 +179,7 @@ func refresh_layout(viewport_size: Vector2) -> void:
 
 func open_onboarding(survey_definition: SurveyDefinition, preferred_topic_tag: String = "", preferred_audience_id: String = "", current_template_path: String = "", available_templates: Array[Dictionary] = []) -> void:
 	_cancel_random_spin()
+	_release_random_content_height_lock()
 	_survey = survey_definition
 	_topic_tags = []
 	_audience_profiles = []
@@ -210,6 +215,7 @@ func open_onboarding(survey_definition: SurveyDefinition, preferred_topic_tag: S
 
 func close_onboarding() -> void:
 	_cancel_random_spin()
+	_release_random_content_height_lock()
 	_random_faq_revealed = false
 	hide()
 
@@ -229,6 +235,19 @@ func current_audience_id() -> String:
 	if _current_mode == MODE_GUIDED:
 		return _selected_audience_id
 	return ""
+
+func set_external_template_actions_enabled(allow_import: bool, allow_folder_open: bool) -> void:
+	_allow_template_import = allow_import
+	_allow_template_folder_open = allow_folder_open
+	_apply_external_template_action_state()
+
+func _apply_external_template_action_state() -> void:
+	if not is_node_ready():
+		return
+	_import_template_button.disabled = not _allow_template_import
+	_template_folder_button.disabled = not _allow_template_folder_open
+	_import_template_button.tooltip_text = "" if _allow_template_import else "Browser builds use the bundled templates in this project."
+	_template_folder_button.tooltip_text = "" if _allow_template_folder_open else "Browser builds cannot open a local template folder."
 
 func _default_mode() -> String:
 	if not _selected_audience_id.is_empty() or not _selected_guided_topic_tags.is_empty() or not _selected_preset_id.is_empty():
@@ -401,6 +420,7 @@ func _refresh_dynamic_content() -> void:
 		return
 	if _current_mode != MODE_RANDOM:
 		_cancel_random_spin()
+		_release_random_content_height_lock()
 	_mode_description_label.visible = true
 	match _current_mode:
 		MODE_EXPLORE:
@@ -465,6 +485,8 @@ func _refresh_dynamic_content() -> void:
 			_rebuild_random_section_buttons(_random_section_flow)
 			_refresh_random_mode()
 	_refresh_mode_buttons()
+	if _current_mode == MODE_RANDOM:
+		call_deferred("_capture_random_content_height_lock")
 
 func _rebuild_topic_buttons(flow: FlowContainer, include_any_option: bool) -> void:
 	_clear_children(flow)
@@ -989,6 +1011,26 @@ func _cancel_random_spin() -> void:
 		_random_pick_button.disabled = false
 		_random_faq_label.visible = _random_faq_revealed and _current_mode == MODE_RANDOM
 
+func _capture_random_content_height_lock() -> void:
+	if not is_node_ready() or _content_panel == null or _current_mode != MODE_RANDOM:
+		return
+	var preserved_scroll_vertical: int = _panel_scroll.scroll_vertical if _panel_scroll != null else 0
+	var reserved_height: float = maxf(_content_panel.size.y, _content_panel.get_combined_minimum_size().y)
+	if reserved_height <= 0.0:
+		return
+	_random_reserved_content_height = maxf(_random_reserved_content_height, reserved_height)
+	_content_panel.custom_minimum_size.y = maxf(_content_panel.custom_minimum_size.y, _random_reserved_content_height)
+	_content_panel.update_minimum_size()
+	if _panel_scroll != null:
+		_panel_scroll.scroll_vertical = preserved_scroll_vertical
+
+func _release_random_content_height_lock() -> void:
+	if _content_panel == null:
+		return
+	_random_reserved_content_height = 0.0
+	_content_panel.custom_minimum_size.y = 0.0
+	_content_panel.update_minimum_size()
+
 func _on_dimmer_gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		var mouse_event: InputEventMouseButton = event as InputEventMouseButton
@@ -1122,6 +1164,7 @@ func _on_random_pick_pressed() -> void:
 		_result_cache.clear()
 		_refresh_random_mode()
 		return
+	_capture_random_content_height_lock()
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.randomize()
 	_random_is_spinning = true
@@ -1150,6 +1193,7 @@ func _on_random_pick_pressed() -> void:
 	_result_cache.append(picked_result)
 	_random_spin_label.text = "Gamble pick: %s" % str(picked_result.get("title", "Question"))
 	_refresh_random_mode()
+	call_deferred("_capture_random_content_height_lock")
 	SURVEY_UI_FEEDBACK.play_select()
 	SURVEY_UI_FEEDBACK.pulse(_random_spin_label, 0.05, 0.18)
 
@@ -1189,6 +1233,7 @@ func _on_random_faq_entered() -> void:
 	_random_faq_revealed = true
 	if _current_mode == MODE_RANDOM:
 		_random_faq_label.visible = true
+		call_deferred("_capture_random_content_height_lock")
 
 func _on_random_faq_exited() -> void:
 	_random_faq_revealed = false
@@ -1210,5 +1255,8 @@ func _on_result_selected(section_index: int, question_id: String, row: Control) 
 	if row != null:
 		SURVEY_UI_FEEDBACK.pulse(row, 0.04, 0.18)
 	navigate_requested.emit(section_index, question_id)
+
+
+
 
 

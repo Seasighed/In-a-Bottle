@@ -330,6 +330,10 @@
           "prompt": "Would you use this survey shell for a real questionnaire?",
           "type": "boolean",
           "required": true,
+          "options": [
+            "Yes",
+            "No"
+          ],
           "rating": {
             "enabled": true,
             "label": "Real-world fit"

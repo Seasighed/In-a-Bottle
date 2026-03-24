@@ -1,0 +1,209 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://Scripts/UI/SurveyExportOverlay.gd" id="1"]
+
+[node name="SurveyExportOverlay" type="CanvasLayer"]
+visible = false
+script = ExtResource("1")
+
+[node name="Dimmer" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+color = Color(0, 0, 0, 0.72)
+
+[node name="Bounds" type="MarginContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 24
+
+[node name="Center" type="CenterContainer" parent="Bounds"]
+layout_mode = 2
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="Bounds/Center"]
+custom_minimum_size = Vector2(820, 0)
+
+[node name="PanelScroll" type="ScrollContainer" parent="Bounds/Center/Panel"]
+custom_minimum_size = Vector2(0, 700)
+layout_mode = 2
+horizontal_scroll_mode = 0
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="Stack" type="VBoxContainer" parent="Bounds/Center/Panel/PanelScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 14
+
+[node name="HeadingRow" type="HBoxContainer" parent="Bounds/Center/Panel/PanelScroll/Stack"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="HeadingLabel" type="Label" parent="Bounds/Center/Panel/PanelScroll/Stack/HeadingRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Export Menu"
+
+[node name="CloseButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/HeadingRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(44, 44)
+text = "X"
+
+[node name="SummaryLabel" type="Label" parent="Bounds/Center/Panel/PanelScroll/Stack"]
+layout_mode = 2
+autowrap_mode = 3
+text = "Save progress, export answers, or upload a sanitized submission."
+
+[node name="LocalHeadingLabel" type="Label" parent="Bounds/Center/Panel/PanelScroll/Stack"]
+layout_mode = 2
+text = "Progress"
+
+[node name="LocalSummaryLabel" type="Label" parent="Bounds/Center/Panel/PanelScroll/Stack"]
+layout_mode = 2
+autowrap_mode = 3
+text = "Save or load the full progress bundle."
+
+[node name="LocalActions" type="GridContainer" parent="Bounds/Center/Panel/PanelScroll/Stack"]
+layout_mode = 2
+columns = 2
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 10
+
+[node name="SaveProgressButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/LocalActions"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Save Progress JSON"
+
+[node name="LoadProgressButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/LocalActions"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Load Progress JSON"
+
+[node name="AnswerHeadingLabel" type="Label" parent="Bounds/Center/Panel/PanelScroll/Stack"]
+layout_mode = 2
+text = "Answer Exports"
+
+[node name="AnswerSummaryLabel" type="Label" parent="Bounds/Center/Panel/PanelScroll/Stack"]
+layout_mode = 2
+autowrap_mode = 3
+text = "Copy or save answer-only exports."
+
+[node name="AnswerActions" type="GridContainer" parent="Bounds/Center/Panel/PanelScroll/Stack"]
+layout_mode = 2
+columns = 2
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 10
+
+[node name="CopyJsonButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/AnswerActions"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Copy JSON"
+
+[node name="SaveJsonButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/AnswerActions"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Save JSON"
+
+[node name="CopyCsvButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/AnswerActions"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Copy CSV"
+
+[node name="SaveCsvButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/AnswerActions"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Save CSV"
+
+[node name="UploadHeadingLabel" type="Label" parent="Bounds/Center/Panel/PanelScroll/Stack"]
+layout_mode = 2
+text = "Upload To Server"
+
+[node name="UploadSummaryLabel" type="Label" parent="Bounds/Center/Panel/PanelScroll/Stack"]
+layout_mode = 2
+autowrap_mode = 3
+text = "Review the disclosure below before submitting answers to the configured server endpoint."
+
+[node name="UploadNoticePanel" type="PanelContainer" parent="Bounds/Center/Panel/PanelScroll/Stack"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="NoticeStack" type="VBoxContainer" parent="Bounds/Center/Panel/PanelScroll/Stack/UploadNoticePanel"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="UploadUseLabel" type="Label" parent="Bounds/Center/Panel/PanelScroll/Stack/UploadNoticePanel/NoticeStack"]
+layout_mode = 2
+autowrap_mode = 3
+text = "Used for:"
+
+[node name="UploadDestinationLabel" type="Label" parent="Bounds/Center/Panel/PanelScroll/Stack/UploadNoticePanel/NoticeStack"]
+layout_mode = 2
+autowrap_mode = 3
+text = "Uploaded to:"
+
+[node name="UploadReasonLabel" type="Label" parent="Bounds/Center/Panel/PanelScroll/Stack/UploadNoticePanel/NoticeStack"]
+layout_mode = 2
+autowrap_mode = 3
+text = "Why:"
+
+[node name="UploadMetadataLabel" type="Label" parent="Bounds/Center/Panel/PanelScroll/Stack/UploadNoticePanel/NoticeStack"]
+layout_mode = 2
+autowrap_mode = 3
+text = "Spam protection metadata includes an anonymous install ID and payload hash."
+
+[node name="UploadConsentCheckBox" type="CheckBox" parent="Bounds/Center/Panel/PanelScroll/Stack"]
+layout_mode = 2
+text = "I have read this notice and consent to sending my survey data to the configured server."
+
+[node name="UploadConsentLabel" type="Label" parent="Bounds/Center/Panel/PanelScroll/Stack"]
+layout_mode = 2
+autowrap_mode = 3
+text = "Only submit when you understand what is being sent, where it is going, and why it is being collected."
+
+[node name="UploadGateLabel" type="Label" parent="Bounds/Center/Panel/PanelScroll/Stack"]
+layout_mode = 2
+autowrap_mode = 3
+text = "Review the notice, confirm consent, then submit."
+
+[node name="UploadSubmitButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Submit To Server"
+
+[node name="ResponseHeadingLabel" type="Label" parent="Bounds/Center/Panel/PanelScroll/Stack"]
+layout_mode = 2
+text = "Server Response"
+
+[node name="ResponseStatusLabel" type="Label" parent="Bounds/Center/Panel/PanelScroll/Stack"]
+layout_mode = 2
+autowrap_mode = 3
+text = "Ready when you are."
+
+[node name="ResponseActions" type="HBoxContainer" parent="Bounds/Center/Panel/PanelScroll/Stack"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="CopyResponseButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/ResponseActions"]
+layout_mode = 2
+text = "Copy Response"
+
+[node name="ResponseTextEdit" type="TextEdit" parent="Bounds/Center/Panel/PanelScroll/Stack"]
+custom_minimum_size = Vector2(0, 180)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+wrap_mode = 1

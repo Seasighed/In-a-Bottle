@@ -16,7 +16,23 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1")
+survey_template_path = null
+dark_palette = null
+light_palette = null
+use_dark_mode = null
+base_content_size = null
+launch_fullscreen = null
 use_saved_dev_data = false
+sfx_volume = null
+upload_endpoint_url = null
+upload_destination_name = null
+upload_usage_summary = null
+upload_reason_summary = null
+require_upload_consent = null
+minimum_answered_questions_for_upload = null
+upload_cooldown_seconds = null
+upload_max_attempts_per_window = null
+upload_attempt_window_seconds = null
 
 [node name="Background" type="ColorRect" parent="." unique_id=730983087]
 layout_mode = 1

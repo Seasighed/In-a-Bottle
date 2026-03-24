@@ -22,6 +22,8 @@ signal adjective_text_changed(text: String)
 
 var _summary_data: Dictionary = {}
 var _adjective_text := ""
+var _copy_png_enabled := true
+var _save_png_label := "Save PNG"
 
 func _ready() -> void:
 	layer = 56
@@ -53,6 +55,11 @@ func update_summary(summary_data: Dictionary, adjective_text: String = "") -> vo
 func close_summary() -> void:
 	hide()
 
+func set_png_action_capabilities(copy_enabled: bool, save_label: String = "Save PNG") -> void:
+	_copy_png_enabled = copy_enabled
+	_save_png_label = save_label.strip_edges()
+	_apply_png_action_state()
+
 func current_adjective_text() -> String:
 	return _summary_card.current_adjective_text() if is_node_ready() else _adjective_text
 
@@ -65,6 +72,7 @@ func refresh_theme() -> void:
 	_close_button.custom_minimum_size = Vector2(44, 44)
 	SurveyStyle.apply_primary_button(_copy_png_button)
 	SurveyStyle.apply_secondary_button(_save_png_button)
+	_apply_png_action_state()
 	_summary_card.refresh_theme()
 
 func refresh_layout(viewport_size: Vector2) -> void:
@@ -80,6 +88,13 @@ func refresh_layout(viewport_size: Vector2) -> void:
 	_panel.custom_minimum_size = Vector2(panel_width, 0.0)
 	_panel_scroll.custom_minimum_size = Vector2(0.0, panel_height)
 	_panel_scroll.scroll_horizontal = 0
+
+func _apply_png_action_state() -> void:
+	if not is_node_ready():
+		return
+	_copy_png_button.disabled = not _copy_png_enabled
+	_copy_png_button.tooltip_text = "" if _copy_png_enabled else "PNG clipboard copy is only available in the desktop Windows build."
+	_save_png_button.text = _save_png_label if not _save_png_label.is_empty() else "Save PNG"
 
 func capture_summary_image() -> Image:
 	if _summary_data.is_empty():
@@ -149,5 +164,6 @@ func _on_save_png_pressed() -> void:
 func _on_summary_card_adjective_text_changed(text: String) -> void:
 	_adjective_text = text.strip_edges()
 	adjective_text_changed.emit(_adjective_text)
+
 
 

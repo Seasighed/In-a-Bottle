@@ -102,50 +102,10 @@ layout_mode = 2
 size_flags_horizontal = 3
 text = "Opinion Summary"
 
-[node name="SessionHeadingLabel" type="Label" parent="Bounds/Center/Panel/PanelScroll/Stack"]
-layout_mode = 2
-text = "Session"
-
-[node name="SessionActions" type="GridContainer" parent="Bounds/Center/Panel/PanelScroll/Stack"]
-layout_mode = 2
-columns = 2
-theme_override_constants/h_separation = 10
-theme_override_constants/v_separation = 10
-
-[node name="SaveProgressButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/SessionActions"]
+[node name="ExportButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/NavigationActions"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Save Progress JSON"
-
-[node name="LoadProgressButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/SessionActions"]
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Load Progress JSON"
-
-[node name="ExportHeadingLabel" type="Label" parent="Bounds/Center/Panel/PanelScroll/Stack"]
-layout_mode = 2
-text = "Export Answers"
-
-[node name="ExportActions" type="FlowContainer" parent="Bounds/Center/Panel/PanelScroll/Stack"]
-layout_mode = 2
-theme_override_constants/h_separation = 10
-theme_override_constants/v_separation = 10
-
-[node name="CopyJsonButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/ExportActions"]
-layout_mode = 2
-text = "Copy JSON"
-
-[node name="SaveJsonButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/ExportActions"]
-layout_mode = 2
-text = "Save JSON"
-
-[node name="CopyCsvButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/ExportActions"]
-layout_mode = 2
-text = "Copy CSV"
-
-[node name="SaveCsvButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/ExportActions"]
-layout_mode = 2
-text = "Save CSV"
+text = "Open Export Menu"
 
 [node name="ThemeToggleButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack"]
 layout_mode = 2
@@ -194,6 +154,3 @@ size_flags_vertical = 3
 [node name="SectionList" type="VBoxContainer" parent="Bounds/Center/Panel/PanelScroll/Stack/SectionScroll"]
 layout_mode = 2
 theme_override_constants/separation = 8
-
-
-

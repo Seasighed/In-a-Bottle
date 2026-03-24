@@ -13,12 +13,7 @@ signal onboarding_requested
 signal template_picker_requested
 signal settings_requested
 signal summary_requested
-signal save_progress_requested
-signal load_progress_requested
-signal copy_json_requested
-signal save_json_requested
-signal copy_csv_requested
-signal save_csv_requested
+signal export_requested
 signal theme_mode_requested(use_dark_mode: bool)
 signal sfx_volume_requested(volume: float)
 signal fill_test_answers_requested
@@ -36,14 +31,7 @@ signal fill_test_answers_requested
 @onready var _template_picker_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/NavigationActions/TemplatePickerButton
 @onready var _settings_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/NavigationActions/SettingsButton
 @onready var _summary_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/NavigationActions/SummaryButton
-@onready var _session_heading_label: Label = $Bounds/Center/Panel/PanelScroll/Stack/SessionHeadingLabel
-@onready var _save_progress_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/SessionActions/SaveProgressButton
-@onready var _load_progress_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/SessionActions/LoadProgressButton
-@onready var _export_heading_label: Label = $Bounds/Center/Panel/PanelScroll/Stack/ExportHeadingLabel
-@onready var _copy_json_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/ExportActions/CopyJsonButton
-@onready var _save_json_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/ExportActions/SaveJsonButton
-@onready var _copy_csv_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/ExportActions/CopyCsvButton
-@onready var _save_csv_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/ExportActions/SaveCsvButton
+@onready var _export_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/NavigationActions/ExportButton
 @onready var _theme_toggle_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/ThemeToggleButton
 @onready var _sfx_heading_label: Label = $Bounds/Center/Panel/PanelScroll/Stack/SfxHeadingLabel
 @onready var _sfx_volume_label: Label = $Bounds/Center/Panel/PanelScroll/Stack/SfxRow/SfxVolumeLabel
@@ -76,17 +64,12 @@ func _ready() -> void:
 	_template_picker_button.pressed.connect(_on_template_picker_pressed)
 	_settings_button.pressed.connect(_on_settings_pressed)
 	_summary_button.pressed.connect(_on_summary_pressed)
-	_save_progress_button.pressed.connect(_on_save_progress_pressed)
-	_load_progress_button.pressed.connect(_on_load_progress_pressed)
-	_copy_json_button.pressed.connect(_on_copy_json_pressed)
-	_save_json_button.pressed.connect(_on_save_json_pressed)
-	_copy_csv_button.pressed.connect(_on_copy_csv_pressed)
-	_save_csv_button.pressed.connect(_on_save_csv_pressed)
+	_export_button.pressed.connect(_on_export_pressed)
 	_theme_toggle_button.toggled.connect(_on_theme_toggle_toggled)
 	_sfx_volume_slider.value_changed.connect(_on_sfx_volume_slider_value_changed)
 	_fill_test_answers_button.pressed.connect(_on_fill_test_answers_pressed)
 
-	for button in [_close_button, _restart_button, _search_button, _onboarding_button, _template_picker_button, _settings_button, _summary_button, _save_progress_button, _load_progress_button, _copy_json_button, _save_json_button, _copy_csv_button, _save_csv_button, _theme_toggle_button, _fill_test_answers_button]:
+	for button in [_close_button, _restart_button, _search_button, _onboarding_button, _template_picker_button, _settings_button, _summary_button, _export_button, _theme_toggle_button, _fill_test_answers_button]:
 		_wire_feedback(button)
 
 func refresh_theme() -> void:
@@ -94,8 +77,6 @@ func refresh_theme() -> void:
 	SurveyStyle.apply_panel(_panel, SurveyStyle.SURFACE, SurveyStyle.BORDER, 26, 1)
 	SurveyStyle.style_heading(_heading_label, 24)
 	SurveyStyle.style_body(_position_label)
-	SurveyStyle.style_heading(_session_heading_label, 18)
-	SurveyStyle.style_heading(_export_heading_label, 18)
 	SurveyStyle.style_heading(_sfx_heading_label, 18)
 	SurveyStyle.style_body(_sfx_volume_label)
 	SurveyStyle.style_caption(_sfx_value_label, SurveyStyle.SOFT_WHITE)
@@ -108,16 +89,7 @@ func refresh_theme() -> void:
 	SurveyStyle.apply_secondary_button(_template_picker_button)
 	SurveyStyle.apply_secondary_button(_settings_button)
 	SurveyStyle.apply_secondary_button(_summary_button)
-	SurveyStyle.apply_primary_button(_save_progress_button)
-	SurveyStyle.apply_secondary_button(_load_progress_button)
-	SurveyStyle.apply_secondary_button(_copy_json_button)
-	_apply_compact_button_treatment(_copy_json_button)
-	SurveyStyle.apply_secondary_button(_save_json_button)
-	_apply_compact_button_treatment(_save_json_button)
-	SurveyStyle.apply_secondary_button(_copy_csv_button)
-	_apply_compact_button_treatment(_copy_csv_button)
-	SurveyStyle.apply_secondary_button(_save_csv_button)
-	_apply_compact_button_treatment(_save_csv_button)
+	SurveyStyle.apply_primary_button(_export_button)
 	_theme_toggle_button.set_pressed_no_signal(SurveyStyle.is_dark_mode())
 	_refresh_theme_toggle_button()
 	SurveyStyle.apply_secondary_button(_fill_test_answers_button)
@@ -304,26 +276,11 @@ func _on_settings_pressed() -> void:
 func _on_summary_pressed() -> void:
 	summary_requested.emit()
 
-func _on_save_progress_pressed() -> void:
-	save_progress_requested.emit()
-
-func _on_load_progress_pressed() -> void:
-	load_progress_requested.emit()
+func _on_export_pressed() -> void:
+	export_requested.emit()
 
 func _on_clear_section_pressed(section_index: int) -> void:
 	clear_section_requested.emit(section_index)
-
-func _on_copy_json_pressed() -> void:
-	copy_json_requested.emit()
-
-func _on_save_json_pressed() -> void:
-	save_json_requested.emit()
-
-func _on_copy_csv_pressed() -> void:
-	copy_csv_requested.emit()
-
-func _on_save_csv_pressed() -> void:
-	save_csv_requested.emit()
 
 func _on_theme_toggle_toggled(button_pressed: bool) -> void:
 	_refresh_theme_toggle_button()
@@ -339,8 +296,3 @@ func _on_fill_test_answers_pressed() -> void:
 
 func _on_section_pressed(section_index: int) -> void:
 	jump_to_section_requested.emit(section_index)
-
-
-
-
-

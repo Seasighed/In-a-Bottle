@@ -10,8 +10,11 @@ const SURVEY_SESSION_CACHE = preload("res://Scripts/Survey/SurveySessionCache.gd
 const SURVEY_PREFERENCES_STORE = preload("res://Scripts/Survey/SurveyPreferencesStore.gd")
 const SURVEY_SAVE_BUNDLE = preload("res://Scripts/Survey/SurveySaveBundle.gd")
 const SURVEY_SUMMARY_ANALYZER = preload("res://Scripts/Survey/SurveySummaryAnalyzer.gd")
+const SURVEY_SUBMISSION_BUNDLE = preload("res://Scripts/Survey/SurveySubmissionBundle.gd")
+const SURVEY_UPLOAD_AUDIT_STORE = preload("res://Scripts/Survey/SurveyUploadAuditStore.gd")
 const SURVEY_SETTINGS_OVERLAY_SCENE: PackedScene = preload("res://Scenes/UI/SurveySettingsOverlay.tscn")
 const SURVEY_SUMMARY_OVERLAY_SCENE: PackedScene = preload("res://Scenes/UI/SurveySummaryOverlay.tscn")
+const SURVEY_EXPORT_OVERLAY_SCENE: PackedScene = preload("res://Scenes/UI/SurveyExportOverlay.tscn")
 const DEFAULT_DARK_PALETTE = preload("res://Themes/SurveyDarkPalette.tres")
 const DEFAULT_LIGHT_PALETTE = preload("res://Themes/SurveyLightPalette.tres")
 const SPRITE_ICON_HOST = preload("res://Scripts/UI/SpriteIconHost.gd")
@@ -30,6 +33,16 @@ const TEMPLATE_SELECTION_STORE_PATH := "user://selected_survey_template.json"
 @export var launch_fullscreen := true
 @export var use_saved_dev_data := true
 @export_range(0.0, 1.0, 0.01) var sfx_volume := 0.35
+@export var upload_endpoint_url := ""
+@export var upload_destination_name := "Configured upload endpoint"
+@export_multiline var upload_usage_summary := "Submitted answers are used to preserve legitimate survey responses and support aggregate review."
+@export_multiline var upload_reason_summary := "Uploads help move completed answers into a Supabase-backed collection flow for analysis and follow-up."
+@export var upload_request_headers: PackedStringArray = PackedStringArray()
+@export var require_upload_consent := true
+@export_range(0, 100, 1) var minimum_answered_questions_for_upload := 3
+@export_range(0, 3600, 1) var upload_cooldown_seconds := 45
+@export_range(1, 100, 1) var upload_max_attempts_per_window := 6
+@export_range(60, 86400, 1) var upload_attempt_window_seconds := 3600
 
 var survey: SurveyDefinition
 var answers: Dictionary = {}
@@ -67,6 +80,12 @@ var _hover_sfx_enabled := false
 var _startup_onboarding_gate_active := false
 var _loaded_global_preferences: Dictionary = {}
 var _summary_adjective_text := ""
+var _upload_request: HTTPRequest
+var _upload_in_progress := false
+var _pending_upload_payload_hash := ""
+var _last_upload_response_text := ""
+var _last_upload_status_text := ""
+var _last_upload_status_is_error := false
 
 @onready var _background: ColorRect = $Background
 @onready var _margin: MarginContainer = $Margin
@@ -92,14 +111,17 @@ var _summary_adjective_text := ""
 @onready var _onboarding_overlay = $OnboardingOverlay
 @onready var _settings_overlay = get_node_or_null("SettingsOverlay")
 @onready var _summary_overlay = get_node_or_null("SummaryOverlay")
+@onready var _export_overlay = get_node_or_null("ExportOverlay")
 @onready var _overlay_menu: OverlayMenu = $OverlayMenu
 
 func _ensure_optional_ui_nodes() -> void:
 	_ensure_filter_ui_nodes()
 	_ensure_overlay_node("SettingsOverlay", SURVEY_SETTINGS_OVERLAY_SCENE)
 	_ensure_overlay_node("SummaryOverlay", SURVEY_SUMMARY_OVERLAY_SCENE)
+	_ensure_overlay_node("ExportOverlay", SURVEY_EXPORT_OVERLAY_SCENE)
 	_settings_overlay = get_node_or_null("SettingsOverlay")
 	_summary_overlay = get_node_or_null("SummaryOverlay")
+	_export_overlay = get_node_or_null("ExportOverlay")
 
 func _ensure_overlay_node(node_name: String, scene_resource: PackedScene) -> void:
 	if get_node_or_null(node_name) != null or scene_resource == null:
@@ -166,11 +188,12 @@ func _ready() -> void:
 	_refresh_static_theme_shell()
 	_configure_feedback_hub()
 	_configure_save_dialog()
+	_ensure_upload_request()
 	_connect_actions()
+	_apply_platform_capabilities()
 	_wire_static_feedback()
 	_load_survey()
 	set_process_unhandled_input(true)
-
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_RESIZED and is_node_ready():
 		_update_responsive_layout()
@@ -192,6 +215,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			_close_summary_overlay()
 		elif _settings_overlay != null and _settings_overlay.visible:
 			_close_settings_overlay()
+		elif _export_overlay != null and _export_overlay.visible:
+			_close_export_overlay()
 		elif _onboarding_overlay.visible:
 			_on_onboarding_close_requested()
 		elif _overlay_menu.visible:
@@ -217,9 +242,33 @@ func _configure_window_scaling() -> void:
 	window.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
 	window.content_scale_size = base_content_size
 	window.content_scale_factor = 1.0
-	if launch_fullscreen:
+	if launch_fullscreen and not _is_web_platform():
 		window.mode = Window.MODE_FULLSCREEN
 
+func _is_web_platform() -> bool:
+	return OS.has_feature("web")
+
+func _supports_browser_downloads() -> bool:
+	return _is_web_platform() and Engine.has_singleton("JavaScriptBridge")
+
+func _supports_image_clipboard_copy() -> bool:
+	return OS.has_feature("windows") and not _is_web_platform()
+
+func _download_buffer_to_browser(buffer: PackedByteArray, file_name: String, success_message: String) -> bool:
+	if buffer.is_empty() or not _supports_browser_downloads():
+		return false
+	JavaScriptBridge.download_buffer(buffer, file_name)
+	SURVEY_UI_FEEDBACK.play_export()
+	_show_status_message(success_message)
+	return true
+
+func _apply_platform_capabilities() -> void:
+	var allow_native_file_actions: bool = not _is_web_platform()
+	if _onboarding_overlay != null and _onboarding_overlay.has_method("set_external_template_actions_enabled"):
+		_onboarding_overlay.set_external_template_actions_enabled(allow_native_file_actions, allow_native_file_actions)
+	if _summary_overlay != null and _summary_overlay.has_method("set_png_action_capabilities"):
+		var save_label: String = "Download PNG" if _supports_browser_downloads() else "Save PNG"
+		_summary_overlay.set_png_action_capabilities(_supports_image_clipboard_copy(), save_label)
 func _configure_feedback_hub() -> void:
 	if _feedback_hub == null:
 		_feedback_hub = SURVEY_UI_FEEDBACK.new()
@@ -228,6 +277,12 @@ func _configure_feedback_hub() -> void:
 	SURVEY_UI_FEEDBACK.set_hover_sfx_enabled(_hover_sfx_enabled)
 
 func _configure_save_dialog() -> void:
+	if _is_web_platform():
+		_save_dialog = null
+		_load_dialog = null
+		_template_dialog = null
+		return
+
 	_save_dialog = FileDialog.new()
 	_save_dialog.access = FileDialog.ACCESS_FILESYSTEM
 	_save_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
@@ -251,6 +306,14 @@ func _configure_save_dialog() -> void:
 	_template_dialog.file_selected.connect(_on_template_dialog_file_selected)
 	_template_dialog.canceled.connect(_on_template_dialog_canceled)
 	add_child(_template_dialog)
+func _ensure_upload_request() -> void:
+	if _upload_request != null:
+		return
+	_upload_request = HTTPRequest.new()
+	_upload_request.name = "ExportUploadRequest"
+	_upload_request.timeout = 20.0
+	_upload_request.request_completed.connect(_on_upload_request_completed)
+	add_child(_upload_request)
 
 func _wire_static_feedback() -> void:
 	_wire_button_feedback(_previous_button)
@@ -329,6 +392,8 @@ func _refresh_static_theme_shell() -> void:
 		_settings_overlay.refresh_theme()
 	if _summary_overlay != null:
 		_summary_overlay.refresh_theme()
+	if _export_overlay != null:
+		_export_overlay.refresh_theme()
 
 func _on_button_hovered() -> void:
 	SURVEY_UI_FEEDBACK.play_hover()
@@ -383,12 +448,7 @@ func _connect_actions() -> void:
 	_overlay_menu.template_picker_requested.connect(_open_template_picker_from_overlay)
 	_overlay_menu.settings_requested.connect(_open_settings_overlay)
 	_overlay_menu.summary_requested.connect(_open_summary_overlay)
-	_overlay_menu.save_progress_requested.connect(_save_progress_json)
-	_overlay_menu.load_progress_requested.connect(_load_progress_json)
-	_overlay_menu.copy_json_requested.connect(_copy_json)
-	_overlay_menu.save_json_requested.connect(_save_json)
-	_overlay_menu.copy_csv_requested.connect(_copy_csv)
-	_overlay_menu.save_csv_requested.connect(_save_csv)
+	_overlay_menu.export_requested.connect(_open_export_overlay)
 	_overlay_menu.theme_mode_requested.connect(_on_theme_mode_requested)
 	_overlay_menu.sfx_volume_requested.connect(_on_sfx_volume_requested)
 	_overlay_menu.fill_test_answers_requested.connect(_fill_test_answers)
@@ -413,10 +473,22 @@ func _connect_actions() -> void:
 		_summary_overlay.copy_png_requested.connect(_copy_summary_png)
 		_summary_overlay.save_png_requested.connect(_save_summary_png)
 		_summary_overlay.adjective_text_changed.connect(_on_summary_adjective_text_changed)
+	if _export_overlay != null:
+		_export_overlay.close_requested.connect(_close_export_overlay)
+		_export_overlay.save_progress_requested.connect(_save_progress_json)
+		_export_overlay.load_progress_requested.connect(_load_progress_json)
+		_export_overlay.copy_json_requested.connect(_copy_json)
+		_export_overlay.save_json_requested.connect(_save_json)
+		_export_overlay.copy_csv_requested.connect(_copy_csv)
+		_export_overlay.save_csv_requested.connect(_save_csv)
+		_export_overlay.upload_requested.connect(_submit_export_upload)
+		_export_overlay.copy_response_requested.connect(_copy_upload_response_to_clipboard)
 
 func _load_survey() -> void:
 	_close_summary_overlay()
+	_close_export_overlay()
 	_summary_adjective_text = ""
+	_reset_upload_status(true)
 	_reset_question_filter()
 	survey = SURVEY_TEMPLATE_LOADER.load_from_file(survey_template_path)
 	if survey == null:
@@ -606,6 +678,7 @@ func _rebuild_document_preserving_state(status_message: String = "", is_error: b
 	_update_navigation_state()
 	call_deferred("_restore_document_state", saved_scroll, was_overlay_open)
 	_refresh_summary_overlay()
+	_refresh_export_overlay()
 	_show_status_message(status_message, is_error)
 	if not status_message.is_empty():
 		print(status_message)
@@ -1203,6 +1276,7 @@ func _on_answer_changed(question_id: String, value: Variant) -> void:
 	_update_navigation_state()
 	_persist_session()
 	_refresh_summary_overlay()
+	_refresh_export_overlay()
 
 func _on_question_scroll_resized() -> void:
 	_sync_question_stack_width()
@@ -1250,7 +1324,7 @@ func _update_navigation_state() -> void:
 		return
 	_previous_button.text = "Previous Section"
 	_previous_button.disabled = current_section_index == 0
-	_next_button.text = "Export Options" if current_section_index == survey.sections.size() - 1 else "Next Section"
+	_next_button.text = "Export Menu" if current_section_index == survey.sections.size() - 1 else "Next Section"
 	_next_button.disabled = false
 
 func _go_to_previous_section() -> void:
@@ -1277,6 +1351,7 @@ func _open_overlay_menu() -> void:
 	_close_onboarding_overlay()
 	_close_settings_overlay()
 	_close_summary_overlay()
+	_close_export_overlay()
 	_overlay_menu.open_menu(survey, current_section_index, answers, sfx_volume)
 
 func _close_overlay_menu() -> void:
@@ -1289,6 +1364,7 @@ func _open_search_overlay() -> void:
 	_close_onboarding_overlay()
 	_close_settings_overlay()
 	_close_summary_overlay()
+	_close_export_overlay()
 	_search_overlay.open_search(survey)
 
 func _close_search_overlay() -> void:
@@ -1302,6 +1378,7 @@ func _open_onboarding_overlay() -> void:
 	_close_search_overlay()
 	_close_settings_overlay()
 	_close_summary_overlay()
+	_close_export_overlay()
 	_onboarding_overlay.open_onboarding(survey, _preferred_topic_tag, _preferred_audience_id, survey_template_path, _available_template_summaries())
 
 func _close_onboarding_overlay() -> void:
@@ -1316,6 +1393,7 @@ func _open_settings_overlay() -> void:
 	_close_search_overlay()
 	_close_onboarding_overlay()
 	_close_summary_overlay()
+	_close_export_overlay()
 	_settings_overlay.open_settings(use_dark_mode, sfx_volume, _hover_sfx_enabled, _remember_onboarding_preferences, _allow_local_session_cache)
 
 func _close_settings_overlay() -> void:
@@ -1329,11 +1407,286 @@ func _open_summary_overlay() -> void:
 	_close_search_overlay()
 	_close_onboarding_overlay()
 	_close_settings_overlay()
+	_close_export_overlay()
 	_summary_overlay.open_summary(_build_summary_data(), _summary_adjective_text)
 
 func _close_summary_overlay() -> void:
 	if _summary_overlay != null:
 		_summary_overlay.close_summary()
+
+func _open_export_overlay() -> void:
+	if survey == null or _export_overlay == null:
+		return
+	_close_overlay_menu()
+	_close_search_overlay()
+	_close_onboarding_overlay()
+	_close_settings_overlay()
+	_close_summary_overlay()
+	_export_overlay.open_export_menu(_build_export_overlay_state())
+
+func _close_export_overlay() -> void:
+	if _export_overlay != null:
+		_export_overlay.close_export_menu()
+
+func _refresh_export_overlay() -> void:
+	if _export_overlay == null or not _export_overlay.visible:
+		return
+	_export_overlay.update_state(_build_export_overlay_state())
+
+func _upload_readiness_state() -> Dictionary:
+	if survey == null:
+		return {
+			"ok": false,
+			"message": "Load a survey before preparing an upload."
+		}
+	if _upload_in_progress:
+		return {
+			"ok": false,
+			"message": "An upload is already in progress."
+		}
+	if not _is_upload_endpoint_configured():
+		return {
+			"ok": false,
+			"message": "Server upload is not configured for this build."
+		}
+	var upload_package: Dictionary = _build_upload_package()
+	if upload_package.is_empty():
+		return {
+			"ok": false,
+			"message": "Unable to prepare a sanitized upload package yet."
+		}
+	var audit: Dictionary = upload_package.get("audit", {}) as Dictionary
+	if not bool(audit.get("ok", false)):
+		return {
+			"ok": false,
+			"message": str(audit.get("message", "Upload blocked by client-side checks.")).strip_edges()
+		}
+	var stats: Dictionary = upload_package.get("stats", {}) as Dictionary
+	var valid_response_count: int = int(stats.get("valid_response_count", 0))
+	var sections_with_responses_count: int = int(stats.get("sections_with_responses_count", 0))
+	return {
+		"ok": true,
+		"message": "Ready to submit %d answer(s) across %d section(s)." % [valid_response_count, sections_with_responses_count]
+	}
+func _build_export_overlay_state() -> Dictionary:
+	var readiness: Dictionary = _upload_readiness_state()
+	var survey_title: String = survey.title if survey != null else ""
+	var web_mode: bool = _is_web_platform()
+	var browser_downloads: bool = _supports_browser_downloads()
+	var progress_summary := "Save or load the full progress bundle, including local settings and where you left off."
+	if web_mode:
+		progress_summary = "Download the full progress bundle. Loading a local progress file is disabled in the browser build."
+	var answer_summary := "Copy or save answer-only exports for manual review, debugging, or offline analysis."
+	if browser_downloads:
+		answer_summary = "Copy answer-only exports to the clipboard or download them directly from the browser."
+	return {
+		"survey_title": survey_title,
+		"progress_summary": progress_summary,
+		"answer_summary": answer_summary,
+		"save_progress_enabled": true,
+		"load_progress_enabled": not web_mode,
+		"load_progress_unavailable_reason": "Loading a local progress file is disabled in the browser build." if web_mode else "",
+		"save_progress_label": "Download Progress JSON" if browser_downloads else "Save Progress JSON",
+		"load_progress_label": "Load Progress JSON",
+		"save_json_label": "Download JSON" if browser_downloads else "Save JSON",
+		"save_csv_label": "Download CSV" if browser_downloads else "Save CSV",
+		"upload_destination_name": upload_destination_name.strip_edges(),
+		"upload_destination_url": upload_endpoint_url.strip_edges(),
+		"upload_usage_summary": upload_usage_summary.strip_edges(),
+		"upload_reason_summary": upload_reason_summary.strip_edges(),
+		"upload_metadata_summary": "Spam protection metadata includes an anonymous install ID, upload timestamps, answer counts, and a payload hash for duplicate suppression.",
+		"upload_ready": bool(readiness.get("ok", false)),
+		"upload_ready_message": str(readiness.get("message", "")).strip_edges(),
+		"upload_busy": _upload_in_progress,
+		"upload_status_text": _last_upload_status_text if not _last_upload_status_text.is_empty() else "Ready when you are.",
+		"upload_status_error": _last_upload_status_is_error,
+		"upload_response_text": _last_upload_response_text,
+		"consent_required": require_upload_consent
+	}
+func _build_upload_package() -> Dictionary:
+	if survey == null:
+		return {}
+	var install_id: String = SURVEY_UPLOAD_AUDIT_STORE.get_install_id()
+	var upload_package: Dictionary = SURVEY_SUBMISSION_BUNDLE.build_package(survey, survey_template_path, answers, _build_summary_data(), install_id)
+	if upload_package.is_empty():
+		return {}
+	var stats: Dictionary = upload_package.get("stats", {}) as Dictionary
+	var total_question_count: int = max(int(stats.get("total_question_count", 0)), 0)
+	var min_required_answers: int = min(max(minimum_answered_questions_for_upload, 0), total_question_count)
+	var audit: Dictionary = SURVEY_UPLOAD_AUDIT_STORE.evaluate_attempt(
+		str(upload_package.get("payload_hash", "")).strip_edges(),
+		int(stats.get("valid_response_count", 0)),
+		min_required_answers,
+		upload_cooldown_seconds,
+		upload_max_attempts_per_window,
+		upload_attempt_window_seconds
+	)
+	upload_package["min_required_answers"] = min_required_answers
+	upload_package["audit"] = audit
+	return upload_package
+
+func _submit_export_upload() -> void:
+	if survey == null or _export_overlay == null:
+		return
+	if _upload_in_progress:
+		return
+	if require_upload_consent and not _export_overlay.current_upload_consent():
+		_last_upload_status_text = "Please confirm consent before submitting your answers to the server."
+		_last_upload_status_is_error = true
+		_refresh_export_overlay()
+		_show_status_message(_last_upload_status_text, true)
+		return
+	if not _is_upload_endpoint_configured():
+		_last_upload_status_text = "Server upload is not configured for this build."
+		_last_upload_status_is_error = true
+		_refresh_export_overlay()
+		_show_status_message(_last_upload_status_text, true)
+		return
+	var upload_package: Dictionary = _build_upload_package()
+	if upload_package.is_empty():
+		_last_upload_status_text = "Unable to prepare the upload payload."
+		_last_upload_status_is_error = true
+		_refresh_export_overlay()
+		_show_status_message(_last_upload_status_text, true)
+		return
+	var audit: Dictionary = upload_package.get("audit", {}) as Dictionary
+	if not bool(audit.get("ok", false)):
+		_last_upload_status_text = str(audit.get("message", "Upload blocked by client-side checks.")).strip_edges()
+		_last_upload_status_is_error = true
+		_refresh_export_overlay()
+		_show_status_message(_last_upload_status_text, true)
+		return
+	var payload_text: String = str(upload_package.get("json", ""))
+	if payload_text.is_empty():
+		_last_upload_status_text = "The upload payload was empty after sanitization."
+		_last_upload_status_is_error = true
+		_refresh_export_overlay()
+		_show_status_message(_last_upload_status_text, true)
+		return
+	_ensure_upload_request()
+	_upload_in_progress = true
+	_pending_upload_payload_hash = str(upload_package.get("payload_hash", "")).strip_edges()
+	_last_upload_status_text = "Submitting survey answers to %s..." % (upload_destination_name.strip_edges() if not upload_destination_name.strip_edges().is_empty() else upload_endpoint_url.strip_edges())
+	_last_upload_status_is_error = false
+	_last_upload_response_text = ""
+	_refresh_export_overlay()
+	_show_status_message(_last_upload_status_text)
+	var request_error: Error = _upload_request.request(upload_endpoint_url.strip_edges(), _configured_upload_headers(), HTTPClient.METHOD_POST, payload_text)
+	if request_error != OK:
+		_upload_in_progress = false
+		var failure_text: String = "Failed to start the upload request (%s)." % error_string(request_error)
+		_last_upload_status_text = failure_text
+		_last_upload_status_is_error = true
+		_last_upload_response_text = failure_text
+		SURVEY_UPLOAD_AUDIT_STORE.record_attempt(_pending_upload_payload_hash, false, 0, failure_text)
+		_pending_upload_payload_hash = ""
+		_refresh_export_overlay()
+		_show_status_message(failure_text, true)
+
+func _copy_upload_response_to_clipboard() -> void:
+	if _last_upload_response_text.strip_edges().is_empty():
+		_show_status_message("No server response is available to copy yet.", true)
+		return
+	DisplayServer.clipboard_set(_last_upload_response_text)
+	SURVEY_UI_FEEDBACK.play_export()
+	_show_status_message("Server response copied to the clipboard.")
+
+func _configured_upload_headers() -> PackedStringArray:
+	var headers: PackedStringArray = PackedStringArray(["Content-Type: application/json"])
+	for raw_header in upload_request_headers:
+		var header_text: String = str(raw_header).strip_edges()
+		if header_text.is_empty():
+			continue
+		if header_text.to_lower().begins_with("content-type:"):
+			continue
+		headers.append(header_text)
+	return headers
+
+func _is_upload_endpoint_configured() -> bool:
+	return not upload_endpoint_url.strip_edges().is_empty()
+
+func _format_upload_response_body(body_text: String) -> String:
+	var trimmed_body: String = body_text.strip_edges()
+	if trimmed_body.is_empty():
+		return ""
+	var parsed: Variant = JSON.parse_string(trimmed_body)
+	if parsed is Dictionary or parsed is Array:
+		return JSON.stringify(parsed, "\t")
+	return trimmed_body
+
+func _format_upload_response(result: int, response_code: int, headers: PackedStringArray, body_text: String) -> String:
+	var lines: Array[String] = []
+	lines.append("Result: %s" % _http_request_result_label(result))
+	lines.append("HTTP Status: %d" % response_code)
+	if not headers.is_empty():
+		lines.append("")
+		lines.append("Headers:")
+		for header in headers:
+			lines.append(str(header))
+	var formatted_body: String = _format_upload_response_body(body_text)
+	if not formatted_body.is_empty():
+		lines.append("")
+		lines.append("Body:")
+		lines.append(formatted_body)
+	return "\n".join(lines).strip_edges()
+
+func _http_request_result_label(result: int) -> String:
+	match result:
+		HTTPRequest.RESULT_SUCCESS:
+			return "Success"
+		HTTPRequest.RESULT_CHUNKED_BODY_SIZE_MISMATCH:
+			return "Chunked body size mismatch"
+		HTTPRequest.RESULT_CANT_CONNECT:
+			return "Cannot connect"
+		HTTPRequest.RESULT_CANT_RESOLVE:
+			return "Cannot resolve host"
+		HTTPRequest.RESULT_CONNECTION_ERROR:
+			return "Connection error"
+		HTTPRequest.RESULT_TLS_HANDSHAKE_ERROR:
+			return "TLS handshake error"
+		HTTPRequest.RESULT_NO_RESPONSE:
+			return "No response"
+		HTTPRequest.RESULT_BODY_SIZE_LIMIT_EXCEEDED:
+			return "Body size limit exceeded"
+		HTTPRequest.RESULT_BODY_DECOMPRESS_FAILED:
+			return "Body decompress failed"
+		HTTPRequest.RESULT_REQUEST_FAILED:
+			return "Request failed"
+		HTTPRequest.RESULT_DOWNLOAD_FILE_CANT_OPEN:
+			return "Cannot open download file"
+		HTTPRequest.RESULT_DOWNLOAD_FILE_WRITE_ERROR:
+			return "Cannot write download file"
+		HTTPRequest.RESULT_REDIRECT_LIMIT_REACHED:
+			return "Redirect limit reached"
+		HTTPRequest.RESULT_TIMEOUT:
+			return "Timeout"
+	return "Unknown result"
+
+func _on_upload_request_completed(result: int, response_code: int, headers: PackedStringArray, body: PackedByteArray) -> void:
+	_upload_in_progress = false
+	var body_text: String = body.get_string_from_utf8()
+	var response_text: String = _format_upload_response(result, response_code, headers, body_text)
+	var accepted: bool = result == HTTPRequest.RESULT_SUCCESS and response_code >= 200 and response_code < 300
+	_last_upload_response_text = response_text
+	_last_upload_status_is_error = not accepted
+	if accepted:
+		_last_upload_status_text = "Upload accepted by the server."
+		SURVEY_UI_FEEDBACK.play_export()
+		_show_status_message(_last_upload_status_text)
+	else:
+		_last_upload_status_text = "Upload failed or was rejected by the server."
+		_show_status_message(_last_upload_status_text, true)
+	SURVEY_UPLOAD_AUDIT_STORE.record_attempt(_pending_upload_payload_hash, accepted, response_code, _last_upload_status_text)
+	_pending_upload_payload_hash = ""
+	_refresh_export_overlay()
+
+func _reset_upload_status(clear_response: bool = false) -> void:
+	_upload_in_progress = false
+	_pending_upload_payload_hash = ""
+	_last_upload_status_text = ""
+	_last_upload_status_is_error = false
+	if clear_response:
+		_last_upload_response_text = ""
 
 func _set_survey_shell_visible(visible: bool) -> void:
 	if _shell != null:
@@ -1388,6 +1741,12 @@ func _on_summary_adjective_text_changed(text: String) -> void:
 	_summary_adjective_text = text.strip_edges()
 
 func _copy_summary_png() -> void:
+	if not _supports_image_clipboard_copy():
+		var unavailable_text := "PNG clipboard copy is only available in the desktop Windows build right now."
+		if _supports_browser_downloads():
+			unavailable_text = "PNG clipboard copy is not available in the browser build. Use Download PNG instead."
+		_show_status_message(unavailable_text, true)
+		return
 	var image: Image = await _summary_overlay.capture_summary_image()
 	if image == null or image.get_width() <= 0 or image.get_height() <= 0:
 		_show_status_message("Unable to build the opinion summary PNG.", true)
@@ -1397,7 +1756,6 @@ func _copy_summary_png() -> void:
 		_show_status_message("Opinion summary PNG copied to the clipboard.")
 		return
 	_show_status_message("Failed to copy the opinion summary PNG to the clipboard.", true)
-
 func _save_summary_png() -> void:
 	var image: Image = await _summary_overlay.capture_summary_image()
 	if image == null or image.get_width() <= 0 or image.get_height() <= 0:
@@ -1409,6 +1767,15 @@ func _prompt_save_image(image: Image, extension: String, label: String, dialog_t
 	if image == null or image.get_width() <= 0 or image.get_height() <= 0:
 		_show_status_message("Nothing available to save for %s." % label, true)
 		return
+	if _supports_browser_downloads() and extension.to_lower() == "png":
+		var png_buffer: PackedByteArray = image.save_png_to_buffer()
+		if _download_buffer_to_browser(png_buffer, suggested_file, "%s download started." % label):
+			return
+		_show_status_message("Failed to start a browser download for %s." % label, true)
+		return
+	if _save_dialog == null:
+		_show_status_message("Saving %s is not available in this build." % label, true)
+		return
 	_pending_save_text = ""
 	_pending_save_image = image
 	_pending_save_extension = extension
@@ -1419,11 +1786,10 @@ func _prompt_save_image(image: Image, extension: String, label: String, dialog_t
 		_save_dialog.add_filter("*.png", "PNG Files")
 	_save_dialog.current_file = suggested_file
 	_save_dialog.popup_centered_ratio(0.75)
-
 func _copy_image_to_clipboard(image: Image, temp_file_name: String) -> bool:
 	if image == null or image.get_width() <= 0 or image.get_height() <= 0:
 		return false
-	if not OS.has_feature("windows"):
+	if not _supports_image_clipboard_copy():
 		return false
 	var temp_path: String = _temporary_export_path(temp_file_name)
 	if temp_path.is_empty():
@@ -1444,8 +1810,7 @@ func _temporary_export_path(file_name: String) -> String:
 	return "%s/%s" % [export_dir.trim_suffix("/"), file_name]
 
 func _open_export_options() -> void:
-	_open_overlay_menu()
-	_show_status_message("Choose export or progress save/load actions from the menu.")
+	_open_export_overlay()
 
 func _go_to_start_from_overlay() -> void:
 	_close_overlay_menu()
@@ -1464,8 +1829,11 @@ func _open_onboarding_from_overlay() -> void:
 
 func _open_template_picker_from_overlay() -> void:
 	_close_overlay_menu()
+	if _is_web_platform():
+		_show_status_message("Browser builds switch survey templates from Section Crossroads. Opening it now.")
+		_open_onboarding_overlay()
+		return
 	_open_template_picker_dialog("pick")
-
 func _on_onboarding_continue_requested() -> void:
 	_remember_onboarding_preference("explore")
 	_close_onboarding_overlay()
@@ -1479,6 +1847,9 @@ func _on_onboarding_template_selected_requested(template_path: String) -> void:
 	_load_template_from_path(template_path, true)
 
 func _open_template_folder_from_onboarding() -> void:
+	if _is_web_platform():
+		_show_status_message("Browser builds cannot open a local template folder. Use the bundled templates in Section Crossroads instead.", true)
+		return
 	var folder_path: String = ProjectSettings.globalize_path(SURVEY_TEMPLATE_LOADER.user_template_directory())
 	var ensure_error: Error = DirAccess.make_dir_recursive_absolute(folder_path)
 	if ensure_error != OK:
@@ -1489,7 +1860,6 @@ func _open_template_folder_from_onboarding() -> void:
 		_show_status_message("Failed to open the template folder.", true)
 		return
 	_show_status_message("Opened the survey template folder.")
-
 func _on_onboarding_navigate_requested(section_index: int, question_id: String) -> void:
 	var mode: String = str(_onboarding_overlay.current_mode_name()).strip_edges()
 	_remember_onboarding_preference(mode if not mode.is_empty() else "guided")
@@ -1510,9 +1880,14 @@ func _available_template_summaries() -> Array[Dictionary]:
 	return SURVEY_TEMPLATE_LOADER.list_available_templates()
 
 func _open_template_import_dialog_from_onboarding() -> void:
+	if _is_web_platform():
+		_show_status_message("Importing template files is disabled in the browser build. Use the bundled templates in Section Crossroads instead.", true)
+		return
 	_open_template_picker_dialog("import")
-
 func _open_template_picker_dialog(mode: String) -> void:
+	if _is_web_platform():
+		_show_status_message("File-based template picking is disabled in the browser build.", true)
+		return
 	if _template_dialog == null:
 		return
 	_template_dialog_mode = mode
@@ -1521,7 +1896,6 @@ func _open_template_picker_dialog(mode: String) -> void:
 	_template_dialog.add_filter("*.json", "JSON Files")
 	_template_dialog.current_path = _template_dialog_start_path()
 	_template_dialog.popup_centered_ratio(0.8)
-
 func _template_dialog_start_path() -> String:
 	var dialog_path: String = survey_template_path
 	if dialog_path.is_empty():
@@ -1624,6 +1998,9 @@ func _save_progress_json() -> void:
 	)
 
 func _load_progress_json() -> void:
+	if _is_web_platform():
+		_show_status_message("Loading a local progress JSON file is disabled in the browser build.", true)
+		return
 	if _load_dialog == null:
 		return
 	_load_dialog.title = "Load Survey Progress"
@@ -1631,7 +2008,6 @@ func _load_progress_json() -> void:
 	_load_dialog.add_filter("*.json", "JSON Files")
 	_load_dialog.current_path = ProjectSettings.globalize_path("user://")
 	_load_dialog.popup_centered_ratio(0.75)
-
 func _copy_json() -> void:
 	_copy_export_to_clipboard(EXPORT_FORMAT_JSON)
 
@@ -1665,6 +2041,14 @@ func _prompt_save_text(contents: String, extension: String, label: String, dialo
 	if contents.is_empty():
 		_show_status_message("Nothing available to save for %s." % label, true)
 		return
+	if _supports_browser_downloads():
+		if _download_buffer_to_browser(contents.to_utf8_buffer(), suggested_file, "%s download started." % label):
+			return
+		_show_status_message("Failed to start a browser download for %s." % label, true)
+		return
+	if _save_dialog == null:
+		_show_status_message("Saving %s is not available in this build." % label, true)
+		return
 	_pending_save_text = contents
 	_pending_save_image = null
 	_pending_save_extension = extension
@@ -1677,7 +2061,6 @@ func _prompt_save_text(contents: String, extension: String, label: String, dialo
 		_save_dialog.add_filter("*.csv", "CSV Files")
 	_save_dialog.current_file = suggested_file
 	_save_dialog.popup_centered_ratio(0.75)
-
 func _build_export_text(format: String) -> String:
 	if survey == null:
 		return ""
@@ -1743,6 +2126,7 @@ func _on_load_dialog_file_selected(path: String) -> void:
 	call_deferred("_apply_initial_location")
 	_persist_session()
 	_refresh_summary_overlay()
+	_refresh_export_overlay()
 	var loaded_parts: Array[String] = []
 	if not loaded_answers.is_empty():
 		loaded_parts.append("restored %d answers" % loaded_answers.size())
@@ -1928,6 +2312,8 @@ func _update_responsive_layout() -> void:
 		_settings_overlay.refresh_layout(viewport_size)
 	if _summary_overlay != null:
 		_summary_overlay.refresh_layout(viewport_size)
+	if _export_overlay != null:
+		_export_overlay.refresh_layout(viewport_size)
 
 func _sync_question_stack_width() -> void:
 	if _question_stack == null or _question_scroll == null:
@@ -2025,6 +2411,8 @@ func _restore_document_state(saved_scroll: int, was_overlay_open: bool) -> void:
 func _clear_container(container: Node) -> void:
 	for child in container.get_children():
 		child.free()
+
+
 
 
 

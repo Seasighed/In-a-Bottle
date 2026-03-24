@@ -14,3 +14,7 @@ export_credentials.cfg
 .mono/
 data_*/
 mono_crash.*.json
+
+# Local export and validation output
+build/
+.godot_appdata/
