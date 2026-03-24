@@ -16,6 +16,7 @@ var _menu_open_player: AudioStreamPlayer
 var _menu_close_player: AudioStreamPlayer
 var _rng := RandomNumberGenerator.new()
 var _sfx_volume := DEFAULT_SFX_VOLUME
+var _hover_sfx_enabled := false
 
 func _ready() -> void:
 	add_to_group(GROUP_NAME)
@@ -31,12 +32,12 @@ func _ready() -> void:
 
 static func play_hover() -> void:
 	var hub: SurveyUiFeedback = _get_hub()
-	if hub != null:
+	if hub != null and hub._hover_sfx_enabled:
 		hub._play_player(hub._hover_player, 0.94, 1.01)
 
 static func play_option_hover() -> void:
 	var hub: SurveyUiFeedback = _get_hub()
-	if hub != null:
+	if hub != null and hub._hover_sfx_enabled:
 		hub._play_player(hub._hover_player, 1.12, 1.22)
 
 static func play_select() -> void:
@@ -82,6 +83,17 @@ static func get_sfx_volume() -> float:
 		return hub._sfx_volume
 	return DEFAULT_SFX_VOLUME
 
+static func set_hover_sfx_enabled(enabled: bool) -> void:
+	var hub: SurveyUiFeedback = _get_hub()
+	if hub != null:
+		hub._set_hover_sfx_enabled(enabled)
+
+static func is_hover_sfx_enabled() -> bool:
+	var hub: SurveyUiFeedback = _get_hub()
+	if hub != null:
+		return hub._hover_sfx_enabled
+	return false
+
 static func pulse(control: Control, scale_amount: float = 0.08, duration: float = 0.18) -> void:
 	if control == null or not is_instance_valid(control):
 		return
@@ -99,6 +111,9 @@ static func _get_hub() -> SurveyUiFeedback:
 func _set_sfx_volume(volume: float) -> void:
 	_sfx_volume = clampf(volume, 0.0, 1.0)
 	_apply_volume_to_players()
+
+func _set_hover_sfx_enabled(enabled: bool) -> void:
+	_hover_sfx_enabled = enabled
 
 func _apply_volume_to_players() -> void:
 	for player in [_hover_player, _select_player, _answer_player, _export_player, _gamble_player, _menu_open_player, _menu_close_player]:
@@ -158,9 +173,3 @@ func _append_sample(pcm: PackedByteArray, sample_value: float) -> void:
 		sample_int += 65536
 	pcm.append(sample_int & 255)
 	pcm.append((sample_int >> 8) & 255)
-
-
-
-
-
-

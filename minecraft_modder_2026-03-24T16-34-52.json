@@ -1,0 +1,225 @@
+{
+	"answers": [
+		{
+			"responses": [
+				{
+					"answer": null,
+					"prompt": "What is the name of your mod?",
+					"question_id": "mod_name",
+					"type": "short_text"
+				},
+				{
+					"answer": null,
+					"prompt": "Which loader or platform best describes the main release target?",
+					"question_id": "primary_loader",
+					"type": "dropdown"
+				},
+				{
+					"answer": null,
+					"prompt": "Which Minecraft versions are you actively supporting or targeting?",
+					"question_id": "supported_versions",
+					"type": "multi_choice"
+				},
+				{
+					"answer": null,
+					"prompt": "Which categories best describe your mod?",
+					"question_id": "mod_categories",
+					"type": "multi_choice"
+				},
+				{
+					"answer": null,
+					"prompt": "What stage is the mod currently in?",
+					"question_id": "project_stage",
+					"type": "single_choice"
+				},
+				{
+					"answer": null,
+					"prompt": "How is the mod currently staffed?",
+					"question_id": "team_shape",
+					"type": "dropdown"
+				}
+			],
+			"section_id": "project_snapshot",
+			"section_title": "Project Snapshot"
+		},
+		{
+			"responses": [
+				{
+					"answer": null,
+					"prompt": "How good do you feel about the mod in its current state?",
+					"question_id": "pride_in_mod",
+					"type": "scale"
+				},
+				{
+					"answer": 4,
+					"prompt": "How likely are you to recommend this mod to players who enjoy its niche?",
+					"question_id": "recommend_to_players",
+					"type": "nps"
+				},
+				{
+					"answer": 4,
+					"prompt": "How confident are you in your next release or update?",
+					"question_id": "release_confidence",
+					"type": "scale"
+				},
+				{
+					"answer": {
+						"The core gameplay loop is fun": "Strongly disagree",
+						"The mod still matches the original vision": "Disagree"
+					},
+					"prompt": "Rate the current health of each area of the project.",
+					"question_id": "health_matrix",
+					"type": "matrix"
+				},
+				{
+					"answer": [
+						"Performance problems",
+						"Cross-version support",
+						"Bug volume"
+					],
+					"prompt": "What is creating the most friction for the mod right now?",
+					"question_id": "top_frictions",
+					"type": "multi_choice"
+				},
+				{
+					"answer": null,
+					"prompt": "Which part of the mod feels strongest right now, and why?",
+					"question_id": "best_current_feature",
+					"type": "long_text"
+				}
+			],
+			"section_id": "current_mod_health",
+			"section_title": "Current Mod Health"
+		},
+		{
+			"responses": [
+				{
+					"answer": null,
+					"prompt": "How well is the current modding workflow serving you?",
+					"question_id": "tooling_matrix",
+					"type": "matrix"
+				},
+				{
+					"answer": null,
+					"prompt": "How often are you currently able to work on or ship meaningful progress?",
+					"question_id": "update_cadence",
+					"type": "single_choice"
+				},
+				{
+					"answer": null,
+					"prompt": "Where are you on the energy-to-burnout spectrum with this mod?",
+					"question_id": "burnout_level",
+					"type": "scale"
+				},
+				{
+					"answer": null,
+					"prompt": "Rank the improvements that would most improve your modding experience.",
+					"question_id": "modding_improvement_rank",
+					"type": "ranked_choice"
+				},
+				{
+					"answer": null,
+					"prompt": "What part of modding this project still feels harder than it should?",
+					"question_id": "hardest_part_of_modding",
+					"type": "long_text"
+				}
+			],
+			"section_id": "modding_experience",
+			"section_title": "Modding Experience"
+		},
+		{
+			"responses": [
+				{
+					"answer": [
+						"Modrinth comments",
+						"Reddit or forums",
+						"In-game analytics or telemetry"
+					],
+					"prompt": "Where do you most often receive player feedback?",
+					"question_id": "feedback_channels",
+					"type": "multi_choice"
+				},
+				{
+					"answer": null,
+					"prompt": "How clearly can you tell what players actually want next?",
+					"question_id": "feedback_signal_clarity",
+					"type": "scale"
+				},
+				{
+					"answer": null,
+					"prompt": "About how many actionable bug reports, suggestions, or issues do you get in a typical week?",
+					"question_id": "weekly_issue_volume",
+					"type": "number"
+				},
+				{
+					"answer": {
+						"New players can understand the mod quickly": "Disagree"
+					},
+					"prompt": "Rate how well different player groups are currently served by the mod.",
+					"question_id": "audience_fit_matrix",
+					"type": "matrix"
+				},
+				{
+					"answer": null,
+					"prompt": "Rank the kinds of player requests you feel most pressure to act on.",
+					"question_id": "community_request_rank",
+					"type": "ranked_choice"
+				},
+				{
+					"answer": null,
+					"prompt": "What player reaction, story, or use case made you feel the mod was worth building?",
+					"question_id": "favorite_player_story",
+					"type": "long_text"
+				}
+			],
+			"section_id": "players_and_community",
+			"section_title": "Players and Community"
+		},
+		{
+			"responses": [
+				{
+					"answer": null,
+					"prompt": "Which direction best describes the next phase of the mod?",
+					"question_id": "future_direction",
+					"type": "single_choice"
+				},
+				{
+					"answer": null,
+					"prompt": "Which areas are most likely to define your next season of work?",
+					"question_id": "roadmap_focus",
+					"type": "multi_choice"
+				},
+				{
+					"answer": null,
+					"prompt": "How confident are you that the mod has a healthy future?",
+					"question_id": "future_confidence",
+					"type": "scale"
+				},
+				{
+					"answer": null,
+					"prompt": "How strongly do you agree with the following statements about the mod's future?",
+					"question_id": "future_matrix",
+					"type": "matrix"
+				},
+				{
+					"answer": null,
+					"prompt": "What is the single biggest thing that could stop this mod from reaching the future you want for it?",
+					"question_id": "largest_future_blocker",
+					"type": "long_text"
+				},
+				{
+					"answer": null,
+					"prompt": "If this mod goes well over the next year, what would success look like to you?",
+					"question_id": "success_definition",
+					"type": "long_text"
+				}
+			],
+			"section_id": "future_of_the_mod",
+			"section_title": "Future of the Mod"
+		}
+	],
+	"exported_at": "2026-03-24T20:34:52",
+	"subtitle": "A survey for Minecraft mod developers about the state of their mod, the modding experience, and where the project goes next.",
+	"survey_id": "minecraft_modder",
+	"title": "Minecraft Modder Pulse"
+}

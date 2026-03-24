@@ -1,6 +1,11 @@
 extends CanvasLayer
 
 const SURVEY_UI_FEEDBACK = preload("res://Scripts/UI/SurveyUiFeedback.gd")
+const MODE_ICON_EXPLORE := preload("res://Assets/UI/Icons/section-generic.svg")
+const MODE_ICON_SEARCH := preload("res://Assets/UI/Icons/state-incomplete.svg")
+const MODE_ICON_TOPICS := preload("res://Assets/UI/Icons/section-review.svg")
+const MODE_ICON_GUIDED := preload("res://Assets/UI/Icons/section-profile.svg")
+const MODE_ICON_RANDOM := preload("res://Assets/UI/Icons/section-closeout.svg")
 const MODE_EXPLORE := "explore"
 const MODE_SEARCH := "search"
 const MODE_TOPICS := "topics"
@@ -31,16 +36,19 @@ signal close_requested
 @onready var _import_template_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/TemplateSection/TemplateActions/ImportTemplateButton
 @onready var _template_folder_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/TemplateSection/TemplateActions/OpenTemplateFolderButton
 @onready var _template_grid: GridContainer = $Bounds/Center/Panel/PanelScroll/Stack/TemplateSection/TemplateGrid
-@onready var _mode_buttons: GridContainer = $Bounds/Center/Panel/PanelScroll/Stack/ModeButtons
-@onready var _explore_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/ModeButtons/ExploreButton
-@onready var _search_mode_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/ModeButtons/SearchModeButton
-@onready var _topics_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/ModeButtons/TopicsButton
-@onready var _guided_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/ModeButtons/GuidedButton
-@onready var _random_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/ModeButtons/RandomButton
+@onready var _template_continue_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/TemplateSection/TemplateContinueButton
+@onready var _mode_section_heading_label: Label = $Bounds/Center/Panel/PanelScroll/Stack/ModeSection/ModeHeadingLabel
+@onready var _mode_section_caption_label: Label = $Bounds/Center/Panel/PanelScroll/Stack/ModeSection/ModeCaptionLabel
+@onready var _mode_buttons: GridContainer = $Bounds/Center/Panel/PanelScroll/Stack/ModeSection/ModeButtons
+@onready var _explore_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/ModeSection/ModeButtons/ExploreButton
+@onready var _search_mode_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/ModeSection/ModeButtons/SearchModeButton
+@onready var _topics_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/ModeSection/ModeButtons/TopicsButton
+@onready var _guided_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/ModeSection/ModeButtons/GuidedButton
+@onready var _random_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/ModeSection/ModeButtons/RandomButton
 @onready var _content_panel: PanelContainer = $Bounds/Center/Panel/PanelScroll/Stack/ContentPanel
 @onready var _mode_title_label: Label = $Bounds/Center/Panel/PanelScroll/Stack/ContentPanel/ContentStack/ModeTitleLabel
 @onready var _mode_description_label: Label = $Bounds/Center/Panel/PanelScroll/Stack/ContentPanel/ContentStack/ModeDescriptionLabel
-@onready var _explore_actions: HBoxContainer = $Bounds/Center/Panel/PanelScroll/Stack/ContentPanel/ContentStack/ExploreActions
+@onready var _explore_actions: VBoxContainer = $Bounds/Center/Panel/PanelScroll/Stack/ContentPanel/ContentStack/ExploreActions
 @onready var _continue_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/ContentPanel/ContentStack/ExploreActions/ContinueButton
 @onready var _search_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/ContentPanel/ContentStack/ExploreActions/SearchButton
 @onready var _topic_group: VBoxContainer = $Bounds/Center/Panel/PanelScroll/Stack/ContentPanel/ContentStack/TopicGroup
@@ -95,6 +103,7 @@ func _ready() -> void:
 	_close_button.pressed.connect(_on_close_pressed)
 	_import_template_button.pressed.connect(_on_import_template_pressed)
 	_template_folder_button.pressed.connect(_on_template_folder_pressed)
+	_template_continue_button.pressed.connect(_on_continue_pressed)
 	_explore_button.pressed.connect(_on_explore_mode_pressed)
 	_search_mode_button.pressed.connect(_on_search_mode_pressed)
 	_topics_button.pressed.connect(_on_topics_mode_pressed)
@@ -108,20 +117,26 @@ func _ready() -> void:
 	_random_faq_button.focus_entered.connect(_on_random_faq_entered)
 	_random_faq_button.focus_exited.connect(_on_random_faq_exited)
 
-	for button in [_close_button, _import_template_button, _template_folder_button, _explore_button, _search_mode_button, _topics_button, _guided_button, _random_button, _continue_button, _search_button, _random_pick_button, _random_faq_button]:
+	for button in [_close_button, _import_template_button, _template_folder_button, _template_continue_button, _explore_button, _search_mode_button, _topics_button, _guided_button, _random_button, _continue_button, _search_button, _random_pick_button, _random_faq_button]:
 		_wire_feedback(button)
 
 func refresh_theme() -> void:
 	_dimmer.color = SurveyStyle.OVERLAY_DIMMER
 	SurveyStyle.apply_panel(_panel, SurveyStyle.SURFACE, SurveyStyle.BORDER, 26, 1)
 	SurveyStyle.apply_panel(_content_panel, SurveyStyle.SURFACE_ALT, SurveyStyle.BORDER, 22, 1)
-	SurveyStyle.style_heading(_heading_label, 26)
-	SurveyStyle.style_body(_subtitle_label)
-	SurveyStyle.style_heading(_template_heading_label, 18)
+	SurveyStyle.style_heading(_heading_label, 22)
+	SurveyStyle.style_caption(_subtitle_label, SurveyStyle.SOFT_WHITE)
+	SurveyStyle.style_heading(_template_heading_label, 20)
 	SurveyStyle.style_caption(_template_current_label, SurveyStyle.SOFT_WHITE)
+	SurveyStyle.style_heading(_mode_section_heading_label, 16)
+	SurveyStyle.style_caption(_mode_section_caption_label, SurveyStyle.TEXT_MUTED)
 	SurveyStyle.apply_secondary_button(_import_template_button)
 	SurveyStyle.apply_secondary_button(_template_folder_button)
-	SurveyStyle.style_heading(_mode_title_label, 22)
+	SurveyStyle.apply_primary_button(_template_continue_button)
+	_import_template_button.custom_minimum_size = Vector2(170.0, 38.0)
+	_template_folder_button.custom_minimum_size = Vector2(144.0, 38.0)
+	_template_continue_button.custom_minimum_size = Vector2(0.0, 72.0)
+	SurveyStyle.style_heading(_mode_title_label, 20)
 	SurveyStyle.style_body(_mode_description_label)
 	SurveyStyle.style_heading(_topic_heading_label, 17)
 	SurveyStyle.style_heading(_preset_heading_label, 17)
@@ -134,6 +149,7 @@ func refresh_theme() -> void:
 	SurveyStyle.style_body(_empty_state_label)
 	SurveyStyle.apply_secondary_button(_close_button)
 	SurveyStyle.apply_primary_button(_continue_button)
+	_continue_button.custom_minimum_size = Vector2(0.0, 84.0)
 	SurveyStyle.apply_secondary_button(_search_button)
 	SurveyStyle.apply_primary_button(_random_pick_button)
 	SurveyStyle.apply_secondary_button(_random_faq_button)
@@ -149,20 +165,13 @@ func refresh_layout(viewport_size: Vector2) -> void:
 	_bounds.add_theme_constant_override("margin_top", int(vertical_margin))
 	_bounds.add_theme_constant_override("margin_bottom", int(vertical_margin))
 
-	var panel_width: float = clampf(viewport_size.x - (horizontal_margin * 2.0), 380.0, 1020.0)
+	var panel_width: float = clampf(viewport_size.x - (horizontal_margin * 2.0), 420.0, 1080.0)
 	var panel_height: float = clampf(viewport_size.y - (vertical_margin * 2.0), 360.0, 900.0)
 	_panel.custom_minimum_size = Vector2(panel_width, 0.0)
 	_panel_scroll.custom_minimum_size = Vector2(0.0, panel_height)
 	_panel_scroll.scroll_horizontal = 0
-	if viewport_size.x < 820.0:
-		_mode_buttons.columns = 1
-		_template_grid.columns = 1
-	elif viewport_size.x < 1180.0:
-		_mode_buttons.columns = 2
-		_template_grid.columns = 2
-	else:
-		_mode_buttons.columns = 3
-		_template_grid.columns = 3
+	_template_grid.columns = 1 if panel_width < 860.0 else 2
+	_mode_buttons.columns = 1 if panel_width < 980.0 else 2
 
 func open_onboarding(survey_definition: SurveyDefinition, preferred_topic_tag: String = "", preferred_audience_id: String = "", current_template_path: String = "", available_templates: Array[Dictionary] = []) -> void:
 	_cancel_random_spin()
@@ -191,7 +200,7 @@ func open_onboarding(survey_definition: SurveyDefinition, preferred_topic_tag: S
 	_current_mode = _default_mode()
 
 	_heading_label.text = "Section Crossroads"
-	_subtitle_label.text = "Choose the fastest route into %s." % _search_subject()
+	_subtitle_label.text = "Pick a survey, then choose how you want to enter %s." % _search_subject()
 	_refresh_template_panel()
 	_refresh_mode_buttons()
 	_refresh_dynamic_content()
@@ -264,10 +273,16 @@ func _rebuild_template_grid() -> void:
 		var source_label: String = str(template_info.get("source_label", "Template")).strip_edges()
 		var filename: String = str(template_info.get("filename", template_path.get_file())).strip_edges()
 		var description: String = str(template_info.get("description", "")).strip_edges()
+		var meta_parts: Array[String] = []
+		if not source_label.is_empty():
+			meta_parts.append(source_label)
+		if not filename.is_empty() and filename != title:
+			meta_parts.append(filename)
+		var meta_text: String = " | ".join(meta_parts)
 		var button: Button = Button.new()
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.custom_minimum_size = Vector2(0.0, 72.0)
-		button.text = "%s\n%s | %s" % [title, source_label, filename]
+		button.custom_minimum_size = Vector2(0.0, 96.0)
+		button.text = title if meta_text.is_empty() else "%s\n%s" % [title, meta_text]
 		button.tooltip_text = description if not description.is_empty() else filename
 		SurveyStyle.apply_answer_button(button, template_path == _current_template_path)
 		button.pressed.connect(_on_template_selected_pressed.bind(template_path))
@@ -275,20 +290,23 @@ func _rebuild_template_grid() -> void:
 		_template_grid.add_child(button)
 
 func _refresh_mode_buttons() -> void:
+	_template_continue_button.disabled = _question_entries.is_empty()
 	_explore_button.disabled = _question_entries.is_empty()
 	_search_mode_button.disabled = _question_entries.is_empty()
 	_topics_button.disabled = _topic_tags.is_empty()
 	_guided_button.disabled = _guided_presets.is_empty() and _audience_profiles.is_empty() and _topic_tags.is_empty()
 	_random_button.disabled = _question_entries.is_empty()
-	_refresh_mode_button(_explore_button, _current_mode == MODE_EXPLORE, "Survey Scroll", "Open the full survey and move with the Survey Map.")
-	_refresh_mode_button(_search_mode_button, _current_mode == MODE_SEARCH, "Search", "Look for matching questions by words, phrases, or topics.")
-	_refresh_mode_button(_topics_button, _current_mode == MODE_TOPICS, "Browse Topics", "Pick one topic tag and jump to related questions.")
-	_refresh_mode_button(_guided_button, _current_mode == MODE_GUIDED, "Guided Match", "Tailor the survey by preset, audience, and topics.")
-	_refresh_mode_button(_random_button, _current_mode == MODE_RANDOM, "Gamble", "Spin for a random question from all or selected sections.")
+	_refresh_mode_button(_explore_button, _current_mode == MODE_EXPLORE, "Survey Scroll", "Open the full survey and move with the Survey Map.", MODE_ICON_EXPLORE)
+	_refresh_mode_button(_search_mode_button, _current_mode == MODE_SEARCH, "Search", "Look for matching questions by words, phrases, or topics.", MODE_ICON_SEARCH)
+	_refresh_mode_button(_topics_button, _current_mode == MODE_TOPICS, "Browse Topics", "Pick one topic tag and jump to related questions.", MODE_ICON_TOPICS)
+	_refresh_mode_button(_guided_button, _current_mode == MODE_GUIDED, "Guided Match", "Tailor the survey by preset, audience, and topics.", MODE_ICON_GUIDED)
+	_refresh_mode_button(_random_button, _current_mode == MODE_RANDOM, "Gamble", "Spin for a random question from all or selected sections.", MODE_ICON_RANDOM)
 
-func _refresh_mode_button(button: Button, is_selected: bool, title: String, description: String) -> void:
+func _refresh_mode_button(button: Button, is_selected: bool, title: String, description: String, icon_texture: Texture2D) -> void:
 	button.text = "%s\n%s" % [title, description]
-	button.custom_minimum_size = Vector2(0.0, 84.0)
+	button.icon = icon_texture
+	button.tooltip_text = description
+	button.custom_minimum_size = Vector2(0.0, 72.0)
 	if is_selected:
 		SurveyStyle.apply_primary_button(button)
 	else:
@@ -383,14 +401,15 @@ func _refresh_dynamic_content() -> void:
 		return
 	if _current_mode != MODE_RANDOM:
 		_cancel_random_spin()
+	_mode_description_label.visible = true
 	match _current_mode:
 		MODE_EXPLORE:
 			_mode_title_label.text = "Survey Scroll"
-			_mode_description_label.text = "Open the full questionnaire, keep the Survey Map visible, and move at your own pace."
+			_mode_description_label.visible = false
 			_explore_actions.visible = true
 			_continue_button.visible = true
 			_search_button.visible = false
-			_continue_button.text = "Open Survey Scroll"
+			_continue_button.text = "Open Survey Scroll\nMove through the full questionnaire with the Survey Map visible."
 			_topic_group.visible = false
 			_preset_group.visible = false
 			_audience_group.visible = false

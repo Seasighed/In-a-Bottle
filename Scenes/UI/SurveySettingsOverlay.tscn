@@ -97,6 +97,15 @@ value = 0.35
 layout_mode = 2
 text = "35%"
 
+[node name="HoverSfxCheckBox" type="CheckBox" parent="Bounds/Center/Panel/PanelScroll/Stack"]
+layout_mode = 2
+text = "Enable hover sound effects"
+
+[node name="HoverSfxLabel" type="Label" parent="Bounds/Center/Panel/PanelScroll/Stack"]
+layout_mode = 2
+autowrap_mode = 3
+text = "Controls hover chirps while moving across questions, answers, and other interface controls."
+
 [node name="PrivacyHeadingLabel" type="Label" parent="Bounds/Center/Panel/PanelScroll/Stack"]
 layout_mode = 2
 text = "Privacy"
@@ -125,4 +134,3 @@ button_pressed = true
 layout_mode = 2
 autowrap_mode = 3
 text = "Keeps answers and in-session state between launches. Turn this off if you do not want progress saved automatically on this device."
-

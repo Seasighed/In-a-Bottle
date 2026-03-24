@@ -128,6 +128,14 @@ static func _normalize_preferences(source: Dictionary) -> Dictionary:
 	if not sfx_volume_key.is_empty():
 		resolved_preferences["sfx_volume"] = clampf(float(source.get(sfx_volume_key, 0.65)), 0.0, 1.0)
 
+	var hover_sfx_key := ""
+	for candidate in ["hover_sfx_enabled", "enable_hover_sfx", "hover_audio_enabled"]:
+		if source.has(candidate):
+			hover_sfx_key = candidate
+			break
+	if not hover_sfx_key.is_empty():
+		resolved_preferences["hover_sfx_enabled"] = bool(source.get(hover_sfx_key, false))
+
 	if source.has("remember_onboarding_preferences"):
 		resolved_preferences["remember_onboarding_preferences"] = bool(source.get("remember_onboarding_preferences", true))
 	elif source.has("remember_onboarding"):

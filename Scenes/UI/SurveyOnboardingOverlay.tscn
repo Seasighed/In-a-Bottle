@@ -47,7 +47,7 @@ size_flags_vertical = 3
 [node name="Stack" type="VBoxContainer" parent="Bounds/Center/Panel/PanelScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 16
+theme_override_constants/separation = 12
 
 [node name="HeadingRow" type="HBoxContainer" parent="Bounds/Center/Panel/PanelScroll/Stack"]
 layout_mode = 2
@@ -66,7 +66,7 @@ text = "X"
 [node name="SubtitleLabel" type="Label" parent="Bounds/Center/Panel/PanelScroll/Stack"]
 layout_mode = 2
 autowrap_mode = 3
-text = "Choose the fastest route into the questionnaire."
+text = "Pick a survey first, then choose how you want to enter the questionnaire."
 
 [node name="TemplateSection" type="VBoxContainer" parent="Bounds/Center/Panel/PanelScroll/Stack"]
 layout_mode = 2
@@ -81,53 +81,71 @@ layout_mode = 2
 autowrap_mode = 3
 text = "Current template:"
 
-[node name="TemplateActions" type="HBoxContainer" parent="Bounds/Center/Panel/PanelScroll/Stack/TemplateSection"]
-layout_mode = 2
-theme_override_constants/separation = 10
-
-[node name="ImportTemplateButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/TemplateSection/TemplateActions"]
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Import Survey Template"
-
-[node name="OpenTemplateFolderButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/TemplateSection/TemplateActions"]
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Open Template Folder"
-
 [node name="TemplateGrid" type="GridContainer" parent="Bounds/Center/Panel/PanelScroll/Stack/TemplateSection"]
 layout_mode = 2
 columns = 2
 theme_override_constants/h_separation = 10
 theme_override_constants/v_separation = 10
 
-[node name="ModeButtons" type="GridContainer" parent="Bounds/Center/Panel/PanelScroll/Stack"]
+[node name="TemplateActions" type="FlowContainer" parent="Bounds/Center/Panel/PanelScroll/Stack/TemplateSection"]
 layout_mode = 2
-columns = 2
 theme_override_constants/h_separation = 10
 theme_override_constants/v_separation = 10
 
-[node name="ExploreButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/ModeButtons"]
+[node name="ImportTemplateButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/TemplateSection/TemplateActions"]
+layout_mode = 2
+text = "Import Template"
+
+[node name="OpenTemplateFolderButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/TemplateSection/TemplateActions"]
+layout_mode = 2
+text = "Open Folder"
+
+[node name="TemplateContinueButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/TemplateSection"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 72)
+text = "Open Survey Scroll\nMove through the full questionnaire with the Survey Map visible."
+
+[node name="ModeSection" type="VBoxContainer" parent="Bounds/Center/Panel/PanelScroll/Stack"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ModeHeadingLabel" type="Label" parent="Bounds/Center/Panel/PanelScroll/Stack/ModeSection"]
+layout_mode = 2
+text = "Quick Routes"
+
+[node name="ModeCaptionLabel" type="Label" parent="Bounds/Center/Panel/PanelScroll/Stack/ModeSection"]
+layout_mode = 2
+autowrap_mode = 3
+text = "Shortcuts, search, guided picks, and the gamble live here."
+
+[node name="ModeButtons" type="GridContainer" parent="Bounds/Center/Panel/PanelScroll/Stack/ModeSection"]
+layout_mode = 2
+columns = 1
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 10
+
+[node name="ExploreButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/ModeSection/ModeButtons"]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Survey Scroll"
 
-[node name="SearchModeButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/ModeButtons"]
+[node name="SearchModeButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/ModeSection/ModeButtons"]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Search"
 
-[node name="TopicsButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/ModeButtons"]
+[node name="TopicsButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/ModeSection/ModeButtons"]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Browse Topics"
 
-[node name="GuidedButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/ModeButtons"]
+[node name="GuidedButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/ModeSection/ModeButtons"]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Guided Match"
 
-[node name="RandomButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/ModeButtons"]
+[node name="RandomButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/ModeSection/ModeButtons"]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Gamble"
@@ -149,14 +167,15 @@ layout_mode = 2
 autowrap_mode = 3
 text = "Open the full questionnaire and move at your own pace."
 
-[node name="ExploreActions" type="HBoxContainer" parent="Bounds/Center/Panel/PanelScroll/Stack/ContentPanel/ContentStack"]
+[node name="ExploreActions" type="VBoxContainer" parent="Bounds/Center/Panel/PanelScroll/Stack/ContentPanel/ContentStack"]
 layout_mode = 2
 theme_override_constants/separation = 10
 
 [node name="ContinueButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/ContentPanel/ContentStack/ExploreActions"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Open Survey Scroll"
+custom_minimum_size = Vector2(0, 84)
+text = "Open Survey Scroll\nMove through the full questionnaire with the Survey Map visible."
 
 [node name="SearchButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/ContentPanel/ContentStack/ExploreActions"]
 layout_mode = 2

@@ -63,6 +63,7 @@ var _preferred_topic_tag := ""
 var _preferred_audience_id := ""
 var _remember_onboarding_preferences := true
 var _allow_local_session_cache := true
+var _hover_sfx_enabled := false
 var _startup_onboarding_gate_active := false
 var _loaded_global_preferences: Dictionary = {}
 var _summary_adjective_text := ""
@@ -224,6 +225,7 @@ func _configure_feedback_hub() -> void:
 		_feedback_hub = SURVEY_UI_FEEDBACK.new()
 		add_child(_feedback_hub)
 	SURVEY_UI_FEEDBACK.set_sfx_volume(sfx_volume)
+	SURVEY_UI_FEEDBACK.set_hover_sfx_enabled(_hover_sfx_enabled)
 
 func _configure_save_dialog() -> void:
 	_save_dialog = FileDialog.new()
@@ -271,6 +273,8 @@ func _prime_preferences_from_store() -> void:
 		use_dark_mode = bool(_loaded_global_preferences.get("use_dark_mode", use_dark_mode))
 	if _loaded_global_preferences.has("sfx_volume"):
 		sfx_volume = clampf(float(_loaded_global_preferences.get("sfx_volume", sfx_volume)), 0.0, 1.0)
+	if _loaded_global_preferences.has("hover_sfx_enabled"):
+		_hover_sfx_enabled = bool(_loaded_global_preferences.get("hover_sfx_enabled", _hover_sfx_enabled))
 	_remember_onboarding_preferences = bool(_loaded_global_preferences.get("remember_onboarding_preferences", _loaded_global_preferences.get("remember_onboarding", _remember_onboarding_preferences)))
 	_allow_local_session_cache = bool(_loaded_global_preferences.get("allow_local_session_cache", _loaded_global_preferences.get("local_session_cache", _allow_local_session_cache)))
 	if _remember_onboarding_preferences:
@@ -401,6 +405,7 @@ func _connect_actions() -> void:
 		_settings_overlay.close_requested.connect(_close_settings_overlay)
 		_settings_overlay.theme_mode_requested.connect(_on_theme_mode_requested)
 		_settings_overlay.sfx_volume_requested.connect(_on_sfx_volume_requested)
+		_settings_overlay.hover_sfx_requested.connect(_on_hover_sfx_requested)
 		_settings_overlay.remember_onboarding_requested.connect(_on_remember_onboarding_requested)
 		_settings_overlay.local_session_cache_requested.connect(_on_local_session_cache_requested)
 	if _summary_overlay != null:
@@ -521,7 +526,10 @@ func _apply_loaded_preferences(preferences: Dictionary) -> bool:
 		_preferred_audience_id = ""
 	if preferences.has("sfx_volume"):
 		sfx_volume = clampf(float(preferences.get("sfx_volume", sfx_volume)), 0.0, 1.0)
-		SURVEY_UI_FEEDBACK.set_sfx_volume(sfx_volume)
+	if preferences.has("hover_sfx_enabled"):
+		_hover_sfx_enabled = bool(preferences.get("hover_sfx_enabled", _hover_sfx_enabled))
+	SURVEY_UI_FEEDBACK.set_sfx_volume(sfx_volume)
+	SURVEY_UI_FEEDBACK.set_hover_sfx_enabled(_hover_sfx_enabled)
 	return theme_changed
 
 func _duplicate_answer_value(value: Variant) -> Variant:
@@ -537,7 +545,8 @@ func _current_preferences() -> Dictionary:
 		"use_dark_mode": use_dark_mode,
 		"remember_onboarding_preferences": _remember_onboarding_preferences,
 		"allow_local_session_cache": _allow_local_session_cache,
-		"sfx_volume": snappedf(sfx_volume, 0.01)
+		"sfx_volume": snappedf(sfx_volume, 0.01),
+		"hover_sfx_enabled": _hover_sfx_enabled
 	}
 	if _remember_onboarding_preferences:
 		preferences["onboarding_completed"] = _onboarding_completed
@@ -1307,7 +1316,7 @@ func _open_settings_overlay() -> void:
 	_close_search_overlay()
 	_close_onboarding_overlay()
 	_close_summary_overlay()
-	_settings_overlay.open_settings(use_dark_mode, sfx_volume, _remember_onboarding_preferences, _allow_local_session_cache)
+	_settings_overlay.open_settings(use_dark_mode, sfx_volume, _hover_sfx_enabled, _remember_onboarding_preferences, _allow_local_session_cache)
 
 func _close_settings_overlay() -> void:
 	if _settings_overlay != null:
@@ -1952,6 +1961,14 @@ func _on_sfx_volume_requested(volume: float) -> void:
 		return
 	sfx_volume = clamped_volume
 	SURVEY_UI_FEEDBACK.set_sfx_volume(sfx_volume)
+	_persist_session()
+
+func _on_hover_sfx_requested(enabled: bool) -> void:
+	if _hover_sfx_enabled == enabled:
+		return
+	_hover_sfx_enabled = enabled
+	SURVEY_UI_FEEDBACK.set_hover_sfx_enabled(_hover_sfx_enabled)
+	_show_status_message("Hover sound effects enabled." if enabled else "Hover sound effects disabled.")
 	_persist_session()
 
 func _on_remember_onboarding_requested(enabled: bool) -> void:
