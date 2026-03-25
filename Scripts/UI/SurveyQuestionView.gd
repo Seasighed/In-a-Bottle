@@ -2,6 +2,8 @@ class_name SurveyQuestionView
 extends Control
 
 const SURVEY_UI_FEEDBACK = preload("res://Scripts/UI/SurveyUiFeedback.gd")
+const PRESENTATION_DOCUMENT := &"document"
+const PRESENTATION_FOCUS := &"focus"
 
 signal answer_changed(question_id: String, value: Variant)
 signal question_selected(question_id: String)
@@ -9,6 +11,7 @@ signal question_selected(question_id: String)
 var question: SurveyQuestion
 var current_value: Variant
 var is_selected := false
+var _presentation_mode: StringName = PRESENTATION_DOCUMENT
 
 func _ready() -> void:
 	if question != null:
@@ -28,6 +31,19 @@ func set_selected(selected: bool) -> void:
 	is_selected = selected
 	if is_node_ready():
 		_apply_selection_state()
+
+func set_presentation_mode(mode: StringName) -> void:
+	var resolved_mode: StringName = PRESENTATION_FOCUS if mode == PRESENTATION_FOCUS else PRESENTATION_DOCUMENT
+	if _presentation_mode == resolved_mode:
+		return
+	_presentation_mode = resolved_mode
+	if is_node_ready():
+		refresh_responsive_layout(get_viewport().get_visible_rect().size)
+		_refresh_layout_metrics()
+		_apply_selection_state()
+
+func is_focus_presentation() -> bool:
+	return _presentation_mode == PRESENTATION_FOCUS
 
 func focus_primary_control() -> void:
 	pass

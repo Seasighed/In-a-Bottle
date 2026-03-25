@@ -7,6 +7,7 @@ signal selected(value: String)
 
 var _value: String = ""
 var _is_configuring := false
+var _focus_presentation := false
 
 func _ready() -> void:
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -30,6 +31,12 @@ func get_value() -> String:
 func get_primary_control() -> Control:
 	return self
 
+func set_focus_presentation(enabled: bool) -> void:
+	if _focus_presentation == enabled:
+		return
+	_focus_presentation = enabled
+	_update_style()
+
 func _on_toggled(pressed: bool) -> void:
 	_update_style()
 	if _is_configuring:
@@ -41,4 +48,9 @@ func _on_toggled(pressed: bool) -> void:
 
 func _update_style() -> void:
 	SurveyStyle.apply_answer_button(self, button_pressed)
+	custom_minimum_size = Vector2(0.0, 68.0 if _focus_presentation else 44.0)
+	if _focus_presentation:
+		add_theme_font_size_override("font_size", 20)
+	else:
+		remove_theme_font_size_override("font_size")
 

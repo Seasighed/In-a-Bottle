@@ -896,6 +896,7 @@ func _populate_document() -> void:
 			if not answers.has(question.id) and question.default_value != null:
 				answers[question.id] = question.default_value
 			var view := _create_question_view(question)
+			view.set_presentation_mode(SurveyQuestionView.PRESENTATION_DOCUMENT)
 			question_holder.add_child(view)
 			view.answer_changed.connect(_on_answer_changed)
 			view.question_selected.connect(_on_question_selected)
@@ -1261,6 +1262,11 @@ func _normalized_survey_view_mode(raw_mode: String) -> String:
 	return SURVEY_VIEW_MODE_AUTO
 
 func _current_survey_view_mode_name() -> String:
+	match _survey_view_mode_preference:
+		SURVEY_VIEW_MODE_FOCUS:
+			return SURVEY_VIEW_MODE_FOCUS
+		SURVEY_VIEW_MODE_SCROLL:
+			return SURVEY_VIEW_MODE_SCROLL
 	return SURVEY_VIEW_MODE_FOCUS if _focus_mode_active else SURVEY_VIEW_MODE_SCROLL
 
 func _set_survey_view_mode_preference(mode: String, persist: bool = true) -> void:
@@ -1296,29 +1302,109 @@ func _set_focus_mode_active(enabled: bool) -> void:
 		_filter_status_label.visible = not enabled
 	if _focus_mode_shell != null:
 		_focus_mode_shell.visible = enabled
+	if _focus_header_panel != null:
+		_focus_header_panel.visible = enabled
+	if _focus_section_label != null:
+		_focus_section_label.visible = false
+	if _focus_progress_label != null:
+		_focus_progress_label.visible = false
+	if _focus_hint_label != null:
+		_focus_hint_label.visible = false
 	if not enabled:
 		if mode_changed and _focus_transition_tween != null:
 			_focus_transition_tween.kill()
 			_focus_transition_tween = null
 		if mode_changed:
 			_clear_focus_question_stage()
+		_apply_focus_mode_shell_theme()
+		_refresh_menu_access_button()
 		return
+	_apply_focus_mode_shell_theme()
 	if mode_changed:
 		_refresh_focus_mode(true)
 	else:
 		_sync_focus_question_stage_size()
 		_update_focus_navigation_state()
+	_refresh_menu_access_button()
 
 func _refresh_menu_access_button() -> void:
 	if _menu_access_layer == null:
 		return
 	var overlay_blocking: bool = (_overlay_menu != null and _overlay_menu.visible) or (_search_overlay != null and _search_overlay.visible) or (_onboarding_overlay != null and _onboarding_overlay.visible) or (_settings_overlay != null and _settings_overlay.visible) or (_summary_overlay != null and _summary_overlay.visible) or (_export_overlay != null and _export_overlay.visible)
-	_menu_access_layer.visible = survey != null and not overlay_blocking
+	_menu_access_layer.visible = survey != null and not overlay_blocking and not _focus_mode_active
+
+func _apply_focus_mode_shell_theme() -> void:
+	if _content_card == null or _focus_footer_panel == null or _focus_header_panel == null:
+		return
+	if _focus_mode_active:
+		_content_card.clip_contents = true
+		var content_style := SurveyStyle.panel(SurveyStyle.SURFACE, SurveyStyle.BORDER, 24, 1)
+		content_style.content_margin_left = 10
+		content_style.content_margin_right = 10
+		content_style.content_margin_top = 12
+		content_style.content_margin_bottom = 10
+		_content_card.add_theme_stylebox_override("panel", content_style)
+		var footer_style := StyleBoxFlat.new()
+		footer_style.content_margin_left = 14
+		footer_style.content_margin_right = 14
+		footer_style.content_margin_top = 8
+		footer_style.content_margin_bottom = 10
+		_focus_footer_panel.add_theme_stylebox_override("panel", footer_style)
+		var header_style := StyleBoxFlat.new()
+		header_style.content_margin_left = 4
+		header_style.content_margin_right = 4
+		header_style.content_margin_top = 8
+		header_style.content_margin_bottom = 6
+		_focus_header_panel.add_theme_stylebox_override("panel", header_style)
+		_apply_focus_nav_button_style(_focus_previous_button, false)
+		_apply_focus_nav_button_style(_focus_next_button, true)
+		return
+	_content_card.clip_contents = false
+	SurveyStyle.apply_panel(_content_card, SurveyStyle.SURFACE, SurveyStyle.BORDER, 26, 1)
+	var focus_header_style: StyleBoxFlat = SurveyStyle.panel(SurveyStyle.SURFACE_ALT, SurveyStyle.ACCENT_ALT, 22, 1)
+	focus_header_style.content_margin_left = 12
+	focus_header_style.content_margin_right = 12
+	focus_header_style.content_margin_top = 10
+	focus_header_style.content_margin_bottom = 10
+	_focus_header_panel.add_theme_stylebox_override("panel", focus_header_style)
+	var focus_footer_style: StyleBoxFlat = SurveyStyle.panel(SurveyStyle.SURFACE_ALT, SurveyStyle.BORDER, 20, 1)
+	focus_footer_style.content_margin_left = 14
+	focus_footer_style.content_margin_right = 14
+	focus_footer_style.content_margin_top = 14
+	focus_footer_style.content_margin_bottom = 14
+	_focus_footer_panel.add_theme_stylebox_override("panel", focus_footer_style)
+	SurveyStyle.apply_secondary_button(_focus_previous_button)
+	SurveyStyle.apply_primary_button(_focus_next_button)
+
+func _apply_focus_nav_button_style(button: Button, is_primary: bool) -> void:
+	if button == null:
+		return
+	var normal_fill := SurveyStyle.ACCENT if is_primary else SurveyStyle.SURFACE_ALT
+	var normal_border := SurveyStyle.ACCENT if is_primary else SurveyStyle.BORDER
+	var hover_fill := SurveyStyle.ACCENT.lightened(0.08) if is_primary else SurveyStyle.SURFACE_MUTED
+	var hover_border := SurveyStyle.ACCENT if is_primary else SurveyStyle.BORDER.lightened(0.08)
+	var pressed_fill := SurveyStyle.ACCENT.darkened(0.08) if is_primary else SurveyStyle.SURFACE
+	var pressed_border := SurveyStyle.ACCENT if is_primary else SurveyStyle.ACCENT_ALT
+	for state in [{"name": "normal", "fill": normal_fill, "border": normal_border, "width": 0 if is_primary else 1}, {"name": "hover", "fill": hover_fill, "border": hover_border, "width": 0 if is_primary else 1}, {"name": "pressed", "fill": pressed_fill, "border": pressed_border, "width": 0 if is_primary else 1}]:
+		var style := SurveyStyle.panel(state.get("fill", normal_fill), state.get("border", normal_border), 12, int(state.get("width", 0 if is_primary else 1)))
+		style.content_margin_left = 10
+		style.content_margin_right = 10
+		style.content_margin_top = 6
+		style.content_margin_bottom = 6
+		button.add_theme_stylebox_override(str(state.get("name", "normal")), style)
+	button.add_theme_color_override("font_color", SurveyStyle.TEXT_ON_ACCENT if is_primary else SurveyStyle.TEXT_PRIMARY)
+	button.add_theme_color_override("font_focus_color", SurveyStyle.TEXT_ON_ACCENT if is_primary else SurveyStyle.TEXT_PRIMARY)
+	button.add_theme_color_override("font_hover_color", SurveyStyle.TEXT_ON_ACCENT if is_primary else SurveyStyle.TEXT_PRIMARY)
+	button.add_theme_color_override("font_pressed_color", SurveyStyle.TEXT_ON_ACCENT if is_primary else SurveyStyle.TEXT_PRIMARY)
+	button.add_theme_color_override("font_disabled_color", SurveyStyle.TEXT_MUTED)
+	SurveyStyle.apply_text_outline(button, 1)
+	button.add_theme_font_size_override("font_size", 13)
 
 func _refresh_focus_mode(force_rebuild: bool = false, transition_direction: int = 0) -> void:
 	if not _focus_mode_active or _focus_mode_shell == null:
 		return
 	if survey == null or survey.sections.is_empty():
+		_clear_container(_focus_segment_row)
 		_clear_focus_question_stage()
 		return
 	var current_question_id := _selected_question_id
@@ -1327,10 +1413,8 @@ func _refresh_focus_mode(force_rebuild: bool = false, transition_direction: int 
 	if current_question_id.is_empty():
 		current_question_id = _first_question_id_in_section(clampi(current_section_index, 0, max(survey.sections.size() - 1, 0)))
 	if current_question_id.is_empty():
+		_clear_container(_focus_segment_row)
 		_clear_focus_question_stage()
-		_focus_section_label.text = "No question available"
-		_focus_progress_label.text = ""
-		_focus_hint_label.visible = false
 		_focus_previous_button.disabled = true
 		_focus_next_button.disabled = true
 		_focus_next_button.text = "Next"
@@ -1344,8 +1428,6 @@ func _refresh_focus_mode(force_rebuild: bool = false, transition_direction: int 
 	var question: SurveyQuestion = _question_definition(current_question_id)
 	_focus_section_label.text = section.display_title(section_index)
 	_focus_progress_label.text = "Question %d of %d | %s" % [question_index + 1, max(section.questions.size(), 1), _question_type_label(question.type)]
-	SurveyStyle.style_caption(_focus_progress_label, _focus_completion_color(question.answer_completion_state(answers.get(question.id, null))))
-	_focus_hint_label.visible = true
 	_rebuild_focus_segments(section_index, question_index)
 	_update_focus_navigation_state()
 	if force_rebuild or _focus_stage_question_id != current_question_id:
@@ -1369,12 +1451,16 @@ func _rebuild_focus_segments(section_index: int, active_question_index: int) -> 
 		var completion_state: StringName = question.answer_completion_state(answers.get(question.id, null))
 		var fill := _focus_completion_fill_color(completion_state)
 		var border := _focus_completion_border_color(completion_state)
-		var border_width := 1
+		var border_width := 0
 		if question_index == active_question_index:
+			fill = _focus_active_segment_fill_color(fill)
 			border = SurveyStyle.TEXT_PRIMARY
-			border_width = 2
-		SurveyStyle.apply_panel(segment, fill, border, 8, border_width)
+			border_width = 1
+		SurveyStyle.apply_panel(segment, fill, border, 2, border_width)
 		_focus_segment_row.add_child(segment)
+
+func _focus_active_segment_fill_color(base_fill: Color) -> Color:
+	return base_fill.darkened(0.16)
 
 func _focus_completion_fill_color(state: StringName) -> Color:
 	match state:
@@ -1402,7 +1488,7 @@ func _focus_completion_color(state: StringName) -> Color:
 
 func _focus_segment_height() -> float:
 	var viewport_width: float = get_viewport().get_visible_rect().size.x
-	return 6.0 if viewport_width <= 640.0 else 10.0
+	return 5.0 if viewport_width <= 640.0 else 6.0
 
 func _present_focus_question(question_id: String, direction: int = 0) -> void:
 	var question: SurveyQuestion = _question_definition(question_id)
@@ -1414,6 +1500,7 @@ func _present_focus_question(question_id: String, direction: int = 0) -> void:
 		_focus_transition_tween = null
 	_cleanup_focus_question_stage(_focus_question_view)
 	var new_view := _create_question_view(question)
+	new_view.set_presentation_mode(SurveyQuestionView.PRESENTATION_FOCUS)
 	_focus_question_stage.add_child(new_view)
 	new_view.answer_changed.connect(_on_answer_changed)
 	new_view.question_selected.connect(_on_question_selected)
@@ -1427,7 +1514,7 @@ func _present_focus_question(question_id: String, direction: int = 0) -> void:
 	call_deferred("_sync_focus_question_stage_size")
 	var slide_width: float = _focus_question_stage.custom_minimum_size.x
 	if slide_width <= 0.0:
-		slide_width = maxf(_focus_question_scroll.size.x - 24.0, 280.0)
+		slide_width = maxf(_focus_question_scroll.size.x, 280.0)
 	_position_focus_question_view(new_view, slide_width, 0.0)
 	if old_view == null or not is_instance_valid(old_view) or direction == 0:
 		if old_view != null and old_view != new_view:
@@ -1465,13 +1552,14 @@ func _position_focus_question_view(view: SurveyQuestionView, width: float, posit
 	view.custom_minimum_size = Vector2(width, 0.0)
 	view.size = Vector2(width, 0.0)
 	view.reset_size()
-	var view_height := maxf(maxf(view.size.y, view.get_combined_minimum_size().y), 240.0)
+	var fill_height := maxf(_focus_question_scroll.size.y, 240.0) if _focus_mode_active and _focus_question_scroll != null else 240.0
+	var view_height := maxf(maxf(view.size.y, view.get_combined_minimum_size().y), fill_height)
 	view.size = Vector2(width, view_height)
 
 func _sync_focus_question_stage_size() -> void:
 	if not _focus_mode_active or _focus_question_stage == null or _focus_question_scroll == null:
 		return
-	var stage_width := maxf(maxf(_focus_question_scroll.size.x - 24.0, _content_card.size.x - 48.0), 280.0)
+	var stage_width := maxf(_focus_question_scroll.size.x, 280.0)
 	var stage_height := maxf(_focus_question_scroll.size.y, 320.0)
 	for child in _focus_question_stage.get_children():
 		var view := child as SurveyQuestionView
@@ -1490,7 +1578,7 @@ func _update_focus_navigation_state() -> void:
 	var has_questions := not visible_question_ids.is_empty()
 	_focus_previous_button.disabled = (not has_questions) or current_index <= 0
 	_focus_next_button.disabled = not has_questions
-	_focus_next_button.text = "Export Menu" if has_questions and current_index >= visible_question_ids.size() - 1 else "Next"
+	_focus_next_button.text = "Finish" if has_questions and current_index >= visible_question_ids.size() - 1 else "Next"
 
 func _focus_transition_direction(target_question_id: String) -> int:
 	if target_question_id.is_empty() or _selected_question_id.is_empty() or target_question_id == _selected_question_id:
@@ -1707,6 +1795,7 @@ func _sync_document_question_view(question_id: String) -> void:
 	var question: SurveyQuestion = _question_definition(question_id)
 	if view == null or question == null:
 		return
+	view.set_presentation_mode(SurveyQuestionView.PRESENTATION_DOCUMENT)
 	view.configure(question, answers.get(question_id, question.default_value))
 	view.set_selected(question_id == _selected_question_id)
 
@@ -2891,6 +2980,12 @@ func _update_responsive_layout() -> void:
 	var shell_gap := int(clampf(viewport_size.x * 0.014, 8.0, 24.0))
 	var column_gap := int(clampf(shell_gap * 0.9, 10.0, 20.0))
 	var content_gap := int(clampf(shell_gap * 0.7, 8.0, 16.0))
+	_set_focus_mode_active(_should_use_focus_mode(viewport_size))
+	if _focus_mode_active:
+		margin = int(clampf(shortest_side * 0.014, 10.0, 16.0))
+		shell_gap = 0
+		column_gap = 0
+		content_gap = 4
 	_margin.add_theme_constant_override("margin_left", margin)
 	_margin.add_theme_constant_override("margin_top", margin)
 	_margin.add_theme_constant_override("margin_right", margin)
@@ -2899,17 +2994,30 @@ func _update_responsive_layout() -> void:
 	_main_column.add_theme_constant_override("separation", column_gap)
 	_content_stack.add_theme_constant_override("separation", content_gap)
 	_nav_row.add_theme_constant_override("separation", int(clampf(shell_gap * 0.5, 8.0, 12.0)))
-	_focus_mode_shell.add_theme_constant_override("separation", content_gap)
-	_focus_footer_stack.add_theme_constant_override("separation", 10 if compact_layout else 12)
-	_focus_nav_row.add_theme_constant_override("separation", int(clampf(shell_gap * 0.5, 8.0, 12.0)))
-	_set_focus_mode_active(_should_use_focus_mode(viewport_size))
+	_focus_mode_shell.add_theme_constant_override("separation", 6 if _focus_mode_active else content_gap)
+	_focus_footer_stack.add_theme_constant_override("separation", 0 if _focus_mode_active else (10 if compact_layout else 12))
+	_focus_nav_row.add_theme_constant_override("separation", 8 if _focus_mode_active else int(clampf(shell_gap * 0.5, 8.0, 12.0)))
+	_focus_segment_row.add_theme_constant_override("separation", 4 if _focus_mode_active else 6)
 	_outline_panel.visible = viewport_size.x >= 1120.0 and not _focus_mode_active
 	_outline_panel.custom_minimum_size.x = clampf(viewport_size.x * 0.24, 220.0, 300.0)
 	_focus_question_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_focus_question_scroll.size_flags_stretch_ratio = 3.0 if compact_layout else 1.0
-	_focus_footer_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL if compact_layout else Control.SIZE_FILL
-	_focus_footer_panel.size_flags_stretch_ratio = 1.0
-	_focus_question_scroll.custom_minimum_size.y = clampf(viewport_size.y * 0.52, 280.0 if compact_layout else 260.0, 760.0)
+	_focus_question_scroll.size_flags_stretch_ratio = 1.0
+	_focus_footer_panel.size_flags_vertical = Control.SIZE_FILL
+	_focus_footer_panel.size_flags_stretch_ratio = 0.0
+	_focus_header_panel.visible = not _focus_mode_active
+	if _focus_mode_active:
+		_focus_header_panel.visible = true
+	_focus_header_panel.custom_minimum_size.y = _focus_segment_height() + (14.0 if _focus_mode_active else 0.0)
+	_focus_hint_label.visible = false
+	_focus_segment_row.visible = _focus_mode_active
+	_focus_segment_row.custom_minimum_size.y = _focus_segment_height()
+	var focus_footer_min_height := 56.0 if _focus_mode_active else (88.0 if phone_layout else (116.0 if compact_layout else 0.0))
+	_focus_footer_panel.custom_minimum_size.y = focus_footer_min_height
+	var focus_question_min_height := 320.0 if _focus_mode_active else (280.0 if phone_layout else (320.0 if compact_layout else 260.0))
+	var focus_header_height := 14.0 if _focus_mode_active else _focus_header_panel.get_combined_minimum_size().y
+	var focus_reserved_height := float(margin * 2 + content_gap * 2) + focus_header_height + focus_footer_min_height + (10.0 if _focus_mode_active else 0.0)
+	var focus_question_height := maxf(viewport_size.y - focus_reserved_height, focus_question_min_height)
+	_focus_question_scroll.custom_minimum_size.y = clampf(focus_question_height, focus_question_min_height, 1600.0)
 	SurveyStyle.style_heading(_focus_section_label, 20 if compact_layout else 24)
 	var current_focus_state: StringName = SurveyQuestion.ANSWER_STATE_UNANSWERED
 	var current_focus_question: SurveyQuestion = _question_definition(_selected_question_id)
@@ -2917,11 +3025,11 @@ func _update_responsive_layout() -> void:
 		current_focus_state = current_focus_question.answer_completion_state(answers.get(current_focus_question.id, null))
 	SurveyStyle.style_caption(_focus_progress_label, _focus_completion_color(current_focus_state))
 	SurveyStyle.style_caption(_focus_hint_label, SurveyStyle.TEXT_MUTED)
-	_focus_nav_spacer.visible = not compact_layout
-	_focus_previous_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL if compact_layout else Control.SIZE_FILL
-	_focus_next_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL if compact_layout else Control.SIZE_FILL
-	_focus_previous_button.custom_minimum_size = Vector2(0.0, 52.0 if compact_layout else 44.0)
-	_focus_next_button.custom_minimum_size = Vector2(0.0, 56.0 if compact_layout else 44.0)
+	_focus_nav_spacer.visible = true
+	_focus_previous_button.size_flags_horizontal = Control.SIZE_FILL
+	_focus_next_button.size_flags_horizontal = Control.SIZE_FILL
+	_focus_previous_button.custom_minimum_size = Vector2(84.0 if _focus_mode_active else 0.0, 36.0 if _focus_mode_active else (52.0 if compact_layout else 44.0))
+	_focus_next_button.custom_minimum_size = Vector2(84.0 if _focus_mode_active else 0.0, 36.0 if _focus_mode_active else (56.0 if compact_layout else 44.0))
 	if _clear_filter_button != null:
 		_clear_filter_button.custom_minimum_size = Vector2(92.0 if compact_layout else 110.0, 40.0 if compact_layout else 42.0)
 	if _menu_access_button != null:

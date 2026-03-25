@@ -8,6 +8,7 @@ const COMPACT_OPTION_LABEL_MIN_WIDTH := 72.0
 const CELL_SIZE := 52.0
 const COMPACT_CELL_SIZE := 44.0
 @onready var _panel: PanelContainer = $Panel
+@onready var _stack: VBoxContainer = $Panel/Stack
 @onready var _title_label: Label = $Panel/Stack/TitleLabel
 @onready var _description_label: Label = $Panel/Stack/DescriptionLabel
 @onready var _grid_scroll: ScrollContainer = $Panel/Stack/GridScroll
@@ -17,10 +18,14 @@ var _answers_by_row: Dictionary = {}
 var _cell_panels: Dictionary = {}
 var _primary_control: Control
 var _compact_layout := false
+var _focus_top_spacer: Control
+var _focus_bottom_spacer: Control
 
 func _ready() -> void:
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_ensure_focus_spacers()
 	_grid_scroll.vertical_scroll_mode = 0
 	_grid_scroll.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -49,6 +54,14 @@ func _apply_question() -> void:
 	_refresh_layout_metrics()
 
 func _apply_selection_state() -> void:
+	if is_focus_presentation():
+		var panel_style := SurveyStyle.panel(SurveyStyle.SURFACE, Color(0, 0, 0, 0), 0, 0)
+		panel_style.content_margin_left = 24
+		panel_style.content_margin_right = 24
+		panel_style.content_margin_top = 24
+		panel_style.content_margin_bottom = 24
+		_panel.add_theme_stylebox_override("panel", panel_style)
+		return
 	var border_color := SurveyStyle.ACCENT if is_selected else SurveyStyle.ACCENT_ALT
 	var fill_color := SurveyStyle.SURFACE_MUTED if is_selected else SurveyStyle.SURFACE_ALT
 	SurveyStyle.apply_panel(_panel, fill_color, border_color, 22, 1)
@@ -61,19 +74,42 @@ func refresh_responsive_layout(viewport_size: Vector2) -> void:
 	var available_width: float = size.x
 	if available_width <= 0.0:
 		available_width = viewport_size.x - 48.0
-	var compact_layout: bool = available_width <= 640.0 or viewport_size.x <= 640.0
+	var focus_layout := is_focus_presentation()
+	_ensure_focus_spacers()
+	_stack.size_flags_vertical = Control.SIZE_EXPAND_FILL if focus_layout else Control.SIZE_FILL
+	_focus_top_spacer.visible = focus_layout
+	_focus_bottom_spacer.visible = focus_layout
+	var compact_layout: bool = available_width <= (720.0 if focus_layout else 640.0) or viewport_size.x <= (720.0 if focus_layout else 640.0)
 	if _compact_layout == compact_layout:
+		_grid_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL if focus_layout else Control.SIZE_SHRINK_BEGIN
 		_apply_grid_metrics()
+		_apply_selection_state()
 		_sync_grid_scroll_height()
 		_refresh_layout_metrics()
 		return
 	_compact_layout = compact_layout
+	_grid_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL if focus_layout else Control.SIZE_SHRINK_BEGIN
 	_apply_grid_metrics()
 	if question != null and is_node_ready():
 		_rebuild_grid()
 		_apply_selection_state()
 	_sync_grid_scroll_height()
 	_refresh_layout_metrics()
+
+func _ensure_focus_spacers() -> void:
+	if _focus_top_spacer == null:
+		_focus_top_spacer = Control.new()
+		_focus_top_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		_focus_top_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_stack.add_child(_focus_top_spacer)
+		_stack.move_child(_focus_top_spacer, 0)
+	if _focus_bottom_spacer == null:
+		_focus_bottom_spacer = Control.new()
+		_focus_bottom_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		_focus_bottom_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_stack.add_child(_focus_bottom_spacer)
+	_focus_top_spacer.visible = false
+	_focus_bottom_spacer.visible = false
 
 func _rebuild_grid() -> void:
 	for child in _grid.get_children():
@@ -98,7 +134,7 @@ func _rebuild_grid() -> void:
 		option_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		option_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		SurveyStyle.style_caption(option_label, SurveyStyle.TEXT_PRIMARY)
-		option_label.add_theme_font_size_override("font_size", 12 if _compact_layout else 13)
+		option_label.add_theme_font_size_override("font_size", (15 if _compact_layout else 18) if is_focus_presentation() else (12 if _compact_layout else 13))
 		_grid.add_child(option_label)
 
 	for row_name in question.rows:
@@ -109,7 +145,7 @@ func _rebuild_grid() -> void:
 		row_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		SurveyStyle.style_body(row_label, SurveyStyle.TEXT_PRIMARY)
-		row_label.add_theme_font_size_override("font_size", 14 if _compact_layout else 16)
+		row_label.add_theme_font_size_override("font_size", (18 if _compact_layout else 22) if is_focus_presentation() else (14 if _compact_layout else 16))
 		_grid.add_child(row_label)
 
 		var button_group := ButtonGroup.new()
@@ -131,7 +167,7 @@ func _rebuild_grid() -> void:
 			check_box.text = ""
 			check_box.tooltip_text = option
 			check_box.button_group = button_group
-			check_box.custom_minimum_size = Vector2(22, 22)
+			check_box.custom_minimum_size = Vector2(28, 28) if is_focus_presentation() else Vector2(22, 22)
 			check_box.button_pressed = is_selected_cell
 			SurveyStyle.style_check_box(check_box)
 			check_box.toggled.connect(_on_matrix_option_toggled.bind(row_name, option))
@@ -146,10 +182,12 @@ func _rebuild_grid() -> void:
 	_sync_grid_scroll_height()
 
 func _apply_grid_metrics() -> void:
-	_grid.add_theme_constant_override("h_separation", 8 if _compact_layout else 10)
-	_grid.add_theme_constant_override("v_separation", 6 if _compact_layout else 8)
-	SurveyStyle.style_heading(_title_label, 19 if _compact_layout else 21)
+	var focus_layout := is_focus_presentation()
+	_grid.add_theme_constant_override("h_separation", (12 if _compact_layout else 16) if focus_layout else (8 if _compact_layout else 10))
+	_grid.add_theme_constant_override("v_separation", (10 if _compact_layout else 14) if focus_layout else (6 if _compact_layout else 8))
+	SurveyStyle.style_heading(_title_label, (30 if _compact_layout else 38) if focus_layout else (19 if _compact_layout else 21))
 	SurveyStyle.style_body(_description_label)
+	_description_label.add_theme_font_size_override("font_size", (18 if _compact_layout else 22) if focus_layout else 15)
 
 func _sync_grid_scroll_height() -> void:
 	if not is_node_ready():
@@ -159,16 +197,24 @@ func _sync_grid_scroll_height() -> void:
 	var scroll_height := grid_min_size.y
 	if grid_min_size.x > maxf(size.x - 24.0, 0.0):
 		scroll_height += 18.0
+	if is_focus_presentation():
+		scroll_height = maxf(scroll_height, size.y * 0.72)
 	_grid_scroll.custom_minimum_size = Vector2(0.0, scroll_height)
 	_grid_scroll.update_minimum_size()
 
 func _row_label_width() -> float:
+	if is_focus_presentation():
+		return 180.0 if _compact_layout else 260.0
 	return COMPACT_ROW_LABEL_MIN_WIDTH if _compact_layout else ROW_LABEL_MIN_WIDTH
 
 func _option_label_width() -> float:
+	if is_focus_presentation():
+		return 90.0 if _compact_layout else 116.0
 	return COMPACT_OPTION_LABEL_MIN_WIDTH if _compact_layout else OPTION_LABEL_MIN_WIDTH
 
 func _cell_size() -> float:
+	if is_focus_presentation():
+		return 54.0 if _compact_layout else 64.0
 	return COMPACT_CELL_SIZE if _compact_layout else CELL_SIZE
 
 func _on_panel_gui_input(event: InputEvent) -> void:

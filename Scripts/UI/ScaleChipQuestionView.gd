@@ -9,10 +9,14 @@ extends SurveyQuestionView
 
 var _buttons: Array[Button] = []
 var _compact_layout := false
+var _focus_top_spacer: Control
+var _focus_bottom_spacer: Control
 
 func _ready() -> void:
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_ensure_focus_spacers()
 	SurveyStyle.style_heading(_title_label, 21)
 	SurveyStyle.style_body(_description_label)
 	_title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -47,6 +51,14 @@ func _apply_question() -> void:
 	_refresh_layout_metrics()
 
 func _apply_selection_state() -> void:
+	if is_focus_presentation():
+		var panel_style := SurveyStyle.panel(SurveyStyle.SURFACE, Color(0, 0, 0, 0), 0, 0)
+		panel_style.content_margin_left = 24
+		panel_style.content_margin_right = 24
+		panel_style.content_margin_top = 24
+		panel_style.content_margin_bottom = 24
+		_panel.add_theme_stylebox_override("panel", panel_style)
+		return
 	var border_color := SurveyStyle.ACCENT if is_selected else SurveyStyle.ACCENT_ALT
 	var fill_color := SurveyStyle.SURFACE_MUTED if is_selected else SurveyStyle.SURFACE_ALT
 	SurveyStyle.apply_panel(_panel, fill_color, border_color, 22, 1)
@@ -57,16 +69,38 @@ func focus_primary_control() -> void:
 
 func refresh_responsive_layout(viewport_size: Vector2) -> void:
 	_compact_layout = viewport_size.x <= 560.0
-	_stack.add_theme_constant_override("separation", 8 if _compact_layout else 10)
-	_flow.add_theme_constant_override("h_separation", 8 if _compact_layout else 10)
-	_flow.add_theme_constant_override("v_separation", 8 if _compact_layout else 10)
-	SurveyStyle.style_heading(_title_label, 19 if _compact_layout else 21)
+	var focus_layout := is_focus_presentation()
+	_ensure_focus_spacers()
+	_stack.size_flags_vertical = Control.SIZE_EXPAND_FILL if focus_layout else Control.SIZE_FILL
+	_focus_top_spacer.visible = focus_layout
+	_focus_bottom_spacer.visible = focus_layout
+	_stack.add_theme_constant_override("separation", (16 if _compact_layout else 20) if focus_layout else (8 if _compact_layout else 10))
+	_flow.add_theme_constant_override("h_separation", (14 if _compact_layout else 18) if focus_layout else (8 if _compact_layout else 10))
+	_flow.add_theme_constant_override("v_separation", (14 if _compact_layout else 18) if focus_layout else (8 if _compact_layout else 10))
+	SurveyStyle.style_heading(_title_label, (30 if _compact_layout else 38) if focus_layout else (19 if _compact_layout else 21))
 	SurveyStyle.style_body(_description_label)
-	var button_size: float = 48.0 if _compact_layout else 56.0
+	_description_label.add_theme_font_size_override("font_size", (18 if _compact_layout else 22) if focus_layout else 15)
+	var button_size: float = (72.0 if _compact_layout else 88.0) if focus_layout else (48.0 if _compact_layout else 56.0)
 	for button in _buttons:
 		button.custom_minimum_size = Vector2(button_size, button_size)
-		button.add_theme_font_size_override("font_size", 15 if _compact_layout else 16)
+		button.add_theme_font_size_override("font_size", (22 if _compact_layout else 26) if focus_layout else (15 if _compact_layout else 16))
+	_apply_selection_state()
 	_refresh_layout_metrics()
+
+func _ensure_focus_spacers() -> void:
+	if _focus_top_spacer == null:
+		_focus_top_spacer = Control.new()
+		_focus_top_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		_focus_top_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_stack.add_child(_focus_top_spacer)
+		_stack.move_child(_focus_top_spacer, 0)
+	if _focus_bottom_spacer == null:
+		_focus_bottom_spacer = Control.new()
+		_focus_bottom_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		_focus_bottom_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_stack.add_child(_focus_bottom_spacer)
+	_focus_top_spacer.visible = false
+	_focus_bottom_spacer.visible = false
 
 func _on_panel_gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:

@@ -9,6 +9,7 @@ signal toggled(value: String, pressed: bool)
 
 var _value: String = ""
 var _is_configuring := false
+var _focus_presentation := false
 
 func _ready() -> void:
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -16,6 +17,7 @@ func _ready() -> void:
 	SurveyStyle.style_check_box(_check_box)
 	_check_box.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_check_box.toggled.connect(_on_check_box_toggled)
+	_update_layout()
 	_update_style()
 
 func configure(value: String, pressed: bool = false) -> void:
@@ -35,6 +37,13 @@ func get_value() -> String:
 func get_primary_control() -> Control:
 	return _check_box
 
+func set_focus_presentation(enabled: bool) -> void:
+	if _focus_presentation == enabled:
+		return
+	_focus_presentation = enabled
+	_update_layout()
+	_update_style()
+
 func _on_check_box_toggled(pressed: bool) -> void:
 	_update_style()
 	if _is_configuring:
@@ -48,4 +57,12 @@ func _update_style() -> void:
 	var fill: Color = SurveyStyle.SURFACE_MUTED if _check_box.button_pressed else SurveyStyle.SURFACE_ALT
 	var border: Color = SurveyStyle.HIGHLIGHT_GOLD if _check_box.button_pressed else SurveyStyle.BORDER
 	SurveyStyle.apply_panel(self, fill, border, 14, 2 if _check_box.button_pressed else 1)
+
+func _update_layout() -> void:
+	custom_minimum_size = Vector2(0.0, 68.0 if _focus_presentation else 0.0)
+	_check_box.custom_minimum_size = Vector2(0.0, 60.0 if _focus_presentation else 0.0)
+	if _focus_presentation:
+		_check_box.add_theme_font_size_override("font_size", 20)
+	else:
+		_check_box.remove_theme_font_size_override("font_size")
 

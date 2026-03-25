@@ -23,10 +23,14 @@ var _drop_slot := -1
 var _rank_list_rebuild_queued := false
 var _rank_list_layout_refresh_queued := false
 var _compact_layout := false
+var _focus_top_spacer: Control
+var _focus_bottom_spacer: Control
 
 func _ready() -> void:
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_ensure_focus_spacers()
 	SurveyStyle.style_heading(_title_label, 21)
 	SurveyStyle.style_body(_description_label)
 	_title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -62,6 +66,14 @@ func _apply_question() -> void:
 	_refresh_layout_metrics()
 
 func _apply_selection_state() -> void:
+	if is_focus_presentation():
+		var panel_style := SurveyStyle.panel(SurveyStyle.SURFACE, Color(0, 0, 0, 0), 0, 0)
+		panel_style.content_margin_left = 24
+		panel_style.content_margin_right = 24
+		panel_style.content_margin_top = 24
+		panel_style.content_margin_bottom = 24
+		_panel.add_theme_stylebox_override("panel", panel_style)
+		return
 	var border_color := SurveyStyle.ACCENT if is_selected else SurveyStyle.ACCENT_ALT
 	var fill_color := SurveyStyle.SURFACE_MUTED if is_selected else SurveyStyle.SURFACE_ALT
 	SurveyStyle.apply_panel(_panel, fill_color, border_color, 22, 1)
@@ -72,16 +84,38 @@ func focus_primary_control() -> void:
 
 func refresh_responsive_layout(viewport_size: Vector2) -> void:
 	var compact_layout: bool = viewport_size.x <= 640.0
+	var focus_layout := is_focus_presentation()
+	_ensure_focus_spacers()
+	_stack.size_flags_vertical = Control.SIZE_EXPAND_FILL if focus_layout else Control.SIZE_FILL
+	_focus_top_spacer.visible = focus_layout
+	_focus_bottom_spacer.visible = focus_layout
 	if _compact_layout == compact_layout:
 		_apply_responsive_metrics()
+		_apply_selection_state()
 		_refresh_layout_metrics()
 		return
 	_compact_layout = compact_layout
 	_apply_responsive_metrics()
+	_apply_selection_state()
 	if question != null and is_node_ready():
 		_queue_rank_list_rebuild(true)
 	else:
 		_refresh_layout_metrics()
+
+func _ensure_focus_spacers() -> void:
+	if _focus_top_spacer == null:
+		_focus_top_spacer = Control.new()
+		_focus_top_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		_focus_top_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_stack.add_child(_focus_top_spacer)
+		_stack.move_child(_focus_top_spacer, 0)
+	if _focus_bottom_spacer == null:
+		_focus_bottom_spacer = Control.new()
+		_focus_bottom_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		_focus_bottom_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_stack.add_child(_focus_bottom_spacer)
+	_focus_top_spacer.visible = false
+	_focus_bottom_spacer.visible = false
 
 func _build_rank_order() -> Array[String]:
 	var ordered: Array[String] = []
@@ -114,7 +148,7 @@ func _rebuild_rank_list() -> void:
 
 		var row := HBoxContainer.new()
 		row.layout_mode = 2
-		row.add_theme_constant_override("separation", 8 if _compact_layout else 10)
+		row.add_theme_constant_override("separation", (12 if _compact_layout else 16) if is_focus_presentation() else (8 if _compact_layout else 10))
 		row_panel.add_child(row)
 
 		var badge := Label.new()
@@ -123,7 +157,7 @@ func _rebuild_rank_list() -> void:
 		badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		badge.text = "%d" % [index + 1]
 		badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		SurveyStyle.style_heading(badge, 16 if _compact_layout else 18, SurveyStyle.ACCENT)
+		SurveyStyle.style_heading(badge, (20 if _compact_layout else 24) if is_focus_presentation() else (16 if _compact_layout else 18), SurveyStyle.ACCENT)
 
 		var option_label := Label.new()
 		option_label.text = _order[index]
@@ -131,18 +165,18 @@ func _rebuild_rank_list() -> void:
 		option_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		option_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		SurveyStyle.style_body(option_label, SurveyStyle.TEXT_PRIMARY)
-		option_label.add_theme_font_size_override("font_size", 14 if _compact_layout else 15)
+		option_label.add_theme_font_size_override("font_size", (18 if _compact_layout else 22) if is_focus_presentation() else (14 if _compact_layout else 15))
 
 		var actions := HBoxContainer.new()
 		actions.alignment = BoxContainer.ALIGNMENT_END
 		actions.size_flags_horizontal = Control.SIZE_SHRINK_END
-		actions.add_theme_constant_override("separation", 6)
+		actions.add_theme_constant_override("separation", 8 if is_focus_presentation() else 6)
 
 		var drag_label := Label.new()
 		drag_label.text = "Drag"
 		drag_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		SurveyStyle.style_caption(drag_label, SurveyStyle.ACCENT_ALT if index == _drag_index else SurveyStyle.SOFT_WHITE)
-		drag_label.add_theme_font_size_override("font_size", 12 if _compact_layout else 13)
+		drag_label.add_theme_font_size_override("font_size", (15 if _compact_layout else 17) if is_focus_presentation() else (12 if _compact_layout else 13))
 
 		var move_up_button := Button.new()
 		move_up_button.text = "Up"
@@ -197,32 +231,43 @@ func _apply_rank_row_style(row_panel: PanelContainer, is_dragged: bool, is_drop_
 		fill = SurveyStyle.SURFACE_MUTED
 		border = SurveyStyle.HIGHLIGHT_GOLD
 		border_width = 2
-	SurveyStyle.apply_panel(row_panel, fill, border, 16, border_width)
+	SurveyStyle.apply_panel(row_panel, fill, border, 18 if is_focus_presentation() else 16, border_width)
+	row_panel.custom_minimum_size = Vector2(0.0, 82.0 if is_focus_presentation() else 0.0)
 
 func _apply_responsive_metrics() -> void:
-	_stack.add_theme_constant_override("separation", 8 if _compact_layout else 10)
-	_rank_list.add_theme_constant_override("separation", 6 if _compact_layout else 8)
-	SurveyStyle.style_heading(_title_label, 19 if _compact_layout else 21)
+	var focus_layout := is_focus_presentation()
+	_stack.add_theme_constant_override("separation", (16 if _compact_layout else 20) if focus_layout else (8 if _compact_layout else 10))
+	_rank_list.add_theme_constant_override("separation", (12 if _compact_layout else 16) if focus_layout else (6 if _compact_layout else 8))
+	SurveyStyle.style_heading(_title_label, (30 if _compact_layout else 38) if focus_layout else (19 if _compact_layout else 21))
 	SurveyStyle.style_body(_description_label)
+	_description_label.add_theme_font_size_override("font_size", (18 if _compact_layout else 22) if focus_layout else 15)
 
 func _style_rank_action_button(button: Button) -> void:
 	button.custom_minimum_size = Vector2(_action_button_width(), _action_button_height())
-	button.add_theme_font_size_override("font_size", 13 if _compact_layout else 14)
+	button.add_theme_font_size_override("font_size", (15 if _compact_layout else 17) if is_focus_presentation() else (13 if _compact_layout else 14))
 
 func _wire_rank_button_feedback(button: Button) -> void:
 	button.mouse_entered.connect(_on_row_mouse_entered)
 	button.focus_entered.connect(_on_row_focus_entered)
 
 func _badge_width() -> float:
+	if is_focus_presentation():
+		return 34.0 if _compact_layout else 40.0
 	return COMPACT_ROW_BADGE_WIDTH if _compact_layout else ROW_BADGE_WIDTH
 
 func _action_button_width() -> float:
+	if is_focus_presentation():
+		return 62.0 if _compact_layout else 70.0
 	return COMPACT_ACTION_BUTTON_WIDTH if _compact_layout else ACTION_BUTTON_WIDTH
 
 func _action_button_height() -> float:
+	if is_focus_presentation():
+		return 40.0 if _compact_layout else 46.0
 	return COMPACT_ACTION_BUTTON_HEIGHT if _compact_layout else ACTION_BUTTON_HEIGHT
 
 func _row_actions_reserved_width() -> float:
+	if is_focus_presentation():
+		return 210.0 if _compact_layout else 232.0
 	return COMPACT_ROW_ACTIONS_RESERVED_WIDTH if _compact_layout else ROW_ACTIONS_RESERVED_WIDTH
 
 func _on_panel_gui_input(event: InputEvent) -> void:

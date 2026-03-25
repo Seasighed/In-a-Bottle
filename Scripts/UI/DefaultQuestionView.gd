@@ -12,10 +12,14 @@ const MULTIPLE_CHOICE_OPTION_ROW_SCENE := preload("res://Scenes/AnswerPrefabs/Mu
 @onready var _field_host: VBoxContainer = $Card/Stack/FieldHost
 
 var _primary_control: Control
+var _focus_top_spacer: Control
+var _focus_bottom_spacer: Control
 
 func _ready() -> void:
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_card.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_ensure_focus_spacers()
 	SurveyStyle.style_heading(_title_label, 20)
 	SurveyStyle.style_body(_description_label)
 	SurveyStyle.style_caption(_meta_label)
@@ -72,6 +76,14 @@ func _apply_question() -> void:
 	_refresh_layout_metrics()
 
 func _apply_selection_state() -> void:
+	if is_focus_presentation():
+		var card_style := SurveyStyle.panel(SurveyStyle.SURFACE, Color(0, 0, 0, 0), 0, 0)
+		card_style.content_margin_left = 24
+		card_style.content_margin_right = 24
+		card_style.content_margin_top = 24
+		card_style.content_margin_bottom = 24
+		_card.add_theme_stylebox_override("panel", card_style)
+		return
 	var border_color := SurveyStyle.ACCENT_ALT if is_selected else SurveyStyle.BORDER
 	var fill_color := SurveyStyle.SURFACE_MUTED if is_selected else SurveyStyle.SURFACE
 	SurveyStyle.apply_panel(_card, fill_color, border_color, 20, 1)
@@ -82,15 +94,101 @@ func focus_primary_control() -> void:
 
 func refresh_responsive_layout(viewport_size: Vector2) -> void:
 	var compact_layout: bool = viewport_size.x <= 640.0
-	_stack.add_theme_constant_override("separation", 8 if compact_layout else 10)
-	_field_host.add_theme_constant_override("separation", 8 if compact_layout else 10)
-	SurveyStyle.style_heading(_title_label, 18 if compact_layout else 20)
+	var focus_layout := is_focus_presentation()
+	_ensure_focus_spacers()
+	_card.size_flags_vertical = Control.SIZE_EXPAND_FILL if focus_layout else Control.SIZE_FILL
+	_stack.size_flags_vertical = Control.SIZE_EXPAND_FILL if focus_layout else Control.SIZE_FILL
+	_field_host.size_flags_vertical = Control.SIZE_FILL
+	_focus_top_spacer.visible = focus_layout
+	_focus_bottom_spacer.visible = focus_layout
+	_stack.add_theme_constant_override("separation", (16 if compact_layout else 20) if focus_layout else (8 if compact_layout else 10))
+	_field_host.add_theme_constant_override("separation", (14 if compact_layout else 18) if focus_layout else (8 if compact_layout else 10))
+	SurveyStyle.style_heading(_title_label, (30 if compact_layout else 38) if focus_layout else (18 if compact_layout else 20))
 	SurveyStyle.style_body(_description_label)
+	_description_label.add_theme_font_size_override("font_size", (18 if compact_layout else 22) if focus_layout else 15)
 	SurveyStyle.style_caption(_meta_label)
+	_meta_label.visible = not focus_layout and not _meta_label.text.is_empty()
+	_apply_field_host_presentation(viewport_size, focus_layout)
+	_apply_selection_state()
+	_refresh_layout_metrics()
+
+func _ensure_focus_spacers() -> void:
+	if _focus_top_spacer == null:
+		_focus_top_spacer = Control.new()
+		_focus_top_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		_focus_top_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_stack.add_child(_focus_top_spacer)
+		_stack.move_child(_focus_top_spacer, 0)
+	if _focus_bottom_spacer == null:
+		_focus_bottom_spacer = Control.new()
+		_focus_bottom_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		_focus_bottom_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_stack.add_child(_focus_bottom_spacer)
+	_focus_top_spacer.visible = false
+	_focus_bottom_spacer.visible = false
+
+func _apply_field_host_presentation(viewport_size: Vector2, focus_layout: bool) -> void:
 	for child in _field_host.get_children():
 		if child is TypedAnswerField:
-			(child as TypedAnswerField).refresh_responsive_layout(viewport_size)
-	_refresh_layout_metrics()
+			var typed_field := child as TypedAnswerField
+			typed_field.set_focus_presentation(focus_layout)
+			typed_field.refresh_responsive_layout(viewport_size)
+			continue
+		if child is LineEdit:
+			_apply_line_edit_presentation(child as LineEdit, viewport_size, focus_layout)
+			continue
+		if child is OptionButton:
+			_apply_option_button_presentation(child as OptionButton, viewport_size, focus_layout)
+			continue
+		if child is VBoxContainer:
+			_apply_box_field_presentation(child as VBoxContainer, viewport_size, focus_layout)
+
+func _apply_line_edit_presentation(field: LineEdit, viewport_size: Vector2, focus_layout: bool) -> void:
+	if field == null:
+		return
+	if focus_layout:
+		field.custom_minimum_size = Vector2(0.0, 72.0 if viewport_size.x <= 640.0 else 88.0)
+		field.add_theme_font_size_override("font_size", 22 if viewport_size.x <= 640.0 else 26)
+		return
+	field.custom_minimum_size = Vector2(0.0, 42.0)
+	field.remove_theme_font_size_override("font_size")
+
+func _apply_option_button_presentation(button: OptionButton, viewport_size: Vector2, focus_layout: bool) -> void:
+	if button == null:
+		return
+	if focus_layout:
+		button.custom_minimum_size = Vector2(0.0, 72.0 if viewport_size.x <= 640.0 else 88.0)
+		button.add_theme_font_size_override("font_size", 21 if viewport_size.x <= 640.0 else 24)
+		return
+	button.custom_minimum_size = Vector2(0.0, 44.0)
+	button.remove_theme_font_size_override("font_size")
+
+func _apply_box_field_presentation(container: VBoxContainer, viewport_size: Vector2, focus_layout: bool) -> void:
+	if container == null:
+		return
+	container.add_theme_constant_override("separation", (14 if viewport_size.x <= 640.0 else 18) if focus_layout else 8)
+	for child in container.get_children():
+		if child is MultipleChoiceOptionRow:
+			(child as MultipleChoiceOptionRow).set_focus_presentation(focus_layout)
+			continue
+		if child is CheckboxOptionRow:
+			(child as CheckboxOptionRow).set_focus_presentation(focus_layout)
+			continue
+		if child is HSlider:
+			var slider := child as HSlider
+			slider.custom_minimum_size = Vector2(0.0, 44.0 if focus_layout else 0.0)
+			continue
+		if child is Label:
+			var label := child as Label
+			label.add_theme_font_size_override("font_size", (18 if viewport_size.x <= 640.0 else 22) if focus_layout else 13)
+			continue
+		if child is HBoxContainer:
+			var box := child as HBoxContainer
+			box.add_theme_constant_override("separation", 12 if focus_layout else 8)
+			for nested_child in box.get_children():
+				var nested_label := nested_child as Label
+				if nested_label != null:
+					nested_label.add_theme_font_size_override("font_size", (17 if viewport_size.x <= 640.0 else 20) if focus_layout else 13)
 
 func _build_typed_answer_field(value: String, placeholder: String, multiline: bool, handler: Callable) -> void:
 	var field := TYPED_ANSWER_FIELD_SCENE.instantiate() as TypedAnswerField
@@ -220,11 +318,23 @@ func _build_number_field() -> void:
 	var field := LineEdit.new()
 	field.placeholder_text = question.placeholder if not question.placeholder.is_empty() else "Enter a number"
 	field.text = str(current_value if current_value != null else "")
+	field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	field.virtual_keyboard_enabled = true
+	field.virtual_keyboard_show_on_focus = true
+	field.virtual_keyboard_type = _number_virtual_keyboard_type()
+	field.select_all_on_focus = true
 	SurveyStyle.style_line_edit(field)
 	field.text_changed.connect(_on_number_changed)
 	_field_host.add_child(field)
 	register_selectable(field)
 	_primary_control = field
+
+func _number_virtual_keyboard_type() -> int:
+	if question == null:
+		return LineEdit.KEYBOARD_TYPE_NUMBER
+	if not is_equal_approx(question.step, round(question.step)):
+		return LineEdit.KEYBOARD_TYPE_NUMBER_DECIMAL
+	return LineEdit.KEYBOARD_TYPE_NUMBER
 
 func _format_number_value(value: float) -> String:
 	if is_equal_approx(value, round(value)):
