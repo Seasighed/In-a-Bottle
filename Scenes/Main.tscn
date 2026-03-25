@@ -16,23 +16,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1")
-survey_template_path = null
-dark_palette = null
-light_palette = null
-use_dark_mode = null
-base_content_size = null
-launch_fullscreen = null
 use_saved_dev_data = false
-sfx_volume = null
-upload_endpoint_url = null
-upload_destination_name = null
-upload_usage_summary = null
-upload_reason_summary = null
-require_upload_consent = null
-minimum_answered_questions_for_upload = null
-upload_cooldown_seconds = null
-upload_max_attempts_per_window = null
-upload_attempt_window_seconds = null
 
 [node name="Background" type="ColorRect" parent="." unique_id=730983087]
 layout_mode = 1
@@ -118,6 +102,65 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 14
 
+[node name="FocusModeShell" type="VBoxContainer" parent="Margin/Shell/MainColumn/ContentCard/ContentStack" unique_id=671376149]
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[node name="FocusHeaderPanel" type="PanelContainer" parent="Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell" unique_id=409830486]
+layout_mode = 2
+
+[node name="FocusHeaderStack" type="VBoxContainer" parent="Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusHeaderPanel" unique_id=615756807]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="FocusSectionLabel" type="Label" parent="Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusHeaderPanel/FocusHeaderStack" unique_id=1300567937]
+layout_mode = 2
+text = "Section"
+autowrap_mode = 3
+
+[node name="FocusProgressLabel" type="Label" parent="Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusHeaderPanel/FocusHeaderStack" unique_id=414853153]
+layout_mode = 2
+text = "Question"
+autowrap_mode = 3
+
+[node name="FocusSegmentRow" type="HBoxContainer" parent="Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusHeaderPanel/FocusHeaderStack" unique_id=1977386316]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="FocusQuestionScroll" type="ScrollContainer" parent="Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell" unique_id=1751690053]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="FocusQuestionStage" type="Control" parent="Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusQuestionScroll" unique_id=649969685]
+clip_contents = true
+custom_minimum_size = Vector2(0, 320)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="FocusHintLabel" type="Label" parent="Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell" unique_id=812205148]
+layout_mode = 2
+text = "Answer at your pace, then tap Next to move forward."
+autowrap_mode = 3
+
+[node name="FocusNavRow" type="HBoxContainer" parent="Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell" unique_id=260653985]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="FocusPreviousButton" type="Button" parent="Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusNavRow" unique_id=1362138124]
+layout_mode = 2
+text = "Previous"
+
+[node name="FocusNavSpacer" type="Control" parent="Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusNavRow" unique_id=779515263]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="FocusNextButton" type="Button" parent="Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusNavRow" unique_id=1738602679]
+layout_mode = 2
+text = "Next"
+
 [node name="StatusLabel" type="Label" parent="Margin/Shell/MainColumn/ContentCard/ContentStack" unique_id=951458973]
 visible = false
 layout_mode = 2
@@ -148,3 +191,20 @@ text = "Next Section"
 [node name="SummaryOverlay" parent="." unique_id=1185172037 instance=ExtResource("7")]
 
 [node name="OverlayMenu" parent="." unique_id=1717271867 instance=ExtResource("3")]
+
+[node name="MenuAccessLayer" type="CanvasLayer" parent="." unique_id=1758634543]
+layer = 61
+
+[node name="MenuAccessButton" type="Button" parent="MenuAccessLayer" unique_id=824802384]
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -116.0
+offset_top = -76.0
+offset_right = -24.0
+offset_bottom = -24.0
+grow_horizontal = 0
+grow_vertical = 0
+text = "Menu"

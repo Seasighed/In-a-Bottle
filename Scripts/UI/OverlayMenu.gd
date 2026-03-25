@@ -27,6 +27,7 @@ signal fill_test_answers_requested
 @onready var _position_label: Label = $Bounds/Center/Panel/PanelScroll/Stack/PositionLabel
 @onready var _restart_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/RestartButton
 @onready var _search_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/SearchQuestionsButton
+@onready var _navigation_actions: GridContainer = $Bounds/Center/Panel/PanelScroll/Stack/NavigationActions
 @onready var _onboarding_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/NavigationActions/OnboardingButton
 @onready var _template_picker_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/NavigationActions/TemplatePickerButton
 @onready var _settings_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/NavigationActions/SettingsButton
@@ -46,6 +47,7 @@ var _survey: SurveyDefinition
 var _answers: Dictionary = {}
 var _current_section_index := 0
 var _current_sfx_volume := SurveyUiFeedback.DEFAULT_SFX_VOLUME
+var _compact_layout := false
 
 func _ready() -> void:
 	layer = 50
@@ -75,7 +77,7 @@ func _ready() -> void:
 func refresh_theme() -> void:
 	_dimmer.color = SurveyStyle.OVERLAY_DIMMER
 	SurveyStyle.apply_panel(_panel, SurveyStyle.SURFACE, SurveyStyle.BORDER, 26, 1)
-	SurveyStyle.style_heading(_heading_label, 24)
+	SurveyStyle.style_heading(_heading_label, 22 if _compact_layout else 24)
 	SurveyStyle.style_body(_position_label)
 	SurveyStyle.style_heading(_sfx_heading_label, 18)
 	SurveyStyle.style_body(_sfx_volume_label)
@@ -90,26 +92,37 @@ func refresh_theme() -> void:
 	SurveyStyle.apply_secondary_button(_settings_button)
 	SurveyStyle.apply_secondary_button(_summary_button)
 	SurveyStyle.apply_primary_button(_export_button)
+	for button in [_restart_button, _search_button, _onboarding_button, _template_picker_button, _settings_button, _summary_button, _export_button, _theme_toggle_button, _fill_test_answers_button]:
+		_clear_compact_button_treatment(button)
 	_theme_toggle_button.set_pressed_no_signal(SurveyStyle.is_dark_mode())
 	_refresh_theme_toggle_button()
 	SurveyStyle.apply_secondary_button(_fill_test_answers_button)
 	_refresh_sfx_volume_display()
+	_apply_layout_button_treatment()
 	if _survey != null:
 		_refresh_sections()
 
 func refresh_layout(viewport_size: Vector2) -> void:
-	var horizontal_margin: float = clampf(viewport_size.x * 0.05, 20.0, 64.0)
-	var vertical_margin: float = clampf(viewport_size.y * 0.04, 16.0, 48.0)
+	var horizontal_margin: float = clampf(viewport_size.x * 0.04, 12.0, 64.0)
+	var vertical_margin: float = clampf(viewport_size.y * 0.04, 12.0, 48.0)
 	_bounds.add_theme_constant_override("margin_left", int(horizontal_margin))
 	_bounds.add_theme_constant_override("margin_right", int(horizontal_margin))
 	_bounds.add_theme_constant_override("margin_top", int(vertical_margin))
 	_bounds.add_theme_constant_override("margin_bottom", int(vertical_margin))
 
-	var panel_width: float = clampf(viewport_size.x - (horizontal_margin * 2.0), 320.0, 620.0)
-	var panel_height: float = clampf(viewport_size.y - (vertical_margin * 2.0), 320.0, 760.0)
+	var panel_width: float = clampf(viewport_size.x - (horizontal_margin * 2.0), 300.0, 620.0)
+	var panel_height: float = clampf(viewport_size.y - (vertical_margin * 2.0), 300.0, 760.0)
+	var compact_layout: bool = panel_width <= 420.0
+	if _compact_layout != compact_layout:
+		_compact_layout = compact_layout
+		refresh_theme()
 	_panel.custom_minimum_size = Vector2(panel_width, 0.0)
 	_panel_scroll.custom_minimum_size = Vector2(0.0, panel_height)
-	_section_scroll.custom_minimum_size.y = clampf(panel_height * 0.34, 140.0, 260.0)
+	_section_scroll.custom_minimum_size.y = clampf(panel_height * 0.3, 120.0, 260.0)
+	_navigation_actions.columns = 1 if _compact_layout else 2
+	_apply_layout_button_treatment()
+	if _survey != null:
+		_refresh_sections()
 
 func open_menu(survey_definition: SurveyDefinition, current_section_index: int, current_answers: Dictionary, current_sfx_volume: float = SurveyUiFeedback.DEFAULT_SFX_VOLUME, play_feedback: bool = true) -> void:
 	var was_visible := visible
@@ -153,9 +166,9 @@ func _refresh_sections() -> void:
 		var answered_count: int = section.answered_count(_answers)
 		var stored_count: int = _stored_response_count(section)
 
-		var row: HBoxContainer = HBoxContainer.new()
+		var row: BoxContainer = VBoxContainer.new() if _compact_layout else HBoxContainer.new()
 		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_theme_constant_override("separation", 8)
+		row.add_theme_constant_override("separation", 6 if _compact_layout else 8)
 
 		var jump_button: Button = Button.new()
 		jump_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -164,15 +177,21 @@ func _refresh_sections() -> void:
 			SurveyStyle.apply_primary_button(jump_button)
 		else:
 			SurveyStyle.apply_secondary_button(jump_button)
+		if _compact_layout:
+			_apply_compact_button_treatment(jump_button)
 		jump_button.pressed.connect(_on_section_pressed.bind(index))
 		_wire_feedback(jump_button)
 		row.add_child(jump_button)
 
 		var clear_button: Button = Button.new()
-		clear_button.custom_minimum_size.x = 86.0
 		clear_button.text = "Clear"
 		clear_button.disabled = stored_count == 0
 		SurveyStyle.apply_danger_button(clear_button)
+		if _compact_layout:
+			clear_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			_apply_compact_button_treatment(clear_button)
+		else:
+			clear_button.custom_minimum_size.x = 86.0
 		clear_button.pressed.connect(_on_clear_section_pressed.bind(index))
 		_wire_feedback(clear_button)
 		row.add_child(clear_button)
@@ -196,6 +215,18 @@ func _refresh_sfx_volume_display() -> void:
 		return
 	_current_sfx_volume = clampf(_sfx_volume_slider.value, 0.0, 1.0)
 	_sfx_value_label.text = "%d%%" % int(round(_current_sfx_volume * 100.0))
+
+func _apply_layout_button_treatment() -> void:
+	if not is_node_ready() or not _compact_layout:
+		return
+	for button in [_restart_button, _search_button, _onboarding_button, _template_picker_button, _settings_button, _summary_button, _export_button, _theme_toggle_button, _fill_test_answers_button]:
+		_apply_compact_button_treatment(button)
+
+func _clear_compact_button_treatment(button: Button) -> void:
+	button.custom_minimum_size = Vector2.ZERO
+	button.remove_theme_font_size_override("font_size")
+	for state_name in ["normal", "hover", "pressed", "disabled", "focus"]:
+		button.remove_theme_stylebox_override(state_name)
 
 func _apply_compact_button_treatment(button: Button) -> void:
 	button.custom_minimum_size = Vector2(0.0, 34.0)

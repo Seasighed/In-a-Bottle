@@ -22,10 +22,12 @@ signal copy_response_requested
 @onready var _summary_label: Label = $Bounds/Center/Panel/PanelScroll/Stack/SummaryLabel
 @onready var _local_heading_label: Label = $Bounds/Center/Panel/PanelScroll/Stack/LocalHeadingLabel
 @onready var _local_summary_label: Label = $Bounds/Center/Panel/PanelScroll/Stack/LocalSummaryLabel
+@onready var _local_actions: GridContainer = $Bounds/Center/Panel/PanelScroll/Stack/LocalActions
 @onready var _save_progress_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/LocalActions/SaveProgressButton
 @onready var _load_progress_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/LocalActions/LoadProgressButton
 @onready var _answer_heading_label: Label = $Bounds/Center/Panel/PanelScroll/Stack/AnswerHeadingLabel
 @onready var _answer_summary_label: Label = $Bounds/Center/Panel/PanelScroll/Stack/AnswerSummaryLabel
+@onready var _answer_actions: GridContainer = $Bounds/Center/Panel/PanelScroll/Stack/AnswerActions
 @onready var _copy_json_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/AnswerActions/CopyJsonButton
 @onready var _save_json_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/AnswerActions/SaveJsonButton
 @onready var _copy_csv_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/AnswerActions/CopyCsvButton
@@ -51,6 +53,7 @@ var _upload_busy := false
 var _upload_consent_required := true
 var _upload_status_is_error := false
 var _upload_response_text := ""
+var _compact_layout := false
 
 func _ready() -> void:
 	layer = 58
@@ -92,7 +95,7 @@ func refresh_theme() -> void:
 	_dimmer.color = SurveyStyle.OVERLAY_DIMMER
 	SurveyStyle.apply_panel(_panel, SurveyStyle.SURFACE, SurveyStyle.BORDER, 26, 1)
 	SurveyStyle.apply_panel(_upload_notice_panel, SurveyStyle.SURFACE_ALT, SurveyStyle.BORDER, 18, 1)
-	SurveyStyle.style_heading(_heading_label, 24)
+	SurveyStyle.style_heading(_heading_label, 22 if _compact_layout else 24)
 	SurveyStyle.style_body(_summary_label)
 	SurveyStyle.style_heading(_local_heading_label, 18)
 	SurveyStyle.style_caption(_local_summary_label, SurveyStyle.TEXT_MUTED)
@@ -122,19 +125,25 @@ func refresh_theme() -> void:
 	_refresh_upload_button_state()
 
 func refresh_layout(viewport_size: Vector2) -> void:
-	var horizontal_margin: float = clampf(viewport_size.x * 0.04, 20.0, 64.0)
-	var vertical_margin: float = clampf(viewport_size.y * 0.04, 16.0, 48.0)
+	var horizontal_margin: float = clampf(viewport_size.x * 0.04, 12.0, 64.0)
+	var vertical_margin: float = clampf(viewport_size.y * 0.04, 12.0, 48.0)
 	_bounds.add_theme_constant_override("margin_left", int(horizontal_margin))
 	_bounds.add_theme_constant_override("margin_right", int(horizontal_margin))
 	_bounds.add_theme_constant_override("margin_top", int(vertical_margin))
 	_bounds.add_theme_constant_override("margin_bottom", int(vertical_margin))
 
-	var panel_width: float = clampf(viewport_size.x - (horizontal_margin * 2.0), 420.0, 920.0)
-	var panel_height: float = clampf(viewport_size.y - (vertical_margin * 2.0), 320.0, 820.0)
+	var panel_width: float = clampf(viewport_size.x - (horizontal_margin * 2.0), 300.0, 920.0)
+	var panel_height: float = clampf(viewport_size.y - (vertical_margin * 2.0), 300.0, 820.0)
+	var compact_layout: bool = panel_width <= 520.0
+	if _compact_layout != compact_layout:
+		_compact_layout = compact_layout
+		refresh_theme()
 	_panel.custom_minimum_size = Vector2(panel_width, 0.0)
 	_panel_scroll.custom_minimum_size = Vector2(0.0, panel_height)
 	_panel_scroll.scroll_horizontal = 0
-	_response_text_edit.custom_minimum_size.y = clampf(panel_height * 0.26, 140.0, 260.0)
+	_local_actions.columns = 1 if _compact_layout else 2
+	_answer_actions.columns = 1 if _compact_layout else 2
+	_response_text_edit.custom_minimum_size.y = clampf(panel_height * 0.22, 120.0, 260.0)
 
 func _apply_state(state: Dictionary, reset_consent: bool) -> void:
 	_heading_label.text = "Export Menu"

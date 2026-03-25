@@ -2,11 +2,13 @@ class_name ScaleChipQuestionView
 extends SurveyQuestionView
 
 @onready var _panel: PanelContainer = $Panel
+@onready var _stack: VBoxContainer = $Panel/Stack
 @onready var _title_label: Label = $Panel/Stack/TitleLabel
 @onready var _description_label: Label = $Panel/Stack/DescriptionLabel
 @onready var _flow: HFlowContainer = $Panel/Stack/Flow
 
 var _buttons: Array[Button] = []
+var _compact_layout := false
 
 func _ready() -> void:
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -16,6 +18,7 @@ func _ready() -> void:
 	_title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_description_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_panel.gui_input.connect(_on_panel_gui_input)
+	refresh_responsive_layout(get_viewport().get_visible_rect().size)
 	super()
 
 func _apply_question() -> void:
@@ -33,7 +36,6 @@ func _apply_question() -> void:
 		var score := value
 		var button := Button.new()
 		button.text = str(score)
-		button.custom_minimum_size = Vector2(56, 56)
 		button.pressed.connect(_on_score_pressed.bind(score))
 		_flow.add_child(button)
 		register_selectable(button)
@@ -41,6 +43,7 @@ func _apply_question() -> void:
 
 	_sync_selection(int(current_value) if current_value != null else -1)
 	_apply_selection_state()
+	refresh_responsive_layout(get_viewport().get_visible_rect().size)
 	_refresh_layout_metrics()
 
 func _apply_selection_state() -> void:
@@ -51,6 +54,19 @@ func _apply_selection_state() -> void:
 func focus_primary_control() -> void:
 	if not _buttons.is_empty():
 		_buttons[0].grab_focus()
+
+func refresh_responsive_layout(viewport_size: Vector2) -> void:
+	_compact_layout = viewport_size.x <= 560.0
+	_stack.add_theme_constant_override("separation", 8 if _compact_layout else 10)
+	_flow.add_theme_constant_override("h_separation", 8 if _compact_layout else 10)
+	_flow.add_theme_constant_override("v_separation", 8 if _compact_layout else 10)
+	SurveyStyle.style_heading(_title_label, 19 if _compact_layout else 21)
+	SurveyStyle.style_body(_description_label)
+	var button_size: float = 48.0 if _compact_layout else 56.0
+	for button in _buttons:
+		button.custom_minimum_size = Vector2(button_size, button_size)
+		button.add_theme_font_size_override("font_size", 15 if _compact_layout else 16)
+	_refresh_layout_metrics()
 
 func _on_panel_gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:

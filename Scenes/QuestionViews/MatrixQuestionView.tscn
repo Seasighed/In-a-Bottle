@@ -23,7 +23,12 @@ autowrap_mode = 3
 layout_mode = 2
 autowrap_mode = 3
 
-[node name="Grid" type="GridContainer" parent="Panel/Stack"]
+[node name="GridScroll" type="ScrollContainer" parent="Panel/Stack"]
+layout_mode = 2
+size_flags_horizontal = 3
+clip_contents = true
+
+[node name="Grid" type="GridContainer" parent="Panel/Stack/GridScroll"]
 layout_mode = 2
 theme_override_constants/h_separation = 10
 theme_override_constants/v_separation = 8

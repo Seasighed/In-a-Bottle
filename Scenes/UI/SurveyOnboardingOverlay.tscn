@@ -35,10 +35,10 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="Panel" type="PanelContainer" parent="Bounds/Center"]
-custom_minimum_size = Vector2(960, 0)
+custom_minimum_size = Vector2(320, 0)
 
 [node name="PanelScroll" type="ScrollContainer" parent="Bounds/Center/Panel"]
-custom_minimum_size = Vector2(0, 680)
+custom_minimum_size = Vector2(0, 520)
 layout_mode = 2
 horizontal_scroll_mode = 0
 size_flags_horizontal = 3
@@ -105,6 +105,12 @@ layout_mode = 2
 size_flags_horizontal = 3
 custom_minimum_size = Vector2(0, 72)
 text = "Open Survey Scroll\nMove through the full questionnaire with the Survey Map visible."
+
+[node name="TemplateFocusButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/TemplateSection"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 72)
+text = "Open Focus Mode\nAnswer one question at a time with touch-friendly navigation."
 
 [node name="ModeSection" type="VBoxContainer" parent="Bounds/Center/Panel/PanelScroll/Stack"]
 layout_mode = 2
@@ -176,6 +182,12 @@ layout_mode = 2
 size_flags_horizontal = 3
 custom_minimum_size = Vector2(0, 84)
 text = "Open Survey Scroll\nMove through the full questionnaire with the Survey Map visible."
+
+[node name="FocusModeButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/ContentPanel/ContentStack/ExploreActions"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 72)
+text = "Open Focus Mode\nAnswer one question at a time with touch-friendly navigation."
 
 [node name="SearchButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/ContentPanel/ContentStack/ExploreActions"]
 layout_mode = 2
@@ -252,9 +264,10 @@ size_flags_horizontal = 3
 theme_override_constants/h_separation = 8
 theme_override_constants/v_separation = 8
 
-[node name="RandomActions" type="HBoxContainer" parent="Bounds/Center/Panel/PanelScroll/Stack/ContentPanel/ContentStack/RandomGroup"]
+[node name="RandomActions" type="FlowContainer" parent="Bounds/Center/Panel/PanelScroll/Stack/ContentPanel/ContentStack/RandomGroup"]
 layout_mode = 2
-theme_override_constants/separation = 10
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 10
 
 [node name="RandomPickButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/ContentPanel/ContentStack/RandomGroup/RandomActions"]
 layout_mode = 2

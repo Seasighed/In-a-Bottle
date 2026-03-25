@@ -14,6 +14,7 @@ func _ready() -> void:
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	SurveyStyle.style_check_box(_check_box)
+	_check_box.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_check_box.toggled.connect(_on_check_box_toggled)
 	_update_style()
 

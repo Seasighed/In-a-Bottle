@@ -35,10 +35,10 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="Panel" type="PanelContainer" parent="Bounds/Center"]
-custom_minimum_size = Vector2(560, 0)
+custom_minimum_size = Vector2(320, 0)
 
 [node name="PanelScroll" type="ScrollContainer" parent="Bounds/Center/Panel"]
-custom_minimum_size = Vector2(0, 620)
+custom_minimum_size = Vector2(0, 480)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3

@@ -32,6 +32,9 @@ func set_selected(selected: bool) -> void:
 func focus_primary_control() -> void:
 	pass
 
+func refresh_responsive_layout(_viewport_size: Vector2) -> void:
+	pass
+
 func emit_answer(value: Variant) -> void:
 	current_value = value
 	answer_changed.emit(question.id, value)

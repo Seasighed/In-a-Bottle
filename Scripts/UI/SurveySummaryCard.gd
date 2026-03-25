@@ -22,6 +22,7 @@ signal adjective_text_changed(text: String)
 
 var _summary_data: Dictionary = {}
 var _adjective_text := ""
+var _layout_width_hint := 0.0
 
 func _ready() -> void:
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -53,9 +54,21 @@ func refresh_theme() -> void:
 	SurveyStyle.style_caption(_suggestions_heading_label, SurveyStyle.SOFT_WHITE)
 	SurveyStyle.style_heading(_sections_heading_label, 18)
 	if is_node_ready():
-		_rebuild_stats()
-		_rebuild_suggestion_buttons()
-		_rebuild_sections()
+		refresh_layout(_layout_width_hint)
+
+func refresh_layout(available_width: float = 0.0) -> void:
+	_layout_width_hint = available_width
+	if not is_node_ready():
+		return
+	var compact_layout: bool = _is_compact_layout()
+	_stack.add_theme_constant_override("separation", 12 if compact_layout else 14)
+	SurveyStyle.style_heading(_heading_label, 24 if compact_layout else 28)
+	SurveyStyle.style_heading(_adjectives_heading_label, 17 if compact_layout else 18)
+	SurveyStyle.style_heading(_sections_heading_label, 17 if compact_layout else 18)
+	_refresh_sentiment_panel()
+	_rebuild_stats()
+	_rebuild_suggestion_buttons()
+	_rebuild_sections()
 
 func _apply_summary() -> void:
 	if not is_node_ready():
@@ -81,20 +94,17 @@ func _apply_summary() -> void:
 		_adjective_field.text = _adjective_text
 	_suggestions_heading_label.text = "Suggested adjectives"
 	_sections_heading_label.text = "Section scorecards"
-	_refresh_sentiment_panel()
-	_rebuild_stats()
-	_rebuild_suggestion_buttons()
-	_rebuild_sections()
+	refresh_layout(_layout_width_hint)
 
 func _refresh_sentiment_panel() -> void:
 	var overall_score: float = float(_summary_data.get("overall_score_percent", -1.0))
 	var border_color: Color = SurveyStyle.BORDER if overall_score < 0.0 else _score_color(overall_score)
 	SurveyStyle.apply_panel(_sentiment_panel, SurveyStyle.SURFACE_ALT, border_color, 20, 1)
-	SurveyStyle.style_heading(_sentiment_value_label, 30, SurveyStyle.TEXT_PRIMARY if overall_score < 0.0 else border_color)
+	SurveyStyle.style_heading(_sentiment_value_label, 26 if _is_compact_layout() else 30, SurveyStyle.TEXT_PRIMARY if overall_score < 0.0 else border_color)
 
 func _rebuild_stats() -> void:
 	_clear_container(_stats_grid)
-	_stats_grid.columns = 2
+	_stats_grid.columns = 1 if _is_compact_layout() else 2
 	var stat_tiles: Array[Dictionary] = [
 		{
 			"label": "Questions answered",
@@ -192,20 +202,21 @@ func _build_section_card(section_data: Dictionary) -> PanelContainer:
 	stack.add_theme_constant_override("separation", 10)
 	panel.add_child(stack)
 
-	var header_row := HBoxContainer.new()
+	var compact_layout: bool = _is_compact_layout()
+	var header_row: BoxContainer = VBoxContainer.new() if compact_layout else HBoxContainer.new()
 	header_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header_row.add_theme_constant_override("separation", 10)
+	header_row.add_theme_constant_override("separation", 8 if compact_layout else 10)
 	stack.add_child(header_row)
 
 	var title_label := Label.new()
 	title_label.text = "Section %d  %s" % [int(section_data.get("section_number", 0)), str(section_data.get("title", "Section"))]
 	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	SurveyStyle.style_heading(title_label, 18)
+	SurveyStyle.style_heading(title_label, 17 if compact_layout else 18)
 	header_row.add_child(title_label)
 
 	var score_label := Label.new()
-	score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT if compact_layout else HORIZONTAL_ALIGNMENT_RIGHT
 	if score_percent >= 0.0:
 		score_label.text = "%d%%" % int(round(score_percent))
 		SurveyStyle.style_heading(score_label, 20, border_color)
@@ -249,9 +260,10 @@ func _build_question_row(question_data: Dictionary) -> PanelContainer:
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	SurveyStyle.apply_panel(panel, SurveyStyle.SURFACE, _score_color(score_percent), 14, 1)
 
-	var row := HBoxContainer.new()
+	var compact_layout: bool = _is_compact_layout()
+	var row: BoxContainer = VBoxContainer.new() if compact_layout else HBoxContainer.new()
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_theme_constant_override("separation", 10)
+	row.add_theme_constant_override("separation", 8 if compact_layout else 10)
 	panel.add_child(row)
 
 	var copy := VBoxContainer.new()
@@ -272,22 +284,34 @@ func _build_question_row(question_data: Dictionary) -> PanelContainer:
 	copy.add_child(answer_label)
 
 	var score_stack := VBoxContainer.new()
-	score_stack.custom_minimum_size.x = 118.0
+	score_stack.custom_minimum_size.x = 0.0 if compact_layout else 118.0
+	score_stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL if compact_layout else Control.SIZE_SHRINK_END
 	score_stack.add_theme_constant_override("separation", 4)
 	row.add_child(score_stack)
 
 	var value_label := Label.new()
-	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT if compact_layout else HORIZONTAL_ALIGNMENT_RIGHT
 	value_label.text = "%d%%" % int(round(score_percent)) if score_percent >= 0.0 else "N/A"
 	SurveyStyle.style_heading(value_label, 18, _score_color(score_percent))
 	score_stack.add_child(value_label)
 
 	var band_label := Label.new()
-	band_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	band_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT if compact_layout else HORIZONTAL_ALIGNMENT_RIGHT
 	band_label.text = str(question_data.get("score_label", "Not scored"))
 	SurveyStyle.style_caption(band_label, SurveyStyle.SOFT_WHITE)
 	score_stack.add_child(band_label)
 	return panel
+
+func _responsive_width() -> float:
+	if _layout_width_hint > 0.0:
+		return _layout_width_hint
+	var live_width: float = maxf(size.x, get_combined_minimum_size().x)
+	if live_width > 0.0:
+		return live_width
+	return get_viewport().get_visible_rect().size.x
+
+func _is_compact_layout() -> bool:
+	return _responsive_width() <= 560.0
 
 func _score_color(score_percent: float) -> Color:
 	if score_percent < 0.0:

@@ -53,7 +53,7 @@ func _ready() -> void:
 func refresh_theme() -> void:
 	_dimmer.color = SurveyStyle.OVERLAY_DIMMER
 	SurveyStyle.apply_panel(_panel, SurveyStyle.SURFACE, SurveyStyle.BORDER, 26, 1)
-	SurveyStyle.style_heading(_heading_label, 24)
+	SurveyStyle.style_heading(_heading_label, 22 if _panel.custom_minimum_size.x <= 420.0 else 24)
 	SurveyStyle.style_body(_summary_label)
 	SurveyStyle.style_heading(_sfx_heading_label, 18)
 	SurveyStyle.style_body(_sfx_volume_label)
@@ -72,15 +72,15 @@ func refresh_theme() -> void:
 	_refresh_sfx_volume_display()
 
 func refresh_layout(viewport_size: Vector2) -> void:
-	var horizontal_margin: float = clampf(viewport_size.x * 0.05, 20.0, 64.0)
-	var vertical_margin: float = clampf(viewport_size.y * 0.04, 16.0, 48.0)
+	var horizontal_margin: float = clampf(viewport_size.x * 0.04, 12.0, 64.0)
+	var vertical_margin: float = clampf(viewport_size.y * 0.04, 12.0, 48.0)
 	_bounds.add_theme_constant_override("margin_left", int(horizontal_margin))
 	_bounds.add_theme_constant_override("margin_right", int(horizontal_margin))
 	_bounds.add_theme_constant_override("margin_top", int(vertical_margin))
 	_bounds.add_theme_constant_override("margin_bottom", int(vertical_margin))
 
-	var panel_width: float = clampf(viewport_size.x - (horizontal_margin * 2.0), 360.0, 720.0)
-	var panel_height: float = clampf(viewport_size.y - (vertical_margin * 2.0), 320.0, 760.0)
+	var panel_width: float = clampf(viewport_size.x - (horizontal_margin * 2.0), 300.0, 720.0)
+	var panel_height: float = clampf(viewport_size.y - (vertical_margin * 2.0), 300.0, 760.0)
 	_panel.custom_minimum_size = Vector2(panel_width, 0.0)
 	_panel_scroll.custom_minimum_size = Vector2(0.0, panel_height)
 	_panel_scroll.scroll_horizontal = 0

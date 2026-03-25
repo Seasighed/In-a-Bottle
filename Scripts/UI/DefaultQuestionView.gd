@@ -5,6 +5,7 @@ const TYPED_ANSWER_FIELD_SCENE := preload("res://Scenes/AnswerPrefabs/TypedAnswe
 const CHECKBOX_OPTION_ROW_SCENE := preload("res://Scenes/AnswerPrefabs/CheckboxOptionRow.tscn")
 const MULTIPLE_CHOICE_OPTION_ROW_SCENE := preload("res://Scenes/AnswerPrefabs/MultipleChoiceOptionRow.tscn")
 @onready var _card: PanelContainer = $Card
+@onready var _stack: VBoxContainer = $Card/Stack
 @onready var _title_label: Label = $Card/Stack/TitleLabel
 @onready var _description_label: Label = $Card/Stack/DescriptionLabel
 @onready var _meta_label: Label = $Card/Stack/MetaLabel
@@ -22,6 +23,7 @@ func _ready() -> void:
 	_description_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_meta_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_card.gui_input.connect(_on_card_gui_input)
+	refresh_responsive_layout(get_viewport().get_visible_rect().size)
 	super()
 
 func _apply_question() -> void:
@@ -66,6 +68,7 @@ func _apply_question() -> void:
 			_build_typed_answer_field(str(current_value if current_value != null else ""), question.placeholder, false, _on_short_text_changed)
 
 	_apply_selection_state()
+	refresh_responsive_layout(get_viewport().get_visible_rect().size)
 	_refresh_layout_metrics()
 
 func _apply_selection_state() -> void:
@@ -76,6 +79,18 @@ func _apply_selection_state() -> void:
 func focus_primary_control() -> void:
 	if _primary_control != null:
 		_primary_control.grab_focus()
+
+func refresh_responsive_layout(viewport_size: Vector2) -> void:
+	var compact_layout: bool = viewport_size.x <= 640.0
+	_stack.add_theme_constant_override("separation", 8 if compact_layout else 10)
+	_field_host.add_theme_constant_override("separation", 8 if compact_layout else 10)
+	SurveyStyle.style_heading(_title_label, 18 if compact_layout else 20)
+	SurveyStyle.style_body(_description_label)
+	SurveyStyle.style_caption(_meta_label)
+	for child in _field_host.get_children():
+		if child is TypedAnswerField:
+			(child as TypedAnswerField).refresh_responsive_layout(viewport_size)
+	_refresh_layout_metrics()
 
 func _build_typed_answer_field(value: String, placeholder: String, multiline: bool, handler: Callable) -> void:
 	var field := TYPED_ANSWER_FIELD_SCENE.instantiate() as TypedAnswerField

@@ -136,6 +136,10 @@ static func _normalize_preferences(source: Dictionary) -> Dictionary:
 	if not hover_sfx_key.is_empty():
 		resolved_preferences["hover_sfx_enabled"] = bool(source.get(hover_sfx_key, false))
 
+	var survey_view_mode: String = str(source.get("survey_view_mode", source.get("view_mode", ""))).to_lower().strip_edges()
+	if survey_view_mode == "scroll" or survey_view_mode == "focus" or survey_view_mode == "auto":
+		resolved_preferences["survey_view_mode"] = survey_view_mode
+
 	if source.has("remember_onboarding_preferences"):
 		resolved_preferences["remember_onboarding_preferences"] = bool(source.get("remember_onboarding_preferences", true))
 	elif source.has("remember_onboarding"):

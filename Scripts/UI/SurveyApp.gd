@@ -24,12 +24,16 @@ const DEFAULT_CONTENT_SIZE := Vector2i(1440, 900)
 const EXPORT_FORMAT_JSON := "json"
 const EXPORT_FORMAT_CSV := "csv"
 const TEMPLATE_SELECTION_STORE_PATH := "user://selected_survey_template.json"
+const SURVEY_VIEW_MODE_AUTO := "auto"
+const SURVEY_VIEW_MODE_SCROLL := "scroll"
+const SURVEY_VIEW_MODE_FOCUS := "focus"
 
 @export_file("*.json") var survey_template_path := "res://Dev/SurveyTemplates/studio_feedback.json"
 @export var dark_palette: Resource = DEFAULT_DARK_PALETTE
 @export var light_palette: Resource = DEFAULT_LIGHT_PALETTE
 @export var use_dark_mode := true
 @export var base_content_size := DEFAULT_CONTENT_SIZE
+@export_range(640.0, 1200.0, 20.0) var focus_mode_breakpoint := 920.0
 @export var launch_fullscreen := true
 @export var use_saved_dev_data := true
 @export_range(0.0, 1.0, 0.01) var sfx_volume := 0.35
@@ -69,6 +73,14 @@ var _pending_save_text := ""
 var _pending_save_image: Image = null
 var _pending_save_extension := ""
 var _pending_save_label := ""
+var _survey_view_mode_preference := SURVEY_VIEW_MODE_AUTO
+var _focus_mode_active := false
+var _focus_question_view: SurveyQuestionView
+var _focus_stage_question_id := ""
+var _focus_transition_tween: Tween
+var _web_progress_picker_active := false
+var _web_progress_picker_success_callback = null
+var _web_progress_picker_error_callback = null
 var _restored_session_state: Dictionary = {}
 var _onboarding_completed := false
 var _onboarding_mode := ""
@@ -103,6 +115,17 @@ var _last_upload_status_is_error := false
 @onready var _filter_status_label: Label = get_node_or_null("Margin/Shell/MainColumn/ContentCard/ContentStack/FilterStatusLabel") as Label
 @onready var _question_scroll: ScrollContainer = $Margin/Shell/MainColumn/ContentCard/ContentStack/QuestionScroll
 @onready var _question_stack: VBoxContainer = $Margin/Shell/MainColumn/ContentCard/ContentStack/QuestionScroll/QuestionStack
+@onready var _focus_mode_shell: VBoxContainer = $Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell
+@onready var _focus_header_panel: PanelContainer = $Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusHeaderPanel
+@onready var _focus_section_label: Label = $Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusHeaderPanel/FocusHeaderStack/FocusSectionLabel
+@onready var _focus_progress_label: Label = $Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusHeaderPanel/FocusHeaderStack/FocusProgressLabel
+@onready var _focus_segment_row: HBoxContainer = $Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusHeaderPanel/FocusHeaderStack/FocusSegmentRow
+@onready var _focus_question_scroll: ScrollContainer = $Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusQuestionScroll
+@onready var _focus_question_stage: Control = $Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusQuestionScroll/FocusQuestionStage
+@onready var _focus_hint_label: Label = $Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusHintLabel
+@onready var _focus_nav_row: HBoxContainer = $Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusNavRow
+@onready var _focus_previous_button: Button = $Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusNavRow/FocusPreviousButton
+@onready var _focus_next_button: Button = $Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusNavRow/FocusNextButton
 @onready var _status_label: Label = $Margin/Shell/MainColumn/ContentCard/ContentStack/StatusLabel
 @onready var _nav_row: HBoxContainer = $Margin/Shell/MainColumn/NavRow
 @onready var _previous_button: Button = $Margin/Shell/MainColumn/NavRow/PreviousButton
@@ -113,6 +136,8 @@ var _last_upload_status_is_error := false
 @onready var _summary_overlay = get_node_or_null("SummaryOverlay")
 @onready var _export_overlay = get_node_or_null("ExportOverlay")
 @onready var _overlay_menu: OverlayMenu = $OverlayMenu
+@onready var _menu_access_layer: CanvasLayer = $MenuAccessLayer
+@onready var _menu_access_button: Button = $MenuAccessLayer/MenuAccessButton
 
 func _ensure_optional_ui_nodes() -> void:
 	_ensure_filter_ui_nodes()
@@ -183,6 +208,8 @@ func _ready() -> void:
 	_configure_window_scaling()
 	survey_template_path = _resolve_startup_template_path()
 	_prime_preferences_from_store()
+	dark_palette = _resolved_palette_resource(dark_palette, DEFAULT_DARK_PALETTE)
+	light_palette = _resolved_palette_resource(light_palette, DEFAULT_LIGHT_PALETTE)
 	SurveyStyle.configure_palettes(dark_palette, light_palette, use_dark_mode)
 	_ensure_optional_ui_nodes()
 	_refresh_static_theme_shell()
@@ -194,6 +221,9 @@ func _ready() -> void:
 	_wire_static_feedback()
 	_load_survey()
 	set_process_unhandled_input(true)
+
+func _resolved_palette_resource(candidate: Resource, fallback: Resource) -> Resource:
+	return candidate if candidate != null else fallback
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_RESIZED and is_node_ready():
 		_update_responsive_layout()
@@ -249,6 +279,9 @@ func _is_web_platform() -> bool:
 	return OS.has_feature("web")
 
 func _supports_browser_downloads() -> bool:
+	return _is_web_platform() and Engine.has_singleton("JavaScriptBridge")
+
+func _supports_browser_progress_import() -> bool:
 	return _is_web_platform() and Engine.has_singleton("JavaScriptBridge")
 
 func _supports_image_clipboard_copy() -> bool:
@@ -318,6 +351,9 @@ func _ensure_upload_request() -> void:
 func _wire_static_feedback() -> void:
 	_wire_button_feedback(_previous_button)
 	_wire_button_feedback(_next_button)
+	_wire_button_feedback(_focus_previous_button)
+	_wire_button_feedback(_focus_next_button)
+	_wire_button_feedback(_menu_access_button)
 	if _clear_filter_button != null:
 		_wire_button_feedback(_clear_filter_button)
 
@@ -338,6 +374,8 @@ func _prime_preferences_from_store() -> void:
 		sfx_volume = clampf(float(_loaded_global_preferences.get("sfx_volume", sfx_volume)), 0.0, 1.0)
 	if _loaded_global_preferences.has("hover_sfx_enabled"):
 		_hover_sfx_enabled = bool(_loaded_global_preferences.get("hover_sfx_enabled", _hover_sfx_enabled))
+	if _loaded_global_preferences.has("survey_view_mode"):
+		_survey_view_mode_preference = _normalized_survey_view_mode(str(_loaded_global_preferences.get("survey_view_mode", _survey_view_mode_preference)))
 	_remember_onboarding_preferences = bool(_loaded_global_preferences.get("remember_onboarding_preferences", _loaded_global_preferences.get("remember_onboarding", _remember_onboarding_preferences)))
 	_allow_local_session_cache = bool(_loaded_global_preferences.get("allow_local_session_cache", _loaded_global_preferences.get("local_session_cache", _allow_local_session_cache)))
 	if _remember_onboarding_preferences:
@@ -394,6 +432,9 @@ func _refresh_static_theme_shell() -> void:
 		_summary_overlay.refresh_theme()
 	if _export_overlay != null:
 		_export_overlay.refresh_theme()
+	_refresh_menu_access_button()
+	if is_node_ready():
+		_refresh_focus_mode(true)
 
 func _on_button_hovered() -> void:
 	SURVEY_UI_FEEDBACK.play_hover()
@@ -404,8 +445,12 @@ func _on_button_pressed_feedback() -> void:
 func _apply_static_styles() -> void:
 	_background.color = SurveyStyle.BACKGROUND
 	SurveyStyle.apply_panel(_content_card, SurveyStyle.SURFACE, SurveyStyle.BORDER, 26, 1)
+	SurveyStyle.apply_panel(_focus_header_panel, SurveyStyle.SURFACE_ALT, SurveyStyle.ACCENT_ALT, 22, 1)
 	SurveyStyle.style_heading(_section_title_label, 30)
 	SurveyStyle.style_body(_section_description_label)
+	SurveyStyle.style_heading(_focus_section_label, 24)
+	SurveyStyle.style_caption(_focus_progress_label, SurveyStyle.SOFT_WHITE)
+	SurveyStyle.style_caption(_focus_hint_label, SurveyStyle.TEXT_MUTED)
 	if _filter_status_label != null:
 		SurveyStyle.style_caption(_filter_status_label, SurveyStyle.SOFT_WHITE)
 	SurveyStyle.style_caption(_status_label)
@@ -416,6 +461,10 @@ func _apply_static_styles() -> void:
 		_clear_filter_button.custom_minimum_size = Vector2(110, 42)
 	SurveyStyle.apply_secondary_button(_previous_button)
 	SurveyStyle.apply_primary_button(_next_button)
+	SurveyStyle.apply_secondary_button(_focus_previous_button)
+	SurveyStyle.apply_primary_button(_focus_next_button)
+	SurveyStyle.apply_primary_button(_menu_access_button)
+	_menu_access_button.custom_minimum_size = Vector2(92, 52)
 	_section_title_label.visible = false
 	_section_description_label.visible = false
 	_section_header_host.visible = false
@@ -424,10 +473,20 @@ func _apply_static_styles() -> void:
 	if _filter_status_label != null:
 		_filter_status_label.visible = true
 	_status_label.visible = false
+	_refresh_menu_access_button()
+
+func _refresh_question_view_layouts(viewport_size: Vector2) -> void:
+	for value in _question_views.values():
+		var view := value as SurveyQuestionView
+		if view != null:
+			view.refresh_responsive_layout(viewport_size)
+	if _focus_question_view != null:
+		_focus_question_view.refresh_responsive_layout(viewport_size)
 
 func _connect_actions() -> void:
 	_outline_panel.navigate_requested.connect(_on_outline_navigate_requested)
 	_question_scroll.resized.connect(_on_question_scroll_resized)
+	_focus_question_scroll.resized.connect(_on_focus_question_scroll_resized)
 	if _filter_field != null:
 		_filter_field.text_changed.connect(_on_filter_text_changed)
 		_filter_field.text_submitted.connect(_on_filter_text_submitted)
@@ -438,6 +497,9 @@ func _connect_actions() -> void:
 		scroll_bar.value_changed.connect(_on_question_scroll_value_changed)
 	_previous_button.pressed.connect(_go_to_previous_section)
 	_next_button.pressed.connect(_go_to_next_section)
+	_focus_previous_button.pressed.connect(_on_focus_previous_pressed)
+	_focus_next_button.pressed.connect(_on_focus_next_pressed)
+	_menu_access_button.pressed.connect(_open_overlay_menu)
 	_overlay_menu.resume_requested.connect(_close_overlay_menu)
 	_overlay_menu.go_to_start_requested.connect(_go_to_start_from_overlay)
 	_overlay_menu.restart_requested.connect(_clear_all_answers)
@@ -600,6 +662,8 @@ func _apply_loaded_preferences(preferences: Dictionary) -> bool:
 		sfx_volume = clampf(float(preferences.get("sfx_volume", sfx_volume)), 0.0, 1.0)
 	if preferences.has("hover_sfx_enabled"):
 		_hover_sfx_enabled = bool(preferences.get("hover_sfx_enabled", _hover_sfx_enabled))
+	if preferences.has("survey_view_mode"):
+		_survey_view_mode_preference = _normalized_survey_view_mode(str(preferences.get("survey_view_mode", _survey_view_mode_preference)))
 	SURVEY_UI_FEEDBACK.set_sfx_volume(sfx_volume)
 	SURVEY_UI_FEEDBACK.set_hover_sfx_enabled(_hover_sfx_enabled)
 	return theme_changed
@@ -618,7 +682,8 @@ func _current_preferences() -> Dictionary:
 		"remember_onboarding_preferences": _remember_onboarding_preferences,
 		"allow_local_session_cache": _allow_local_session_cache,
 		"sfx_volume": snappedf(sfx_volume, 0.01),
-		"hover_sfx_enabled": _hover_sfx_enabled
+		"hover_sfx_enabled": _hover_sfx_enabled,
+		"survey_view_mode": _survey_view_mode_preference
 	}
 	if _remember_onboarding_preferences:
 		preferences["onboarding_completed"] = _onboarding_completed
@@ -676,6 +741,7 @@ func _rebuild_document_preserving_state(status_message: String = "", is_error: b
 	_outline_panel.refresh(answers, current_section_index, _selected_question_id)
 	_refresh_section_headers()
 	_update_navigation_state()
+	_refresh_focus_mode(true)
 	call_deferred("_restore_document_state", saved_scroll, was_overlay_open)
 	_refresh_summary_overlay()
 	_refresh_export_overlay()
@@ -727,6 +793,7 @@ func _apply_initial_location() -> void:
 	_outline_panel.refresh(answers, current_section_index, _selected_question_id)
 	_sync_outline_scroll_position()
 	_update_navigation_state()
+	_refresh_focus_mode(true)
 	call_deferred("_ensure_question_scroll_top")
 	_show_onboarding_if_needed()
 
@@ -736,12 +803,15 @@ func _ensure_question_scroll_top() -> void:
 	current_section_index = 0
 	var first_question_id: String = _first_question_id_in_section(0)
 	_pending_navigation_question_id = first_question_id
+	if _focus_mode_active:
+		_pending_navigation_question_id = ""
 	_set_selected_question(first_question_id)
 	_question_scroll.scroll_vertical = 0
 	_last_scroll_vertical = 0.0
 	_outline_panel.refresh(answers, current_section_index, _selected_question_id)
 	_update_navigation_state()
 	_sync_outline_scroll_position()
+	_refresh_focus_mode(true)
 
 func _populate_document() -> void:
 	_clear_container(_question_stack)
@@ -923,6 +993,8 @@ func _apply_question_filter(raw_query: String, focus_first_match: bool = true) -
 			_set_selected_question(_first_question_id_in_section(current_section_index))
 	_outline_panel.refresh(answers, current_section_index, _selected_question_id)
 	_update_navigation_state()
+	if _focus_mode_active:
+		_refresh_focus_mode(true)
 	call_deferred("_sync_outline_scroll_position")
 	call_deferred("_sync_visible_location", true)
 
@@ -1107,6 +1179,322 @@ func _first_question_id_in_section(section_index: int) -> String:
 		return ""
 	return section.questions[0].id
 
+func _question_definition(question_id: String) -> SurveyQuestion:
+	if survey == null or question_id.is_empty():
+		return null
+	for section in survey.sections:
+		for question in section.questions:
+			if question.id == question_id:
+				return question
+	return null
+
+func _question_index_within_section(section_index: int, question_id: String) -> int:
+	if survey == null or section_index < 0 or section_index >= survey.sections.size():
+		return -1
+	if question_id.is_empty():
+		return 0 if not survey.sections[section_index].questions.is_empty() else -1
+	var questions := survey.sections[section_index].questions
+	for question_index in range(questions.size()):
+		if questions[question_index].id == question_id:
+			return question_index
+	return -1
+
+func _visible_question_sequence() -> Array[String]:
+	var question_ids: Array[String] = []
+	for question_id in _question_order:
+		if _is_question_visible(question_id):
+			question_ids.append(question_id)
+	return question_ids
+
+func _question_type_label(kind: StringName) -> String:
+	match kind:
+		SurveyQuestion.TYPE_SHORT_TEXT:
+			return "Typed answer"
+		SurveyQuestion.TYPE_LONG_TEXT:
+			return "Typed answer"
+		SurveyQuestion.TYPE_EMAIL:
+			return "Email"
+		SurveyQuestion.TYPE_DATE:
+			return "Date"
+		SurveyQuestion.TYPE_NUMBER:
+			return "Number"
+		SurveyQuestion.TYPE_SINGLE_CHOICE:
+			return "Multiple choice"
+		SurveyQuestion.TYPE_DROPDOWN:
+			return "Dropdown"
+		SurveyQuestion.TYPE_MULTI_CHOICE:
+			return "Checkbox"
+		SurveyQuestion.TYPE_BOOLEAN:
+			return "Yes/No"
+		SurveyQuestion.TYPE_SCALE:
+			return "Scale"
+		SurveyQuestion.TYPE_NPS:
+			return "NPS"
+		SurveyQuestion.TYPE_RANKED_CHOICE:
+			return "Ranked choice"
+		SurveyQuestion.TYPE_MATRIX:
+			return "Matrix"
+	return "Question"
+
+func _normalized_survey_view_mode(raw_mode: String) -> String:
+	var normalized: String = raw_mode.to_lower().strip_edges()
+	match normalized:
+		SURVEY_VIEW_MODE_SCROLL:
+			return SURVEY_VIEW_MODE_SCROLL
+		SURVEY_VIEW_MODE_FOCUS:
+			return SURVEY_VIEW_MODE_FOCUS
+	return SURVEY_VIEW_MODE_AUTO
+
+func _current_survey_view_mode_name() -> String:
+	return SURVEY_VIEW_MODE_FOCUS if _focus_mode_active else SURVEY_VIEW_MODE_SCROLL
+
+func _set_survey_view_mode_preference(mode: String, persist: bool = true) -> void:
+	var resolved_mode: String = _normalized_survey_view_mode(mode)
+	if _survey_view_mode_preference == resolved_mode:
+		if is_node_ready():
+			_update_responsive_layout()
+		return
+	_survey_view_mode_preference = resolved_mode
+	if is_node_ready():
+		_update_responsive_layout()
+	if persist:
+		_persist_session()
+
+func _should_use_focus_mode(viewport_size: Vector2) -> bool:
+	match _survey_view_mode_preference:
+		SURVEY_VIEW_MODE_FOCUS:
+			return true
+		SURVEY_VIEW_MODE_SCROLL:
+			return false
+	return OS.has_feature("mobile") or viewport_size.x <= focus_mode_breakpoint
+
+func _set_focus_mode_active(enabled: bool) -> void:
+	var mode_changed := _focus_mode_active != enabled
+	_focus_mode_active = enabled
+	if _question_scroll != null:
+		_question_scroll.visible = not enabled
+	if _nav_row != null:
+		_nav_row.visible = not enabled
+	if _filter_row != null:
+		_filter_row.visible = not enabled
+	if _filter_status_label != null:
+		_filter_status_label.visible = not enabled
+	if _focus_mode_shell != null:
+		_focus_mode_shell.visible = enabled
+	if not enabled:
+		if mode_changed and _focus_transition_tween != null:
+			_focus_transition_tween.kill()
+			_focus_transition_tween = null
+		if mode_changed:
+			_clear_focus_question_stage()
+		return
+	if mode_changed:
+		_refresh_focus_mode(true)
+	else:
+		_sync_focus_question_stage_size()
+		_update_focus_navigation_state()
+
+func _refresh_menu_access_button() -> void:
+	if _menu_access_layer == null:
+		return
+	_menu_access_layer.visible = survey != null and (_overlay_menu == null or not _overlay_menu.visible)
+
+func _refresh_focus_mode(force_rebuild: bool = false, transition_direction: int = 0) -> void:
+	if not _focus_mode_active or _focus_mode_shell == null:
+		return
+	if survey == null or survey.sections.is_empty():
+		_clear_focus_question_stage()
+		return
+	var current_question_id := _selected_question_id
+	if current_question_id.is_empty() or _question_definition(current_question_id) == null or not _is_question_visible(current_question_id):
+		current_question_id = _first_visible_question_id()
+	if current_question_id.is_empty():
+		current_question_id = _first_question_id_in_section(clampi(current_section_index, 0, max(survey.sections.size() - 1, 0)))
+	if current_question_id.is_empty():
+		_clear_focus_question_stage()
+		_focus_section_label.text = "No question available"
+		_focus_progress_label.text = ""
+		_focus_hint_label.visible = false
+		_focus_previous_button.disabled = true
+		_focus_next_button.disabled = true
+		_focus_next_button.text = "Next"
+		return
+	if current_question_id != _selected_question_id:
+		_set_selected_question(current_question_id)
+	current_section_index = _section_index_for_question_id(current_question_id)
+	var section_index := clampi(current_section_index, 0, survey.sections.size() - 1)
+	var section: SurveySection = survey.sections[section_index]
+	var question_index: int = maxi(_question_index_within_section(section_index, current_question_id), 0)
+	var question: SurveyQuestion = _question_definition(current_question_id)
+	_focus_section_label.text = section.display_title(section_index)
+	_focus_progress_label.text = "Question %d of %d | %s" % [question_index + 1, max(section.questions.size(), 1), _question_type_label(question.type)]
+	_focus_hint_label.visible = true
+	_rebuild_focus_segments(section_index, question_index)
+	_update_focus_navigation_state()
+	if force_rebuild or _focus_stage_question_id != current_question_id:
+		_present_focus_question(current_question_id, transition_direction)
+	else:
+		if _focus_question_view != null:
+			_focus_question_view.set_selected(true)
+		_sync_focus_question_stage_size()
+
+func _rebuild_focus_segments(section_index: int, active_question_index: int) -> void:
+	_clear_container(_focus_segment_row)
+	if survey == null or section_index < 0 or section_index >= survey.sections.size():
+		return
+	var section: SurveySection = survey.sections[section_index]
+	for question_index in range(section.questions.size()):
+		var segment := PanelContainer.new()
+		segment.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		segment.custom_minimum_size = Vector2(0.0, 10.0)
+		segment.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var question: SurveyQuestion = section.questions[question_index]
+		var is_answered := question.is_answer_complete(answers.get(question.id, null))
+		var fill := SurveyStyle.SURFACE
+		var border := SurveyStyle.BORDER
+		if question_index == active_question_index:
+			fill = SurveyStyle.HIGHLIGHT_GOLD
+			border = SurveyStyle.HIGHLIGHT_GOLD
+		elif is_answered:
+			fill = SurveyStyle.ACCENT_ALT
+			border = SurveyStyle.ACCENT_ALT
+		SurveyStyle.apply_panel(segment, fill, border, 8, 1)
+		_focus_segment_row.add_child(segment)
+
+func _present_focus_question(question_id: String, direction: int = 0) -> void:
+	var question: SurveyQuestion = _question_definition(question_id)
+	if question == null:
+		_clear_focus_question_stage()
+		return
+	if _focus_transition_tween != null:
+		_focus_transition_tween.kill()
+		_focus_transition_tween = null
+	_cleanup_focus_question_stage(_focus_question_view)
+	var new_view := _create_question_view(question)
+	_focus_question_stage.add_child(new_view)
+	new_view.answer_changed.connect(_on_answer_changed)
+	new_view.question_selected.connect(_on_question_selected)
+	new_view.configure(question, answers.get(question.id, question.default_value))
+	new_view.set_selected(true)
+	var old_view := _focus_question_view
+	_focus_question_view = new_view
+	_focus_stage_question_id = question_id
+	_focus_question_scroll.scroll_vertical = 0
+	_sync_focus_question_stage_size()
+	call_deferred("_sync_focus_question_stage_size")
+	var slide_width: float = _focus_question_stage.custom_minimum_size.x
+	if slide_width <= 0.0:
+		slide_width = maxf(_focus_question_scroll.size.x - 24.0, 280.0)
+	_position_focus_question_view(new_view, slide_width, 0.0)
+	if old_view == null or not is_instance_valid(old_view) or direction == 0:
+		if old_view != null and old_view != new_view:
+			old_view.queue_free()
+		call_deferred("_focus_primary_focus_question_control")
+		return
+	_position_focus_question_view(old_view, slide_width, 0.0)
+	_position_focus_question_view(new_view, slide_width, slide_width * float(direction))
+	var target_offset := -slide_width * float(direction)
+	_focus_transition_tween = create_tween()
+	_focus_transition_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_focus_transition_tween.parallel().tween_property(old_view, "position:x", target_offset, 0.24)
+	_focus_transition_tween.parallel().tween_property(new_view, "position:x", 0.0, 0.24)
+	_focus_transition_tween.finished.connect(_on_focus_transition_finished.bind(old_view))
+
+func _cleanup_focus_question_stage(retain_view: Control = null) -> void:
+	if _focus_question_stage == null:
+		return
+	for child in _focus_question_stage.get_children():
+		if child != retain_view:
+			(child as Node).queue_free()
+
+func _clear_focus_question_stage() -> void:
+	_cleanup_focus_question_stage()
+	_focus_question_view = null
+	_focus_stage_question_id = ""
+	if _focus_question_stage != null:
+		_focus_question_stage.custom_minimum_size = Vector2(0.0, 320.0)
+
+func _position_focus_question_view(view: SurveyQuestionView, width: float, position_x: float) -> void:
+	if view == null:
+		return
+	view.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	view.position = Vector2(position_x, 0.0)
+	view.custom_minimum_size = Vector2(width, 0.0)
+	view.size = Vector2(width, 0.0)
+	view.reset_size()
+	var view_height := maxf(maxf(view.size.y, view.get_combined_minimum_size().y), 240.0)
+	view.size = Vector2(width, view_height)
+
+func _sync_focus_question_stage_size() -> void:
+	if not _focus_mode_active or _focus_question_stage == null or _focus_question_scroll == null:
+		return
+	var stage_width := maxf(maxf(_focus_question_scroll.size.x - 24.0, _content_card.size.x - 48.0), 280.0)
+	var stage_height := maxf(_focus_question_scroll.size.y, 320.0)
+	for child in _focus_question_stage.get_children():
+		var view := child as SurveyQuestionView
+		if view == null:
+			continue
+		var previous_x := view.position.x
+		_position_focus_question_view(view, stage_width, previous_x)
+		stage_height = maxf(stage_height, view.size.y)
+	_focus_question_stage.custom_minimum_size = Vector2(stage_width, stage_height)
+
+func _update_focus_navigation_state() -> void:
+	var visible_question_ids := _visible_question_sequence()
+	var current_index := visible_question_ids.find(_selected_question_id)
+	if current_index == -1:
+		current_index = 0
+	var has_questions := not visible_question_ids.is_empty()
+	_focus_previous_button.disabled = (not has_questions) or current_index <= 0
+	_focus_next_button.disabled = not has_questions
+	_focus_next_button.text = "Export Menu" if has_questions and current_index >= visible_question_ids.size() - 1 else "Next"
+
+func _focus_transition_direction(target_question_id: String) -> int:
+	if target_question_id.is_empty() or _selected_question_id.is_empty() or target_question_id == _selected_question_id:
+		return 0
+	var visible_question_ids := _visible_question_sequence()
+	var current_index := visible_question_ids.find(_selected_question_id)
+	var target_index := visible_question_ids.find(target_question_id)
+	if current_index == -1 or target_index == -1:
+		current_index = _question_order.find(_selected_question_id)
+		target_index = _question_order.find(target_question_id)
+	if current_index == -1 or target_index == -1:
+		return 0
+	return 1 if target_index > current_index else -1
+
+func _focus_primary_focus_question_control() -> void:
+	if _focus_question_view != null:
+		_focus_question_view.focus_primary_control()
+
+func _on_focus_transition_finished(old_view: SurveyQuestionView) -> void:
+	if old_view != null and is_instance_valid(old_view):
+		old_view.queue_free()
+	_focus_transition_tween = null
+	_sync_focus_question_stage_size()
+	call_deferred("_focus_primary_focus_question_control")
+
+func _on_focus_previous_pressed() -> void:
+	_advance_focus_question(-1)
+
+func _on_focus_next_pressed() -> void:
+	_advance_focus_question(1)
+
+func _advance_focus_question(step: int) -> void:
+	var visible_question_ids := _visible_question_sequence()
+	if visible_question_ids.is_empty():
+		return
+	var current_index := visible_question_ids.find(_selected_question_id)
+	if current_index == -1:
+		current_index = 0
+	var target_index := current_index + step
+	if target_index < 0:
+		return
+	if target_index >= visible_question_ids.size():
+		_open_export_options()
+		return
+	var target_question_id: String = visible_question_ids[target_index]
+	_scroll_to_target(_section_index_for_question_id(target_question_id), target_question_id)
+
 func _scroll_to_target(section_index: int, question_id: String = "") -> void:
 	if survey == null or section_index < 0 or section_index >= survey.sections.size():
 		return
@@ -1117,10 +1505,15 @@ func _scroll_to_target(section_index: int, question_id: String = "") -> void:
 
 	current_section_index = section_index
 	var target_question_id := _resolve_target_question_id(section_index, question_id)
+	var transition_direction := _focus_transition_direction(target_question_id)
 	_pending_navigation_question_id = target_question_id
 	_set_selected_question(target_question_id)
 	_outline_panel.refresh(answers, current_section_index, _selected_question_id)
 	_update_navigation_state()
+	if _focus_mode_active:
+		_pending_navigation_question_id = ""
+		_refresh_focus_mode(false, transition_direction)
+		return
 
 	var target_control: Control = _section_blocks.get(section_index) as Control
 	if not question_id.is_empty() and _question_views.has(question_id):
@@ -1266,24 +1659,45 @@ func _set_selected_question(question_id: String) -> void:
 		if view != null:
 			view.set_selected(question_key == _selected_question_id)
 
+func _sync_document_question_view(question_id: String) -> void:
+	var view := _question_views.get(question_id) as SurveyQuestionView
+	var question: SurveyQuestion = _question_definition(question_id)
+	if view == null or question == null:
+		return
+	view.configure(question, answers.get(question_id, question.default_value))
+	view.set_selected(question_id == _selected_question_id)
+
 func _on_answer_changed(question_id: String, value: Variant) -> void:
 	answers[question_id] = value
 	current_section_index = int(_question_to_section_index.get(question_id, current_section_index))
 	if question_id != _selected_question_id:
 		_set_selected_question(question_id)
+	if _focus_mode_active:
+		_sync_document_question_view(question_id)
 	_outline_panel.refresh(answers, current_section_index, _selected_question_id)
 	_refresh_section_headers()
 	_update_navigation_state()
+	if _focus_mode_active:
+		_refresh_focus_mode(false)
 	_persist_session()
 	_refresh_summary_overlay()
 	_refresh_export_overlay()
 
 func _on_question_scroll_resized() -> void:
+	if _focus_mode_active:
+		return
 	_sync_question_stack_width()
 	call_deferred("_sync_visible_location", true)
 	call_deferred("_sync_outline_scroll_position")
 
+func _on_focus_question_scroll_resized() -> void:
+	if not _focus_mode_active:
+		return
+	_sync_focus_question_stage_size()
+
 func _on_question_scroll_value_changed(value: float) -> void:
+	if _focus_mode_active:
+		return
 	var scroll_delta: float = value - _last_scroll_vertical
 	_last_scroll_vertical = value
 	if not _pending_navigation_question_id.is_empty():
@@ -1294,6 +1708,10 @@ func _on_question_scroll_value_changed(value: float) -> void:
 
 func _sync_visible_location(force: bool = false, scroll_delta: float = 0.0) -> void:
 	if survey == null or survey.sections.is_empty():
+		return
+	if _focus_mode_active:
+		_outline_panel.refresh(answers, current_section_index, _selected_question_id)
+		_update_navigation_state()
 		return
 	if _has_active_filter() and _first_visible_question_id().is_empty():
 		return
@@ -1315,6 +1733,9 @@ func _sync_visible_location(force: bool = false, scroll_delta: float = 0.0) -> v
 
 func _update_navigation_state() -> void:
 	if survey == null or survey.sections.is_empty():
+		return
+	if _focus_mode_active:
+		_update_focus_navigation_state()
 		return
 	if _has_active_filter():
 		_previous_button.text = "Clear Filter"
@@ -1353,9 +1774,11 @@ func _open_overlay_menu() -> void:
 	_close_summary_overlay()
 	_close_export_overlay()
 	_overlay_menu.open_menu(survey, current_section_index, answers, sfx_volume)
+	_refresh_menu_access_button()
 
 func _close_overlay_menu() -> void:
 	_overlay_menu.close_menu()
+	_refresh_menu_access_button()
 
 func _open_search_overlay() -> void:
 	if survey == null:
@@ -1379,7 +1802,7 @@ func _open_onboarding_overlay() -> void:
 	_close_settings_overlay()
 	_close_summary_overlay()
 	_close_export_overlay()
-	_onboarding_overlay.open_onboarding(survey, _preferred_topic_tag, _preferred_audience_id, survey_template_path, _available_template_summaries())
+	_onboarding_overlay.open_onboarding(survey, _preferred_topic_tag, _preferred_audience_id, survey_template_path, _available_template_summaries(), _current_survey_view_mode_name())
 
 func _close_onboarding_overlay() -> void:
 	if _onboarding_overlay != null:
@@ -1473,9 +1896,10 @@ func _build_export_overlay_state() -> Dictionary:
 	var survey_title: String = survey.title if survey != null else ""
 	var web_mode: bool = _is_web_platform()
 	var browser_downloads: bool = _supports_browser_downloads()
+	var browser_progress_import: bool = _supports_browser_progress_import()
 	var progress_summary := "Save or load the full progress bundle, including local settings and where you left off."
 	if web_mode:
-		progress_summary = "Download the full progress bundle. Loading a local progress file is disabled in the browser build."
+		progress_summary = "Download the full progress bundle or import a saved progress JSON from your device with the browser file picker."
 	var answer_summary := "Copy or save answer-only exports for manual review, debugging, or offline analysis."
 	if browser_downloads:
 		answer_summary = "Copy answer-only exports to the clipboard or download them directly from the browser."
@@ -1484,10 +1908,10 @@ func _build_export_overlay_state() -> Dictionary:
 		"progress_summary": progress_summary,
 		"answer_summary": answer_summary,
 		"save_progress_enabled": true,
-		"load_progress_enabled": not web_mode,
-		"load_progress_unavailable_reason": "Loading a local progress file is disabled in the browser build." if web_mode else "",
+		"load_progress_enabled": browser_progress_import if web_mode else true,
+		"load_progress_unavailable_reason": "This browser build cannot open the file picker because JavaScript bridge support is unavailable." if web_mode and not browser_progress_import else "",
 		"save_progress_label": "Download Progress JSON" if browser_downloads else "Save Progress JSON",
-		"load_progress_label": "Load Progress JSON",
+		"load_progress_label": "Import Progress JSON" if web_mode else "Load Progress JSON",
 		"save_json_label": "Download JSON" if browser_downloads else "Save JSON",
 		"save_csv_label": "Download CSV" if browser_downloads else "Save CSV",
 		"upload_destination_name": upload_destination_name.strip_edges(),
@@ -1834,7 +2258,8 @@ func _open_template_picker_from_overlay() -> void:
 		_open_onboarding_overlay()
 		return
 	_open_template_picker_dialog("pick")
-func _on_onboarding_continue_requested() -> void:
+func _on_onboarding_continue_requested(view_mode: String = SURVEY_VIEW_MODE_SCROLL) -> void:
+	_set_survey_view_mode_preference(view_mode, false)
 	_remember_onboarding_preference("explore")
 	_close_onboarding_overlay()
 
@@ -1999,7 +2424,8 @@ func _save_progress_json() -> void:
 
 func _load_progress_json() -> void:
 	if _is_web_platform():
-		_show_status_message("Loading a local progress JSON file is disabled in the browser build.", true)
+		if not _open_web_progress_import_picker():
+			_show_status_message("This browser build could not open a progress file picker.", true)
 		return
 	if _load_dialog == null:
 		return
@@ -2099,17 +2525,23 @@ func _on_load_dialog_file_selected(path: String) -> void:
 	if file == null:
 		_show_status_message("Failed to open %s." % path.get_file(), true)
 		return
-	var payload: Dictionary = SURVEY_SAVE_BUNDLE.parse_json_text(file.get_as_text())
+	_apply_loaded_progress_text(file.get_as_text(), path.get_file())
+
+func _apply_loaded_progress_text(progress_text: String, source_name: String) -> void:
+	var payload: Dictionary = SURVEY_SAVE_BUNDLE.parse_json_text(progress_text)
 	if payload.is_empty():
-		_show_status_message("No compatible survey data was found in %s." % path.get_file(), true)
+		_show_status_message("No compatible survey data was found in %s." % source_name, true)
 		return
+	_apply_loaded_progress_payload(payload, source_name)
+
+func _apply_loaded_progress_payload(payload: Dictionary, source_name: String) -> void:
 	var loaded_answers: Dictionary = _sanitize_cached_answers(_extract_dictionary(payload, "answers"))
 	var loaded_preferences: Dictionary = _extract_dictionary(payload, "preferences")
 	var loaded_session_state: Dictionary = _sanitize_session_state(_extract_dictionary(payload, "session_state"))
 	var has_preferences: bool = not loaded_preferences.is_empty()
 	var has_session_state: bool = not loaded_session_state.is_empty()
 	if loaded_answers.is_empty() and not has_preferences and not has_session_state:
-		_show_status_message("No matching survey answers were found in %s." % path.get_file(), true)
+		_show_status_message("No matching survey answers were found in %s." % source_name, true)
 		return
 	answers = loaded_answers
 	_restored_session_state = loaded_session_state
@@ -2134,10 +2566,131 @@ func _on_load_dialog_file_selected(path: String) -> void:
 		loaded_parts.append("applied saved preferences")
 	if has_session_state:
 		loaded_parts.append("restored your place")
-	_show_status_message("Loaded %s from %s." % [", ".join(loaded_parts), path.get_file()])
+	_show_status_message("Loaded %s from %s." % [", ".join(loaded_parts), source_name])
 
 func _on_load_dialog_canceled() -> void:
 	return
+
+func _open_web_progress_import_picker() -> bool:
+	if not _supports_browser_progress_import():
+		return false
+	if _web_progress_picker_active:
+		_show_status_message("The browser file picker is already open.")
+		return true
+	var window = JavaScriptBridge.get_interface("window")
+	if window == null:
+		return false
+	_web_progress_picker_success_callback = JavaScriptBridge.create_callback(_on_web_progress_import_success)
+	_web_progress_picker_error_callback = JavaScriptBridge.create_callback(_on_web_progress_import_error)
+	window.__surveyProgressImportSuccess = _web_progress_picker_success_callback
+	window.__surveyProgressImportError = _web_progress_picker_error_callback
+	_web_progress_picker_active = true
+	JavaScriptBridge.eval("""
+		(function () {
+			const success = window.__surveyProgressImportSuccess;
+			const failure = window.__surveyProgressImportError;
+			if (!success || !failure) {
+				return;
+			}
+			const input = document.createElement('input');
+			input.type = 'file';
+			input.accept = '.json,application/json';
+			input.style.display = 'none';
+			let finished = false;
+			const cleanup = () => {
+				window.removeEventListener('focus', onWindowFocus);
+				if (input.parentNode) {
+					input.parentNode.removeChild(input);
+				}
+			};
+			const fail = (kind, fileName, message) => {
+				if (finished) {
+					return;
+				}
+				finished = true;
+				failure(kind || 'error', fileName || '', message || '');
+				cleanup();
+			};
+			const succeed = (fileName, text) => {
+				if (finished) {
+					return;
+				}
+				finished = true;
+				success(fileName || 'progress.json', text || '');
+				cleanup();
+			};
+			const onWindowFocus = () => {
+				window.setTimeout(() => {
+					if (!finished && (!input.files || input.files.length === 0)) {
+						fail('cancel', '', 'No file selected.');
+					}
+				}, 250);
+			};
+			window.addEventListener('focus', onWindowFocus, { once: true });
+			input.addEventListener('change', () => {
+				if (!input.files || input.files.length === 0) {
+					fail('cancel', '', 'No file selected.');
+					return;
+				}
+				const file = input.files[0];
+				const reader = new FileReader();
+				reader.onload = () => {
+					succeed(file && file.name ? file.name : 'progress.json', typeof reader.result === 'string' ? reader.result : '');
+				};
+				reader.onerror = () => {
+					const errorText = reader.error ? String(reader.error) : 'Failed to read the selected file.';
+					fail('read_error', file && file.name ? file.name : '', errorText);
+				};
+				reader.readAsText(file);
+			}, { once: true });
+			document.body.appendChild(input);
+			input.click();
+		})();
+	""", true)
+	_show_status_message("Select a saved progress JSON file to import.")
+	return true
+
+func _on_web_progress_import_success(args: Array) -> void:
+	var file_name := "progress.json"
+	var progress_text := ""
+	if args.size() >= 1:
+		file_name = str(args[0]).strip_edges()
+	if args.size() >= 2:
+		progress_text = str(args[1])
+	_clear_web_progress_import_callbacks()
+	if progress_text.strip_edges().is_empty():
+		_show_status_message("The selected progress file was empty.", true)
+		return
+	_apply_loaded_progress_text(progress_text, file_name if not file_name.is_empty() else "progress.json")
+
+func _on_web_progress_import_error(args: Array) -> void:
+	var error_kind := ""
+	var file_name := ""
+	var message := ""
+	if args.size() >= 1:
+		error_kind = str(args[0]).strip_edges()
+	if args.size() >= 2:
+		file_name = str(args[1]).strip_edges()
+	if args.size() >= 3:
+		message = str(args[2]).strip_edges()
+	_clear_web_progress_import_callbacks()
+	if error_kind == "cancel":
+		return
+	var target_name: String = file_name if not file_name.is_empty() else "the selected progress file"
+	var error_text := "Failed to import %s." % target_name
+	if not message.is_empty():
+		error_text = "%s %s" % [error_text, message]
+	_show_status_message(error_text, true)
+
+func _clear_web_progress_import_callbacks() -> void:
+	_web_progress_picker_active = false
+	if _supports_browser_progress_import():
+		var window = JavaScriptBridge.get_interface("window")
+		if window != null:
+			window.__surveyProgressImportSuccess = null
+			window.__surveyProgressImportError = null
+	_web_progress_picker_success_callback = null
+	_web_progress_picker_error_callback = null
 
 func _on_template_dialog_file_selected(path: String) -> void:
 	if _template_dialog_mode == "import":
@@ -2289,10 +2842,12 @@ func _update_responsive_layout() -> void:
 		return
 	var viewport_size := get_viewport().get_visible_rect().size
 	var shortest_side := minf(viewport_size.x, viewport_size.y)
-	var margin := int(clampf(shortest_side * 0.024, 12.0, 32.0))
-	var shell_gap := int(clampf(viewport_size.x * 0.014, 10.0, 24.0))
+	var compact_layout: bool = viewport_size.x <= 640.0
+	var phone_layout: bool = viewport_size.x <= 480.0
+	var margin := int(clampf(shortest_side * (0.02 if compact_layout else 0.024), 8.0 if phone_layout else 12.0, 32.0))
+	var shell_gap := int(clampf(viewport_size.x * 0.014, 8.0, 24.0))
 	var column_gap := int(clampf(shell_gap * 0.9, 10.0, 20.0))
-	var content_gap := int(clampf(shell_gap * 0.7, 10.0, 16.0))
+	var content_gap := int(clampf(shell_gap * 0.7, 8.0, 16.0))
 	_margin.add_theme_constant_override("margin_left", margin)
 	_margin.add_theme_constant_override("margin_top", margin)
 	_margin.add_theme_constant_override("margin_right", margin)
@@ -2301,8 +2856,29 @@ func _update_responsive_layout() -> void:
 	_main_column.add_theme_constant_override("separation", column_gap)
 	_content_stack.add_theme_constant_override("separation", content_gap)
 	_nav_row.add_theme_constant_override("separation", int(clampf(shell_gap * 0.5, 8.0, 12.0)))
-	_outline_panel.visible = viewport_size.x >= 1120.0
+	_focus_mode_shell.add_theme_constant_override("separation", content_gap)
+	_focus_nav_row.add_theme_constant_override("separation", int(clampf(shell_gap * 0.5, 8.0, 12.0)))
+	_set_focus_mode_active(_should_use_focus_mode(viewport_size))
+	_outline_panel.visible = viewport_size.x >= 1120.0 and not _focus_mode_active
 	_outline_panel.custom_minimum_size.x = clampf(viewport_size.x * 0.24, 220.0, 300.0)
+	_focus_question_scroll.custom_minimum_size.y = clampf(viewport_size.y * (0.42 if phone_layout else 0.46), 220.0 if phone_layout else 260.0, 560.0)
+	SurveyStyle.style_heading(_focus_section_label, 20 if compact_layout else 24)
+	SurveyStyle.style_caption(_focus_progress_label, SurveyStyle.SOFT_WHITE)
+	if _clear_filter_button != null:
+		_clear_filter_button.custom_minimum_size = Vector2(92.0 if compact_layout else 110.0, 40.0 if compact_layout else 42.0)
+	if _menu_access_button != null:
+		_menu_access_button.custom_minimum_size = Vector2(80.0 if compact_layout else 92.0, 46.0 if compact_layout else 52.0)
+		_menu_access_button.add_theme_font_size_override("font_size", 14 if compact_layout else 15)
+	var menu_button_width := clampf(viewport_size.x * 0.18, 72.0, 104.0)
+	var menu_button_height := clampf(viewport_size.y * 0.06, 44.0, 56.0)
+	var menu_inset := clampf(shortest_side * 0.022, 16.0, 26.0)
+	_menu_access_button.offset_left = -menu_button_width - menu_inset
+	_menu_access_button.offset_top = -menu_button_height - menu_inset
+	_menu_access_button.offset_right = -menu_inset
+	_menu_access_button.offset_bottom = -menu_inset
+	_sync_focus_question_stage_size()
+	_refresh_question_view_layouts(viewport_size)
+	_refresh_menu_access_button()
 	_overlay_menu.refresh_layout(viewport_size)
 	if _search_overlay != null:
 		_search_overlay.refresh_layout(viewport_size)
@@ -2397,16 +2973,20 @@ func _refresh_theme_mode() -> void:
 		_set_selected_question(saved_question_id)
 		_outline_panel.refresh(answers, current_section_index, _selected_question_id)
 		_update_navigation_state()
+		_refresh_focus_mode(true)
 		call_deferred("_restore_document_state", saved_scroll, was_overlay_open)
 
 func _restore_document_state(saved_scroll: int, was_overlay_open: bool) -> void:
 	_sync_question_stack_width()
-	_question_scroll.scroll_vertical = saved_scroll
-	_last_scroll_vertical = float(saved_scroll)
+	if not _focus_mode_active:
+		_question_scroll.scroll_vertical = saved_scroll
+		_last_scroll_vertical = float(saved_scroll)
 	_sync_visible_location(true)
 	_sync_outline_scroll_position()
+	_refresh_focus_mode(true)
 	if was_overlay_open and survey != null:
 		_overlay_menu.open_menu(survey, current_section_index, answers, sfx_volume, false)
+	_refresh_menu_access_button()
 
 func _clear_container(container: Node) -> void:
 	for child in container.get_children():

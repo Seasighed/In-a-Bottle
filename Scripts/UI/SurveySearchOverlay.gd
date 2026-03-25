@@ -43,8 +43,10 @@ func refresh_theme() -> void:
 	_refresh_results_for_query(_search_field.text if is_node_ready() else "")
 
 func refresh_layout(viewport_size: Vector2) -> void:
-	var panel_width: float = clampf(viewport_size.x - 48.0, 360.0, 760.0)
+	var horizontal_margin: float = clampf(viewport_size.x * 0.04, 12.0, 28.0)
+	var panel_width: float = clampf(viewport_size.x - (horizontal_margin * 2.0), 280.0, 760.0)
 	_panel.custom_minimum_size.x = panel_width
+	_results_scroll.custom_minimum_size.y = clampf(viewport_size.y * 0.32, 180.0, 360.0)
 
 func open_search(survey_definition: SurveyDefinition) -> void:
 	_survey = survey_definition

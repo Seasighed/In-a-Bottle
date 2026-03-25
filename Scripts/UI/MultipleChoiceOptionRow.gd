@@ -11,6 +11,7 @@ var _is_configuring := false
 func _ready() -> void:
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	toggle_mode = true
+	autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	toggled.connect(_on_toggled)
 	_update_style()
 

@@ -44,6 +44,7 @@ func open_summary(summary_data: Dictionary, adjective_text: String = "") -> void
 	_summary_data = summary_data.duplicate(true)
 	_adjective_text = adjective_text.strip_edges()
 	_summary_card.configure(_summary_data, _adjective_text)
+	_summary_card.refresh_layout(_panel.size.x if _panel != null else get_viewport().get_visible_rect().size.x)
 	show()
 	call_deferred("_reset_scroll_position")
 
@@ -51,6 +52,7 @@ func update_summary(summary_data: Dictionary, adjective_text: String = "") -> vo
 	_summary_data = summary_data.duplicate(true)
 	_adjective_text = adjective_text.strip_edges()
 	_summary_card.configure(_summary_data, _adjective_text)
+	_summary_card.refresh_layout(_panel.size.x if _panel != null else get_viewport().get_visible_rect().size.x)
 
 func close_summary() -> void:
 	hide()
@@ -76,18 +78,19 @@ func refresh_theme() -> void:
 	_summary_card.refresh_theme()
 
 func refresh_layout(viewport_size: Vector2) -> void:
-	var horizontal_margin: float = clampf(viewport_size.x * 0.04, 20.0, 64.0)
-	var vertical_margin: float = clampf(viewport_size.y * 0.04, 16.0, 48.0)
+	var horizontal_margin: float = clampf(viewport_size.x * 0.04, 12.0, 64.0)
+	var vertical_margin: float = clampf(viewport_size.y * 0.04, 12.0, 48.0)
 	_bounds.add_theme_constant_override("margin_left", int(horizontal_margin))
 	_bounds.add_theme_constant_override("margin_right", int(horizontal_margin))
 	_bounds.add_theme_constant_override("margin_top", int(vertical_margin))
 	_bounds.add_theme_constant_override("margin_bottom", int(vertical_margin))
 
-	var panel_width: float = clampf(viewport_size.x - (horizontal_margin * 2.0), 420.0, 980.0)
-	var panel_height: float = clampf(viewport_size.y - (vertical_margin * 2.0), 320.0, 820.0)
+	var panel_width: float = clampf(viewport_size.x - (horizontal_margin * 2.0), 300.0, 980.0)
+	var panel_height: float = clampf(viewport_size.y - (vertical_margin * 2.0), 300.0, 820.0)
 	_panel.custom_minimum_size = Vector2(panel_width, 0.0)
 	_panel_scroll.custom_minimum_size = Vector2(0.0, panel_height)
 	_panel_scroll.scroll_horizontal = 0
+	_summary_card.refresh_layout(panel_width)
 
 func _apply_png_action_state() -> void:
 	if not is_node_ready():
@@ -114,6 +117,7 @@ func capture_summary_image() -> Image:
 	export_card.custom_minimum_size = Vector2(viewport.size.x, 0.0)
 	viewport.add_child(export_card)
 	export_card.configure(_summary_data, current_adjective_text())
+	export_card.refresh_layout(float(viewport.size.x))
 
 	await get_tree().process_frame
 	await RenderingServer.frame_post_draw
