@@ -132,6 +132,7 @@ theme_override_constants/separation = 6
 [node name="FocusQuestionScroll" type="ScrollContainer" parent="Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell" unique_id=1751690053]
 layout_mode = 2
 size_flags_vertical = 3
+size_flags_stretch_ratio = 3.0
 horizontal_scroll_mode = 0
 
 [node name="FocusQuestionStage" type="Control" parent="Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusQuestionScroll" unique_id=649969685]
@@ -140,24 +141,32 @@ custom_minimum_size = Vector2(0, 320)
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="FocusHintLabel" type="Label" parent="Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell" unique_id=812205148]
+[node name="FocusFooterPanel" type="PanelContainer" parent="Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell" unique_id=613402911]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="FocusFooterStack" type="VBoxContainer" parent="Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusFooterPanel" unique_id=587403622]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="FocusHintLabel" type="Label" parent="Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusFooterPanel/FocusFooterStack" unique_id=812205148]
 layout_mode = 2
 text = "Answer at your pace, then tap Next to move forward."
 autowrap_mode = 3
 
-[node name="FocusNavRow" type="HBoxContainer" parent="Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell" unique_id=260653985]
+[node name="FocusNavRow" type="HBoxContainer" parent="Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusFooterPanel/FocusFooterStack" unique_id=260653985]
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="FocusPreviousButton" type="Button" parent="Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusNavRow" unique_id=1362138124]
+[node name="FocusPreviousButton" type="Button" parent="Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusFooterPanel/FocusFooterStack/FocusNavRow" unique_id=1362138124]
 layout_mode = 2
 text = "Previous"
 
-[node name="FocusNavSpacer" type="Control" parent="Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusNavRow" unique_id=779515263]
+[node name="FocusNavSpacer" type="Control" parent="Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusFooterPanel/FocusFooterStack/FocusNavRow" unique_id=779515263]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="FocusNextButton" type="Button" parent="Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusNavRow" unique_id=1738602679]
+[node name="FocusNextButton" type="Button" parent="Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusFooterPanel/FocusFooterStack/FocusNavRow" unique_id=1738602679]
 layout_mode = 2
 text = "Next"
 
@@ -196,15 +205,13 @@ text = "Next Section"
 layer = 61
 
 [node name="MenuAccessButton" type="Button" parent="MenuAccessLayer" unique_id=824802384]
-anchors_preset = 3
+anchors_preset = 1
 anchor_left = 1.0
-anchor_top = 1.0
 anchor_right = 1.0
-anchor_bottom = 1.0
 offset_left = -116.0
-offset_top = -76.0
+offset_top = 24.0
 offset_right = -24.0
-offset_bottom = -24.0
+offset_bottom = 76.0
 grow_horizontal = 0
-grow_vertical = 0
+grow_vertical = 2
 text = "Menu"

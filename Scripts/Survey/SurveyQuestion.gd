@@ -18,6 +18,9 @@ const TYPE_NUMBER := &"number"
 const TYPE_DATE := &"date"
 const TYPE_NPS := &"nps"
 const TYPE_MATRIX := &"matrix"
+const ANSWER_STATE_UNANSWERED := &"unanswered"
+const ANSWER_STATE_PARTIAL := &"partial"
+const ANSWER_STATE_COMPLETE := &"complete"
 
 var id: String
 var prompt: String
@@ -118,6 +121,13 @@ func rating_display_label(index: int = -1) -> String:
 func is_answer_complete(value: Variant) -> bool:
 	return not is_answer_empty(value)
 
+func answer_completion_state(value: Variant) -> StringName:
+	if is_answer_complete(value):
+		return ANSWER_STATE_COMPLETE
+	if _has_partial_answer(value):
+		return ANSWER_STATE_PARTIAL
+	return ANSWER_STATE_UNANSWERED
+
 func is_answer_empty(value: Variant) -> bool:
 	match typeof(value):
 		TYPE_NIL:
@@ -142,6 +152,35 @@ func is_answer_empty(value: Variant) -> bool:
 				if not _variant_is_blank(nested_value):
 					return false
 			return true
+	return false
+
+func _has_partial_answer(value: Variant) -> bool:
+	match typeof(value):
+		TYPE_STRING, TYPE_STRING_NAME:
+			return not str(value).strip_edges().is_empty()
+		TYPE_BOOL, TYPE_INT, TYPE_FLOAT:
+			return true
+		TYPE_ARRAY:
+			var items := value as Array
+			if items.is_empty():
+				return false
+			if type == TYPE_RANKED_CHOICE and not options.is_empty():
+				return items.size() < options.size()
+			return false
+		TYPE_DICTIONARY:
+			var dict := value as Dictionary
+			if dict.is_empty():
+				return false
+			if type == TYPE_MATRIX and not rows.is_empty():
+				var answered_rows := 0
+				for row_name in rows:
+					if not str(dict.get(row_name, "")).strip_edges().is_empty():
+						answered_rows += 1
+				return answered_rows > 0 and answered_rows < rows.size()
+			for nested_value in dict.values():
+				if not _variant_is_blank(nested_value):
+					return true
+			return false
 	return false
 
 func searchable_text() -> String:

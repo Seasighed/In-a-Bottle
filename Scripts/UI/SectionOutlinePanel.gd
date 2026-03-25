@@ -4,6 +4,7 @@ extends PanelContainer
 const SPRITE_ICON_HOST = preload("res://Scripts/UI/SpriteIconHost.gd")
 const SURVEY_ICON_LIBRARY = preload("res://Scripts/UI/SurveyIconLibrary.gd")
 const SURVEY_UI_FEEDBACK = preload("res://Scripts/UI/SurveyUiFeedback.gd")
+const COMPLETE_STATUS_COLOR := Color("3cab68")
 
 signal navigate_requested(section_index: int, question_id: String)
 
@@ -30,8 +31,8 @@ func refresh_theme() -> void:
 	SurveyStyle.apply_panel(self, SurveyStyle.SURFACE, SurveyStyle.BORDER, 24, 1)
 	SurveyStyle.style_heading(_title_label, 20)
 	SurveyStyle.style_body(_subtitle_label)
-	SurveyStyle.style_caption(_current_section_label, SurveyStyle.HIGHLIGHT_GOLD)
-	SurveyStyle.style_caption(_current_question_label, SurveyStyle.SOFT_WHITE)
+	SurveyStyle.style_caption(_current_section_label, SurveyStyle.ACCENT_ALT)
+	SurveyStyle.style_caption(_current_question_label, SurveyStyle.TEXT_PRIMARY)
 
 func bind_survey(survey_definition: SurveyDefinition) -> void:
 	_survey = survey_definition
@@ -81,12 +82,15 @@ func _update_current_view_labels(current_section_index: int, focus_question_id: 
 	var resolved_section_index: int = clampi(current_section_index, 0, _survey.sections.size() - 1)
 	var section: SurveySection = _survey.sections[resolved_section_index]
 	_current_section_label.text = section.display_title(resolved_section_index)
+	SurveyStyle.style_caption(_current_section_label, _status_color(_section_completion_state(section)))
 	var question_index: int = _question_index_for_section(section, focus_question_id)
 	if question_index < 0 or question_index >= section.questions.size():
 		_current_question_label.text = "Question"
+		SurveyStyle.style_caption(_current_question_label, SurveyStyle.TEXT_PRIMARY)
 		return
 	var question: SurveyQuestion = section.questions[question_index]
 	_current_question_label.text = "Question %d | %s" % [question_index + 1, _type_label(question.type)]
+	SurveyStyle.style_caption(_current_question_label, _status_color(_question_completion_state(question)))
 
 func sync_scroll_progress(progress: float) -> void:
 	if _section_scroll == null:
@@ -103,8 +107,9 @@ func _create_section_row(section: SurveySection, section_index: int, is_active: 
 	var row := PanelContainer.new()
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	var completion_state: StringName = _section_completion_state(section)
 	var fill := SurveyStyle.SURFACE_MUTED if is_active else SurveyStyle.SURFACE_ALT
-	var border := SurveyStyle.HIGHLIGHT_GOLD if section.is_complete(_answers) else (SurveyStyle.ACCENT_ALT if is_active else SurveyStyle.BORDER)
+	var border := _status_color(completion_state) if completion_state != SurveyQuestion.ANSWER_STATE_UNANSWERED else (SurveyStyle.ACCENT_ALT if is_active else SurveyStyle.BORDER)
 	SurveyStyle.apply_panel(row, fill, border, 16, 1)
 	row.gui_input.connect(_on_row_gui_input.bind(section_index, "", row))
 	row.mouse_entered.connect(_on_row_mouse_entered)
@@ -117,8 +122,8 @@ func _create_section_row(section: SurveySection, section_index: int, is_active: 
 	var status_icon = SPRITE_ICON_HOST.new()
 	status_icon.custom_minimum_size = Vector2(18, 18)
 	status_icon.set_icon(
-		SURVEY_ICON_LIBRARY.completion_texture(section.is_complete(_answers)),
-		SurveyStyle.HIGHLIGHT_GOLD if section.is_complete(_answers) else SurveyStyle.TEXT_MUTED,
+		SURVEY_ICON_LIBRARY.completion_texture(completion_state == SurveyQuestion.ANSWER_STATE_COMPLETE),
+		_status_color(completion_state),
 		16.0
 	)
 	hbox.add_child(status_icon)
@@ -127,7 +132,7 @@ func _create_section_row(section: SurveySection, section_index: int, is_active: 
 	section_icon.custom_minimum_size = Vector2(18, 18)
 	section_icon.set_icon(
 		SURVEY_ICON_LIBRARY.section_texture(section.icon_name),
-		SurveyStyle.ACCENT_ALT if is_active else SurveyStyle.SOFT_WHITE,
+		SurveyStyle.ACCENT_ALT if is_active else SurveyStyle.TEXT_MUTED,
 		16.0
 	)
 	hbox.add_child(section_icon)
@@ -148,7 +153,7 @@ func _create_section_row(section: SurveySection, section_index: int, is_active: 
 		count_label.text = "%d/%d" % [active_question_index + 1, section.questions.size()]
 	else:
 		count_label.text = str(section.questions.size())
-	SurveyStyle.style_caption(count_label, SurveyStyle.SOFT_WHITE)
+	SurveyStyle.style_caption(count_label, SurveyStyle.TEXT_PRIMARY)
 	hbox.add_child(count_label)
 
 	return row
@@ -157,9 +162,12 @@ func _create_question_row(section_index: int, question_index: int, question: Sur
 	var row := PanelContainer.new()
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	var answered := question.is_answer_complete(_answers.get(question.id, null))
+	var completion_state: StringName = _question_completion_state(question)
+	var answered := completion_state == SurveyQuestion.ANSWER_STATE_COMPLETE
 	var fill := SurveyStyle.SURFACE_MUTED if is_active else SurveyStyle.SURFACE
-	var border := SurveyStyle.HIGHLIGHT_GOLD if is_active else (SurveyStyle.ACCENT_ALT if answered else SurveyStyle.BORDER)
+	var border := _status_color(completion_state) if completion_state != SurveyQuestion.ANSWER_STATE_UNANSWERED else SurveyStyle.BORDER
+	if is_active:
+		border = _status_color(completion_state) if completion_state != SurveyQuestion.ANSWER_STATE_UNANSWERED else SurveyStyle.ACCENT_ALT
 	SurveyStyle.apply_panel(row, fill, border, 14, 1)
 	row.gui_input.connect(_on_row_gui_input.bind(section_index, question.id, row))
 	row.mouse_entered.connect(_on_row_mouse_entered)
@@ -173,7 +181,7 @@ func _create_question_row(section_index: int, question_index: int, question: Sur
 	status_icon.custom_minimum_size = Vector2(16, 16)
 	status_icon.set_icon(
 		SURVEY_ICON_LIBRARY.completion_texture(answered),
-		SurveyStyle.HIGHLIGHT_GOLD if answered else SurveyStyle.TEXT_MUTED,
+		_status_color(completion_state),
 		14.0
 	)
 	hbox.add_child(status_icon)
@@ -183,7 +191,7 @@ func _create_question_row(section_index: int, question_index: int, question: Sur
 	prompt_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	prompt_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	prompt_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	SurveyStyle.style_body(prompt_label, SurveyStyle.TEXT_PRIMARY if is_active or answered else SurveyStyle.TEXT_MUTED)
+	SurveyStyle.style_body(prompt_label, SurveyStyle.TEXT_PRIMARY if is_active or completion_state != SurveyQuestion.ANSWER_STATE_UNANSWERED else SurveyStyle.TEXT_MUTED)
 	hbox.add_child(prompt_label)
 
 	return row
@@ -243,3 +251,33 @@ func _emit_navigate_requested(section_index: int, question_id: String) -> void:
 func _clear_container(container: Node) -> void:
 	for child in container.get_children():
 		child.free()
+
+func _question_completion_state(question: SurveyQuestion) -> StringName:
+	if question == null:
+		return SurveyQuestion.ANSWER_STATE_UNANSWERED
+	return question.answer_completion_state(_answers.get(question.id, null))
+
+func _section_completion_state(section: SurveySection) -> StringName:
+	if section == null or section.questions.is_empty():
+		return SurveyQuestion.ANSWER_STATE_UNANSWERED
+	var saw_partial := false
+	var saw_complete := false
+	for question in section.questions:
+		var state: StringName = _question_completion_state(question)
+		if state == SurveyQuestion.ANSWER_STATE_COMPLETE:
+			saw_complete = true
+		elif state == SurveyQuestion.ANSWER_STATE_PARTIAL:
+			saw_partial = true
+	if section.is_complete(_answers):
+		return SurveyQuestion.ANSWER_STATE_COMPLETE
+	if saw_complete or saw_partial:
+		return SurveyQuestion.ANSWER_STATE_PARTIAL
+	return SurveyQuestion.ANSWER_STATE_UNANSWERED
+
+func _status_color(state: StringName) -> Color:
+	match state:
+		SurveyQuestion.ANSWER_STATE_COMPLETE:
+			return COMPLETE_STATUS_COLOR
+		SurveyQuestion.ANSWER_STATE_PARTIAL:
+			return SurveyStyle.HIGHLIGHT_GOLD
+	return SurveyStyle.TEXT_MUTED

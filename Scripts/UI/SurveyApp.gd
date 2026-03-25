@@ -20,6 +20,7 @@ const DEFAULT_LIGHT_PALETTE = preload("res://Themes/SurveyLightPalette.tres")
 const SPRITE_ICON_HOST = preload("res://Scripts/UI/SpriteIconHost.gd")
 const SURVEY_ICON_LIBRARY = preload("res://Scripts/UI/SurveyIconLibrary.gd")
 const SURVEY_UI_FEEDBACK = preload("res://Scripts/UI/SurveyUiFeedback.gd")
+const COMPLETE_STATUS_COLOR := Color("3cab68")
 const DEFAULT_CONTENT_SIZE := Vector2i(1440, 900)
 const EXPORT_FORMAT_JSON := "json"
 const EXPORT_FORMAT_CSV := "csv"
@@ -122,10 +123,13 @@ var _last_upload_status_is_error := false
 @onready var _focus_segment_row: HBoxContainer = $Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusHeaderPanel/FocusHeaderStack/FocusSegmentRow
 @onready var _focus_question_scroll: ScrollContainer = $Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusQuestionScroll
 @onready var _focus_question_stage: Control = $Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusQuestionScroll/FocusQuestionStage
-@onready var _focus_hint_label: Label = $Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusHintLabel
-@onready var _focus_nav_row: HBoxContainer = $Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusNavRow
-@onready var _focus_previous_button: Button = $Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusNavRow/FocusPreviousButton
-@onready var _focus_next_button: Button = $Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusNavRow/FocusNextButton
+@onready var _focus_footer_panel: PanelContainer = $Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusFooterPanel
+@onready var _focus_footer_stack: VBoxContainer = $Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusFooterPanel/FocusFooterStack
+@onready var _focus_hint_label: Label = $Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusFooterPanel/FocusFooterStack/FocusHintLabel
+@onready var _focus_nav_row: HBoxContainer = $Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusFooterPanel/FocusFooterStack/FocusNavRow
+@onready var _focus_previous_button: Button = $Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusFooterPanel/FocusFooterStack/FocusNavRow/FocusPreviousButton
+@onready var _focus_nav_spacer: Control = $Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusFooterPanel/FocusFooterStack/FocusNavRow/FocusNavSpacer
+@onready var _focus_next_button: Button = $Margin/Shell/MainColumn/ContentCard/ContentStack/FocusModeShell/FocusFooterPanel/FocusFooterStack/FocusNavRow/FocusNextButton
 @onready var _status_label: Label = $Margin/Shell/MainColumn/ContentCard/ContentStack/StatusLabel
 @onready var _nav_row: HBoxContainer = $Margin/Shell/MainColumn/NavRow
 @onready var _previous_button: Button = $Margin/Shell/MainColumn/NavRow/PreviousButton
@@ -445,11 +449,22 @@ func _on_button_pressed_feedback() -> void:
 func _apply_static_styles() -> void:
 	_background.color = SurveyStyle.BACKGROUND
 	SurveyStyle.apply_panel(_content_card, SurveyStyle.SURFACE, SurveyStyle.BORDER, 26, 1)
-	SurveyStyle.apply_panel(_focus_header_panel, SurveyStyle.SURFACE_ALT, SurveyStyle.ACCENT_ALT, 22, 1)
+	var focus_header_style: StyleBoxFlat = SurveyStyle.panel(SurveyStyle.SURFACE_ALT, SurveyStyle.ACCENT_ALT, 22, 1)
+	focus_header_style.content_margin_left = 12
+	focus_header_style.content_margin_right = 12
+	focus_header_style.content_margin_top = 10
+	focus_header_style.content_margin_bottom = 10
+	_focus_header_panel.add_theme_stylebox_override("panel", focus_header_style)
+	var focus_footer_style: StyleBoxFlat = SurveyStyle.panel(SurveyStyle.SURFACE_ALT, SurveyStyle.BORDER, 20, 1)
+	focus_footer_style.content_margin_left = 14
+	focus_footer_style.content_margin_right = 14
+	focus_footer_style.content_margin_top = 14
+	focus_footer_style.content_margin_bottom = 14
+	_focus_footer_panel.add_theme_stylebox_override("panel", focus_footer_style)
 	SurveyStyle.style_heading(_section_title_label, 30)
 	SurveyStyle.style_body(_section_description_label)
 	SurveyStyle.style_heading(_focus_section_label, 24)
-	SurveyStyle.style_caption(_focus_progress_label, SurveyStyle.SOFT_WHITE)
+	SurveyStyle.style_caption(_focus_progress_label, SurveyStyle.TEXT_PRIMARY)
 	SurveyStyle.style_caption(_focus_hint_label, SurveyStyle.TEXT_MUTED)
 	if _filter_status_label != null:
 		SurveyStyle.style_caption(_filter_status_label, SurveyStyle.SOFT_WHITE)
@@ -1297,7 +1312,8 @@ func _set_focus_mode_active(enabled: bool) -> void:
 func _refresh_menu_access_button() -> void:
 	if _menu_access_layer == null:
 		return
-	_menu_access_layer.visible = survey != null and (_overlay_menu == null or not _overlay_menu.visible)
+	var overlay_blocking: bool = (_overlay_menu != null and _overlay_menu.visible) or (_search_overlay != null and _search_overlay.visible) or (_onboarding_overlay != null and _onboarding_overlay.visible) or (_settings_overlay != null and _settings_overlay.visible) or (_summary_overlay != null and _summary_overlay.visible) or (_export_overlay != null and _export_overlay.visible)
+	_menu_access_layer.visible = survey != null and not overlay_blocking
 
 func _refresh_focus_mode(force_rebuild: bool = false, transition_direction: int = 0) -> void:
 	if not _focus_mode_active or _focus_mode_shell == null:
@@ -1328,6 +1344,7 @@ func _refresh_focus_mode(force_rebuild: bool = false, transition_direction: int 
 	var question: SurveyQuestion = _question_definition(current_question_id)
 	_focus_section_label.text = section.display_title(section_index)
 	_focus_progress_label.text = "Question %d of %d | %s" % [question_index + 1, max(section.questions.size(), 1), _question_type_label(question.type)]
+	SurveyStyle.style_caption(_focus_progress_label, _focus_completion_color(question.answer_completion_state(answers.get(question.id, null))))
 	_focus_hint_label.visible = true
 	_rebuild_focus_segments(section_index, question_index)
 	_update_focus_navigation_state()
@@ -1346,20 +1363,46 @@ func _rebuild_focus_segments(section_index: int, active_question_index: int) -> 
 	for question_index in range(section.questions.size()):
 		var segment := PanelContainer.new()
 		segment.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		segment.custom_minimum_size = Vector2(0.0, 10.0)
+		segment.custom_minimum_size = Vector2(0.0, _focus_segment_height())
 		segment.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var question: SurveyQuestion = section.questions[question_index]
-		var is_answered := question.is_answer_complete(answers.get(question.id, null))
-		var fill := SurveyStyle.SURFACE
-		var border := SurveyStyle.BORDER
+		var completion_state: StringName = question.answer_completion_state(answers.get(question.id, null))
+		var fill := _focus_completion_fill_color(completion_state)
+		var border := _focus_completion_border_color(completion_state)
+		var border_width := 1
 		if question_index == active_question_index:
-			fill = SurveyStyle.HIGHLIGHT_GOLD
-			border = SurveyStyle.HIGHLIGHT_GOLD
-		elif is_answered:
-			fill = SurveyStyle.ACCENT_ALT
-			border = SurveyStyle.ACCENT_ALT
-		SurveyStyle.apply_panel(segment, fill, border, 8, 1)
+			border = SurveyStyle.TEXT_PRIMARY
+			border_width = 2
+		SurveyStyle.apply_panel(segment, fill, border, 8, border_width)
 		_focus_segment_row.add_child(segment)
+
+func _focus_completion_fill_color(state: StringName) -> Color:
+	match state:
+		SurveyQuestion.ANSWER_STATE_COMPLETE:
+			return COMPLETE_STATUS_COLOR
+		SurveyQuestion.ANSWER_STATE_PARTIAL:
+			return SurveyStyle.HIGHLIGHT_GOLD
+	return SurveyStyle.SURFACE
+
+func _focus_completion_border_color(state: StringName) -> Color:
+	match state:
+		SurveyQuestion.ANSWER_STATE_COMPLETE:
+			return COMPLETE_STATUS_COLOR
+		SurveyQuestion.ANSWER_STATE_PARTIAL:
+			return SurveyStyle.HIGHLIGHT_GOLD
+	return SurveyStyle.BORDER
+
+func _focus_completion_color(state: StringName) -> Color:
+	match state:
+		SurveyQuestion.ANSWER_STATE_COMPLETE:
+			return COMPLETE_STATUS_COLOR
+		SurveyQuestion.ANSWER_STATE_PARTIAL:
+			return SurveyStyle.HIGHLIGHT_GOLD
+	return SurveyStyle.TEXT_PRIMARY
+
+func _focus_segment_height() -> float:
+	var viewport_width: float = get_viewport().get_visible_rect().size.x
+	return 6.0 if viewport_width <= 640.0 else 10.0
 
 func _present_focus_question(question_id: String, direction: int = 0) -> void:
 	var question: SurveyQuestion = _question_definition(question_id)
@@ -2857,25 +2900,40 @@ func _update_responsive_layout() -> void:
 	_content_stack.add_theme_constant_override("separation", content_gap)
 	_nav_row.add_theme_constant_override("separation", int(clampf(shell_gap * 0.5, 8.0, 12.0)))
 	_focus_mode_shell.add_theme_constant_override("separation", content_gap)
+	_focus_footer_stack.add_theme_constant_override("separation", 10 if compact_layout else 12)
 	_focus_nav_row.add_theme_constant_override("separation", int(clampf(shell_gap * 0.5, 8.0, 12.0)))
 	_set_focus_mode_active(_should_use_focus_mode(viewport_size))
 	_outline_panel.visible = viewport_size.x >= 1120.0 and not _focus_mode_active
 	_outline_panel.custom_minimum_size.x = clampf(viewport_size.x * 0.24, 220.0, 300.0)
-	_focus_question_scroll.custom_minimum_size.y = clampf(viewport_size.y * (0.42 if phone_layout else 0.46), 220.0 if phone_layout else 260.0, 560.0)
+	_focus_question_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_focus_question_scroll.size_flags_stretch_ratio = 3.0 if compact_layout else 1.0
+	_focus_footer_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL if compact_layout else Control.SIZE_FILL
+	_focus_footer_panel.size_flags_stretch_ratio = 1.0
+	_focus_question_scroll.custom_minimum_size.y = clampf(viewport_size.y * 0.52, 280.0 if compact_layout else 260.0, 760.0)
 	SurveyStyle.style_heading(_focus_section_label, 20 if compact_layout else 24)
-	SurveyStyle.style_caption(_focus_progress_label, SurveyStyle.SOFT_WHITE)
+	var current_focus_state: StringName = SurveyQuestion.ANSWER_STATE_UNANSWERED
+	var current_focus_question: SurveyQuestion = _question_definition(_selected_question_id)
+	if current_focus_question != null:
+		current_focus_state = current_focus_question.answer_completion_state(answers.get(current_focus_question.id, null))
+	SurveyStyle.style_caption(_focus_progress_label, _focus_completion_color(current_focus_state))
+	SurveyStyle.style_caption(_focus_hint_label, SurveyStyle.TEXT_MUTED)
+	_focus_nav_spacer.visible = not compact_layout
+	_focus_previous_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL if compact_layout else Control.SIZE_FILL
+	_focus_next_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL if compact_layout else Control.SIZE_FILL
+	_focus_previous_button.custom_minimum_size = Vector2(0.0, 52.0 if compact_layout else 44.0)
+	_focus_next_button.custom_minimum_size = Vector2(0.0, 56.0 if compact_layout else 44.0)
 	if _clear_filter_button != null:
 		_clear_filter_button.custom_minimum_size = Vector2(92.0 if compact_layout else 110.0, 40.0 if compact_layout else 42.0)
 	if _menu_access_button != null:
-		_menu_access_button.custom_minimum_size = Vector2(80.0 if compact_layout else 92.0, 46.0 if compact_layout else 52.0)
+		_menu_access_button.custom_minimum_size = Vector2(72.0 if compact_layout else 84.0, 42.0 if compact_layout else 48.0)
 		_menu_access_button.add_theme_font_size_override("font_size", 14 if compact_layout else 15)
-	var menu_button_width := clampf(viewport_size.x * 0.18, 72.0, 104.0)
-	var menu_button_height := clampf(viewport_size.y * 0.06, 44.0, 56.0)
-	var menu_inset := clampf(shortest_side * 0.022, 16.0, 26.0)
+	var menu_button_width := clampf(viewport_size.x * 0.16, 72.0, 96.0)
+	var menu_button_height := clampf(viewport_size.y * 0.05, 42.0, 50.0)
+	var menu_inset := clampf(shortest_side * 0.02, 12.0, 24.0)
 	_menu_access_button.offset_left = -menu_button_width - menu_inset
-	_menu_access_button.offset_top = -menu_button_height - menu_inset
+	_menu_access_button.offset_top = menu_inset
 	_menu_access_button.offset_right = -menu_inset
-	_menu_access_button.offset_bottom = -menu_inset
+	_menu_access_button.offset_bottom = menu_inset + menu_button_height
 	_sync_focus_question_stage_size()
 	_refresh_question_view_layouts(viewport_size)
 	_refresh_menu_access_button()
@@ -2991,14 +3049,3 @@ func _restore_document_state(saved_scroll: int, was_overlay_open: bool) -> void:
 func _clear_container(container: Node) -> void:
 	for child in container.get_children():
 		child.free()
-
-
-
-
-
-
-
-
-
-
-

@@ -21,6 +21,8 @@ var _compact_layout := false
 func _ready() -> void:
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_grid_scroll.vertical_scroll_mode = 0
+	_grid_scroll.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	SurveyStyle.style_heading(_title_label, 21)
 	SurveyStyle.style_body(_description_label)
@@ -62,6 +64,7 @@ func refresh_responsive_layout(viewport_size: Vector2) -> void:
 	var compact_layout: bool = available_width <= 640.0 or viewport_size.x <= 640.0
 	if _compact_layout == compact_layout:
 		_apply_grid_metrics()
+		_sync_grid_scroll_height()
 		_refresh_layout_metrics()
 		return
 	_compact_layout = compact_layout
@@ -69,6 +72,7 @@ func refresh_responsive_layout(viewport_size: Vector2) -> void:
 	if question != null and is_node_ready():
 		_rebuild_grid()
 		_apply_selection_state()
+	_sync_grid_scroll_height()
 	_refresh_layout_metrics()
 
 func _rebuild_grid() -> void:
@@ -139,12 +143,24 @@ func _rebuild_grid() -> void:
 			register_selectable(check_box)
 			if _primary_control == null:
 				_primary_control = check_box
+	_sync_grid_scroll_height()
 
 func _apply_grid_metrics() -> void:
 	_grid.add_theme_constant_override("h_separation", 8 if _compact_layout else 10)
 	_grid.add_theme_constant_override("v_separation", 6 if _compact_layout else 8)
 	SurveyStyle.style_heading(_title_label, 19 if _compact_layout else 21)
 	SurveyStyle.style_body(_description_label)
+
+func _sync_grid_scroll_height() -> void:
+	if not is_node_ready():
+		return
+	_grid.update_minimum_size()
+	var grid_min_size := _grid.get_combined_minimum_size()
+	var scroll_height := grid_min_size.y
+	if grid_min_size.x > maxf(size.x - 24.0, 0.0):
+		scroll_height += 18.0
+	_grid_scroll.custom_minimum_size = Vector2(0.0, scroll_height)
+	_grid_scroll.update_minimum_size()
 
 func _row_label_width() -> float:
 	return COMPACT_ROW_LABEL_MIN_WIDTH if _compact_layout else ROW_LABEL_MIN_WIDTH
