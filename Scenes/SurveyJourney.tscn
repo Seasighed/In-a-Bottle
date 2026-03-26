@@ -1,0 +1,408 @@
+[gd_scene format=3 uid="uid://ca2rwyabyh2ba"]
+
+[ext_resource type="Script" uid="uid://dw6tl1cfkuoaq" path="res://Scripts/UI/SurveyJourneyApp.gd" id="1"]
+[ext_resource type="Script" uid="uid://bb62fbpvqrv54" path="res://Scripts/UI/SurveyJourneyFocusStage.gd" id="3"]
+
+[node name="SurveyJourneyApp" type="Control" unique_id=420830979]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="Background" type="ColorRect" parent="." unique_id=1383508198]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Margin" type="MarginContainer" parent="." unique_id=126930770]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 24
+
+[node name="MainPanel" type="PanelContainer" parent="Margin" unique_id=28945440]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="Stack" type="VBoxContainer" parent="Margin/MainPanel" unique_id=1617581033]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 18
+
+[node name="StatusLabel" type="Label" parent="Margin/MainPanel/Stack" unique_id=343298137]
+visible = false
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="LandingView" type="VBoxContainer" parent="Margin/MainPanel/Stack" unique_id=1670169950]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 18
+
+[node name="LandingSpacerTop" type="Control" parent="Margin/MainPanel/Stack/LandingView" unique_id=1123911056]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="LandingHeadingLabel" type="Label" parent="Margin/MainPanel/Stack/LandingView" unique_id=1493615056]
+layout_mode = 2
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="LandingSubtitleLabel" type="Label" parent="Margin/MainPanel/Stack/LandingView" unique_id=119241301]
+layout_mode = 2
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="LandingActions" type="HBoxContainer" parent="Margin/MainPanel/Stack/LandingView" unique_id=1718199848]
+layout_mode = 2
+theme_override_constants/separation = 14
+alignment = 1
+
+[node name="TakeSurveyButton" type="Button" parent="Margin/MainPanel/Stack/LandingView/LandingActions" unique_id=1056653159]
+layout_mode = 2
+text = "Take Survey"
+
+[node name="GetLoreButton" type="Button" parent="Margin/MainPanel/Stack/LandingView/LandingActions" unique_id=1763743073]
+layout_mode = 2
+text = "Get Lore"
+
+[node name="LandingSpacerBottom" type="Control" parent="Margin/MainPanel/Stack/LandingView" unique_id=1638044984]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="SurveySelectionView" type="VBoxContainer" parent="Margin/MainPanel/Stack" unique_id=316199696]
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 14
+
+[node name="SurveySelectionTopRow" type="HBoxContainer" parent="Margin/MainPanel/Stack/SurveySelectionView" unique_id=571846889]
+layout_mode = 2
+
+[node name="SurveySelectionBackButton" type="Button" parent="Margin/MainPanel/Stack/SurveySelectionView/SurveySelectionTopRow" unique_id=1750578238]
+layout_mode = 2
+text = "Back"
+
+[node name="SurveySelectionTopSpacer" type="Control" parent="Margin/MainPanel/Stack/SurveySelectionView/SurveySelectionTopRow" unique_id=2030357332]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="SurveySelectionHeadingLabel" type="Label" parent="Margin/MainPanel/Stack/SurveySelectionView" unique_id=1856465960]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="SurveySelectionSubtitleLabel" type="Label" parent="Margin/MainPanel/Stack/SurveySelectionView" unique_id=1057150891]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="SurveySelectionScroll" type="ScrollContainer" parent="Margin/MainPanel/Stack/SurveySelectionView" unique_id=1469148851]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="SurveySelectionGrid" type="GridContainer" parent="Margin/MainPanel/Stack/SurveySelectionView/SurveySelectionScroll" unique_id=1972516111]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 14
+theme_override_constants/v_separation = 14
+columns = 2
+
+[node name="SurveySelectionActionRow" type="HBoxContainer" parent="Margin/MainPanel/Stack/SurveySelectionView" unique_id=40599212]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="SurveySelectionActionSpacer" type="Control" parent="Margin/MainPanel/Stack/SurveySelectionView/SurveySelectionActionRow" unique_id=329748238]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="SurveySelectionNextButton" type="Button" parent="Margin/MainPanel/Stack/SurveySelectionView/SurveySelectionActionRow" unique_id=1652737921]
+layout_mode = 2
+text = "Choose Sections"
+
+[node name="LoreView" type="VBoxContainer" parent="Margin/MainPanel/Stack" unique_id=1232577510]
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 14
+
+[node name="LoreTopRow" type="HBoxContainer" parent="Margin/MainPanel/Stack/LoreView" unique_id=686075413]
+layout_mode = 2
+
+[node name="LoreBackButton" type="Button" parent="Margin/MainPanel/Stack/LoreView/LoreTopRow" unique_id=1912775617]
+layout_mode = 2
+text = "Back"
+
+[node name="LoreTopSpacer" type="Control" parent="Margin/MainPanel/Stack/LoreView/LoreTopRow" unique_id=2102816261]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="LoreHeadingLabel" type="Label" parent="Margin/MainPanel/Stack/LoreView" unique_id=1845645965]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="LoreSubtitleLabel" type="Label" parent="Margin/MainPanel/Stack/LoreView" unique_id=1541893137]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="LoreSurveyLabel" type="Label" parent="Margin/MainPanel/Stack/LoreView" unique_id=903061025]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="LoreScroll" type="ScrollContainer" parent="Margin/MainPanel/Stack/LoreView" unique_id=822525827]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="LoreList" type="VBoxContainer" parent="Margin/MainPanel/Stack/LoreView/LoreScroll" unique_id=1793493307]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="LoreTakeSurveyButton" type="Button" parent="Margin/MainPanel/Stack/LoreView" unique_id=440107348]
+layout_mode = 2
+text = "Take This Survey"
+
+[node name="SectionSelectionView" type="VBoxContainer" parent="Margin/MainPanel/Stack" unique_id=1634172743]
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 14
+
+[node name="SectionSelectionTopRow" type="HBoxContainer" parent="Margin/MainPanel/Stack/SectionSelectionView" unique_id=2038113391]
+layout_mode = 2
+
+[node name="SectionSelectionBackButton" type="Button" parent="Margin/MainPanel/Stack/SectionSelectionView/SectionSelectionTopRow" unique_id=1798730472]
+layout_mode = 2
+text = "Back"
+
+[node name="SectionSelectionTopSpacer" type="Control" parent="Margin/MainPanel/Stack/SectionSelectionView/SectionSelectionTopRow" unique_id=2106028086]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="SectionSelectionHeadingLabel" type="Label" parent="Margin/MainPanel/Stack/SectionSelectionView" unique_id=1677777958]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="SectionSelectionSubtitleLabel" type="Label" parent="Margin/MainPanel/Stack/SectionSelectionView" unique_id=747332068]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="SectionSelectionSurveyLabel" type="Label" parent="Margin/MainPanel/Stack/SectionSelectionView" unique_id=1017577206]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="SectionSelectionScroll" type="ScrollContainer" parent="Margin/MainPanel/Stack/SectionSelectionView" unique_id=844279401]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="SectionSelectionGrid" type="GridContainer" parent="Margin/MainPanel/Stack/SectionSelectionView/SectionSelectionScroll" unique_id=681875519]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 14
+theme_override_constants/v_separation = 14
+columns = 2
+
+[node name="SectionSelectionActionRow" type="HBoxContainer" parent="Margin/MainPanel/Stack/SectionSelectionView" unique_id=36146598]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="SectionSelectionActionSpacer" type="Control" parent="Margin/MainPanel/Stack/SectionSelectionView/SectionSelectionActionRow" unique_id=1721642748]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="SectionSelectionNextButton" type="Button" parent="Margin/MainPanel/Stack/SectionSelectionView/SectionSelectionActionRow" unique_id=545005775]
+layout_mode = 2
+text = "Start Section"
+
+[node name="FocusView" type="VBoxContainer" parent="Margin/MainPanel/Stack" unique_id=826420181]
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="FocusTopRow" type="HBoxContainer" parent="Margin/MainPanel/Stack/FocusView" unique_id=2057158342]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="FocusBackButton" type="Button" parent="Margin/MainPanel/Stack/FocusView/FocusTopRow" unique_id=1369109999]
+layout_mode = 2
+text = "Sections"
+
+[node name="FocusTopSpacer" type="Control" parent="Margin/MainPanel/Stack/FocusView/FocusTopRow" unique_id=1023119516]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="FocusSectionLabel" type="Label" parent="Margin/MainPanel/Stack/FocusView" unique_id=243796584]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="FocusProgressLabel" type="Label" parent="Margin/MainPanel/Stack/FocusView" unique_id=736253989]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="FocusSegmentRow" type="HBoxContainer" parent="Margin/MainPanel/Stack/FocusView" unique_id=1973446481]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="FocusQuestionScroll" type="ScrollContainer" parent="Margin/MainPanel/Stack/FocusView" unique_id=265518893]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="FocusQuestionStage" type="Control" parent="Margin/MainPanel/Stack/FocusView/FocusQuestionScroll" unique_id=354180394]
+clip_contents = true
+layout_mode = 2
+size_flags_horizontal = 3
+script = ExtResource("3")
+
+[node name="FocusBottomSpacer" type="Control" parent="Margin/MainPanel/Stack/FocusView" unique_id=745291613]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="FocusNavRow" type="HBoxContainer" parent="Margin/MainPanel/Stack/FocusView" unique_id=44295138]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="FocusPreviousButton" type="Button" parent="Margin/MainPanel/Stack/FocusView/FocusNavRow" unique_id=429342860]
+layout_mode = 2
+text = "Previous"
+
+[node name="FocusNavSpacer" type="Control" parent="Margin/MainPanel/Stack/FocusView/FocusNavRow" unique_id=1461637028]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="FocusNextButton" type="Button" parent="Margin/MainPanel/Stack/FocusView/FocusNavRow" unique_id=872546265]
+layout_mode = 2
+text = "Next"
+
+[node name="ThanksView" type="VBoxContainer" parent="Margin/MainPanel/Stack" unique_id=2133750700]
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 18
+
+[node name="ThanksSpacerTop" type="Control" parent="Margin/MainPanel/Stack/ThanksView" unique_id=527692196]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ThanksHeadingLabel" type="Label" parent="Margin/MainPanel/Stack/ThanksView" unique_id=2022415424]
+layout_mode = 2
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="ThanksBodyLabel" type="Label" parent="Margin/MainPanel/Stack/ThanksView" unique_id=20728702]
+layout_mode = 2
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="ThanksActions" type="HBoxContainer" parent="Margin/MainPanel/Stack/ThanksView" unique_id=182046401]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="ThanksReviewButton" type="Button" parent="Margin/MainPanel/Stack/ThanksView/ThanksActions" unique_id=1633890448]
+layout_mode = 2
+text = "Review Answers"
+
+[node name="ThanksExportButton" type="Button" parent="Margin/MainPanel/Stack/ThanksView/ThanksActions" unique_id=1691652386]
+layout_mode = 2
+text = "Open Export Screen"
+
+[node name="ThanksSpacerBottom" type="Control" parent="Margin/MainPanel/Stack/ThanksView" unique_id=1394826219]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ExportView" type="VBoxContainer" parent="Margin/MainPanel/Stack" unique_id=1778559396]
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 14
+
+[node name="ExportTopRow" type="HBoxContainer" parent="Margin/MainPanel/Stack/ExportView" unique_id=544020957]
+layout_mode = 2
+
+[node name="ExportBackButton" type="Button" parent="Margin/MainPanel/Stack/ExportView/ExportTopRow" unique_id=1331492476]
+layout_mode = 2
+text = "Back"
+
+[node name="ExportTopSpacer" type="Control" parent="Margin/MainPanel/Stack/ExportView/ExportTopRow" unique_id=1764390333]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ExportScroll" type="ScrollContainer" parent="Margin/MainPanel/Stack/ExportView" unique_id=1584123224]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="ExportContent" type="VBoxContainer" parent="Margin/MainPanel/Stack/ExportView/ExportScroll" unique_id=767214634]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 14
+
+[node name="ExportHeadingLabel" type="Label" parent="Margin/MainPanel/Stack/ExportView/ExportScroll/ExportContent" unique_id=255053496]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="ExportSubtitleLabel" type="Label" parent="Margin/MainPanel/Stack/ExportView/ExportScroll/ExportContent" unique_id=122094533]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="ExportBodyLabel" type="Label" parent="Margin/MainPanel/Stack/ExportView/ExportScroll/ExportContent" unique_id=1927155014]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="ExportActionGrid" type="GridContainer" parent="Margin/MainPanel/Stack/ExportView/ExportScroll/ExportContent" unique_id=138838923]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 12
+columns = 2
+
+[node name="ExportSaveProgressButton" type="Button" parent="Margin/MainPanel/Stack/ExportView/ExportScroll/ExportContent/ExportActionGrid" unique_id=1316896836]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Save Progress JSON"
+
+[node name="ExportLoadProgressButton" type="Button" parent="Margin/MainPanel/Stack/ExportView/ExportScroll/ExportContent/ExportActionGrid" unique_id=682903013]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Load Progress JSON"
+
+[node name="ExportCopyJsonButton" type="Button" parent="Margin/MainPanel/Stack/ExportView/ExportScroll/ExportContent/ExportActionGrid" unique_id=1846578235]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Copy JSON"
+
+[node name="ExportSaveJsonButton" type="Button" parent="Margin/MainPanel/Stack/ExportView/ExportScroll/ExportContent/ExportActionGrid" unique_id=416739039]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Save JSON"
+
+[node name="ExportCopyCsvButton" type="Button" parent="Margin/MainPanel/Stack/ExportView/ExportScroll/ExportContent/ExportActionGrid" unique_id=1319769481]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Copy CSV"
+
+[node name="ExportSaveCsvButton" type="Button" parent="Margin/MainPanel/Stack/ExportView/ExportScroll/ExportContent/ExportActionGrid" unique_id=212581342]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Save CSV"
+
+[node name="ExportSpacerBottom" type="Control" parent="Margin/MainPanel/Stack/ExportView/ExportScroll/ExportContent" unique_id=1636980176]
+layout_mode = 2
+size_flags_vertical = 3

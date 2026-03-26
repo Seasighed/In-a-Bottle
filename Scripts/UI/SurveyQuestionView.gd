@@ -4,6 +4,7 @@ extends Control
 const SURVEY_UI_FEEDBACK = preload("res://Scripts/UI/SurveyUiFeedback.gd")
 const PRESENTATION_DOCUMENT := &"document"
 const PRESENTATION_FOCUS := &"focus"
+const PRESENTATION_JOURNEY_FOCUS := &"journey_focus"
 
 signal answer_changed(question_id: String, value: Variant)
 signal question_selected(question_id: String)
@@ -33,7 +34,11 @@ func set_selected(selected: bool) -> void:
 		_apply_selection_state()
 
 func set_presentation_mode(mode: StringName) -> void:
-	var resolved_mode: StringName = PRESENTATION_FOCUS if mode == PRESENTATION_FOCUS else PRESENTATION_DOCUMENT
+	var resolved_mode: StringName = PRESENTATION_DOCUMENT
+	if mode == PRESENTATION_FOCUS:
+		resolved_mode = PRESENTATION_FOCUS
+	elif mode == PRESENTATION_JOURNEY_FOCUS:
+		resolved_mode = PRESENTATION_JOURNEY_FOCUS
 	if _presentation_mode == resolved_mode:
 		return
 	_presentation_mode = resolved_mode
@@ -43,7 +48,13 @@ func set_presentation_mode(mode: StringName) -> void:
 		_apply_selection_state()
 
 func is_focus_presentation() -> bool:
+	return _presentation_mode == PRESENTATION_FOCUS or _presentation_mode == PRESENTATION_JOURNEY_FOCUS
+
+func uses_centered_focus_layout() -> bool:
 	return _presentation_mode == PRESENTATION_FOCUS
+
+func is_journey_focus_presentation() -> bool:
+	return _presentation_mode == PRESENTATION_JOURNEY_FOCUS
 
 func focus_primary_control() -> void:
 	pass
@@ -54,6 +65,7 @@ func refresh_responsive_layout(_viewport_size: Vector2) -> void:
 func emit_answer(value: Variant) -> void:
 	current_value = value
 	answer_changed.emit(question.id, value)
+	call_deferred("_refresh_layout_metrics")
 
 func emit_selected() -> void:
 	if question != null:
@@ -74,10 +86,15 @@ func _refresh_layout_metrics() -> void:
 
 func _get_minimum_size() -> Vector2:
 	var min_size := custom_minimum_size
+	var locked_width := is_journey_focus_presentation() and custom_minimum_size.x > 0.0
 	for child in get_children():
 		var child_control := child as Control
 		if child_control != null and child_control.visible:
-			min_size = min_size.max(child_control.get_combined_minimum_size())
+			var child_min_size := child_control.get_combined_minimum_size()
+			if locked_width:
+				min_size.y = maxf(min_size.y, child_min_size.y)
+			else:
+				min_size = min_size.max(child_min_size)
 	return min_size
 
 func _on_selectable_focus_entered() -> void:

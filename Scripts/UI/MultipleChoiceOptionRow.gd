@@ -4,10 +4,12 @@ extends Button
 const SURVEY_UI_FEEDBACK = preload("res://Scripts/UI/SurveyUiFeedback.gd")
 
 signal selected(value: String)
+signal toggled_value(value: String, pressed: bool)
 
 var _value: String = ""
 var _is_configuring := false
 var _focus_presentation := false
+var _journey_focus_presentation := false
 
 func _ready() -> void:
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -31,10 +33,28 @@ func get_value() -> String:
 func get_primary_control() -> Control:
 	return self
 
+func is_option_pressed() -> bool:
+	return button_pressed
+
+func set_pressed_silently(pressed: bool) -> void:
+	if button_pressed == pressed:
+		_update_style()
+		return
+	_is_configuring = true
+	button_pressed = pressed
+	_is_configuring = false
+	_update_style()
+
 func set_focus_presentation(enabled: bool) -> void:
 	if _focus_presentation == enabled:
 		return
 	_focus_presentation = enabled
+	_update_style()
+
+func set_journey_focus_presentation(enabled: bool) -> void:
+	if _journey_focus_presentation == enabled:
+		return
+	_journey_focus_presentation = enabled
 	_update_style()
 
 func _on_toggled(pressed: bool) -> void:
@@ -45,12 +65,18 @@ func _on_toggled(pressed: bool) -> void:
 		SURVEY_UI_FEEDBACK.play_answer_select()
 		SURVEY_UI_FEEDBACK.pulse(self, 0.05, 0.16)
 		selected.emit(_value)
+	else:
+		SURVEY_UI_FEEDBACK.play_answer_unselect()
+	toggled_value.emit(_value, pressed)
 
 func _update_style() -> void:
 	SurveyStyle.apply_answer_button(self, button_pressed)
-	custom_minimum_size = Vector2(0.0, 68.0 if _focus_presentation else 44.0)
+	if _focus_presentation and _journey_focus_presentation:
+		custom_minimum_size = Vector2(0.0, 52.0)
+	else:
+		custom_minimum_size = Vector2(0.0, 68.0 if _focus_presentation else 44.0)
 	if _focus_presentation:
-		add_theme_font_size_override("font_size", 20)
+		add_theme_font_size_override("font_size", 17 if _journey_focus_presentation else 20)
 	else:
 		remove_theme_font_size_override("font_size")
 

@@ -35,6 +35,7 @@ signal fill_test_answers_requested
 @onready var _export_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/NavigationActions/ExportButton
 @onready var _theme_toggle_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/ThemeToggleButton
 @onready var _sfx_heading_label: Label = $Bounds/Center/Panel/PanelScroll/Stack/SfxHeadingLabel
+@onready var _sfx_row: HBoxContainer = $Bounds/Center/Panel/PanelScroll/Stack/SfxRow
 @onready var _sfx_volume_label: Label = $Bounds/Center/Panel/PanelScroll/Stack/SfxRow/SfxVolumeLabel
 @onready var _sfx_volume_slider: HSlider = $Bounds/Center/Panel/PanelScroll/Stack/SfxRow/SfxVolumeSlider
 @onready var _sfx_value_label: Label = $Bounds/Center/Panel/PanelScroll/Stack/SfxRow/SfxValueLabel
@@ -48,13 +49,12 @@ var _answers: Dictionary = {}
 var _current_section_index := 0
 var _current_sfx_volume := SurveyUiFeedback.DEFAULT_SFX_VOLUME
 var _compact_layout := false
+var _menu_options: Dictionary = {}
 
 func _ready() -> void:
 	layer = 50
 	visible = false
-	_restart_button.text = "Clear All Answers"
 	_close_button.text = "X"
-	_section_heading.text = "Jump To Or Clear A Section"
 	refresh_theme()
 	refresh_layout(get_viewport().get_visible_rect().size)
 
@@ -77,12 +77,21 @@ func _ready() -> void:
 func refresh_theme() -> void:
 	_dimmer.color = SurveyStyle.OVERLAY_DIMMER
 	SurveyStyle.apply_panel(_panel, SurveyStyle.SURFACE, SurveyStyle.BORDER, 26, 1)
+	_heading_label.text = _option_text("heading_text", "Questionnaire Menu")
 	SurveyStyle.style_heading(_heading_label, 22 if _compact_layout else 24)
 	SurveyStyle.style_body(_position_label)
 	SurveyStyle.style_heading(_sfx_heading_label, 18)
 	SurveyStyle.style_body(_sfx_volume_label)
 	SurveyStyle.style_caption(_sfx_value_label, SurveyStyle.SOFT_WHITE)
 	SurveyStyle.style_heading(_section_heading, 18)
+	_restart_button.text = _option_text("restart_label", "Clear All Answers")
+	_search_button.text = _option_text("search_label", "Search Questions")
+	_onboarding_button.text = _option_text("onboarding_label", "Open Onboarding")
+	_template_picker_button.text = _option_text("template_picker_label", "Choose Survey Template")
+	_settings_button.text = _option_text("settings_label", "Open Settings")
+	_summary_button.text = _option_text("summary_label", "Opinion Summary")
+	_export_button.text = _option_text("export_label", "Open Export Menu")
+	_section_heading.text = _option_text("section_heading_text", "Jump To Or Clear A Section")
 	SurveyStyle.apply_secondary_button(_close_button)
 	_close_button.custom_minimum_size = Vector2(44, 44)
 	SurveyStyle.apply_danger_button(_restart_button)
@@ -98,6 +107,7 @@ func refresh_theme() -> void:
 	_refresh_theme_toggle_button()
 	SurveyStyle.apply_secondary_button(_fill_test_answers_button)
 	_refresh_sfx_volume_display()
+	_apply_menu_option_state()
 	_apply_layout_button_treatment()
 	if _survey != null:
 		_refresh_sections()
@@ -120,20 +130,23 @@ func refresh_layout(viewport_size: Vector2) -> void:
 	_panel_scroll.custom_minimum_size = Vector2(0.0, panel_height)
 	_section_scroll.custom_minimum_size.y = clampf(panel_height * 0.3, 120.0, 260.0)
 	_navigation_actions.columns = 1 if _compact_layout else 2
+	_apply_menu_option_state()
 	_apply_layout_button_treatment()
 	if _survey != null:
 		_refresh_sections()
 
-func open_menu(survey_definition: SurveyDefinition, current_section_index: int, current_answers: Dictionary, current_sfx_volume: float = SurveyUiFeedback.DEFAULT_SFX_VOLUME, play_feedback: bool = true) -> void:
+func open_menu(survey_definition: SurveyDefinition, current_section_index: int, current_answers: Dictionary, current_sfx_volume: float = SurveyUiFeedback.DEFAULT_SFX_VOLUME, play_feedback: bool = true, menu_options: Dictionary = {}) -> void:
 	var was_visible := visible
 	_survey = survey_definition
 	_answers = current_answers.duplicate(true)
 	_current_section_index = current_section_index
 	_current_sfx_volume = clampf(current_sfx_volume, 0.0, 1.0)
+	_menu_options = menu_options.duplicate(true)
 	_theme_toggle_button.set_pressed_no_signal(SurveyStyle.is_dark_mode())
 	_refresh_theme_toggle_button()
 	_sfx_volume_slider.set_value_no_signal(_current_sfx_volume)
 	_refresh_sfx_volume_display()
+	_apply_menu_option_state()
 	_refresh_sections()
 	show()
 	if play_feedback and not was_visible:
@@ -147,10 +160,51 @@ func close_menu(play_feedback: bool = true) -> void:
 	if play_feedback:
 		SURVEY_UI_FEEDBACK.play_menu_close()
 
+func _option_bool(key: String, default_value: bool) -> bool:
+	if not _menu_options.has(key):
+		return default_value
+	return bool(_menu_options.get(key, default_value))
+
+func _option_text(key: String, default_value: String = "") -> String:
+	if not _menu_options.has(key):
+		return default_value
+	return str(_menu_options.get(key, default_value)).strip_edges()
+
+func _apply_menu_option_state() -> void:
+	if not is_node_ready():
+		return
+	var show_restart: bool = _option_bool("show_restart", true)
+	var show_search: bool = _option_bool("show_search", true)
+	var show_onboarding: bool = _option_bool("show_onboarding", true)
+	var show_template_picker: bool = _option_bool("show_template_picker", true)
+	var show_settings: bool = _option_bool("show_settings", true)
+	var show_summary: bool = _option_bool("show_summary", true)
+	var show_export: bool = _option_bool("show_export", true)
+	var show_theme_toggle: bool = _option_bool("show_theme_toggle", true)
+	var show_sfx_controls: bool = _option_bool("show_sfx_controls", true)
+	var show_fill_test_answers: bool = _option_bool("show_fill_test_answers", true)
+	var show_section_tools: bool = _option_bool("show_section_tools", true)
+	var show_position: bool = _option_bool("show_position", true)
+	_position_label.visible = show_position
+	_restart_button.visible = show_restart
+	_search_button.visible = show_search
+	_onboarding_button.visible = show_onboarding
+	_template_picker_button.visible = show_template_picker
+	_settings_button.visible = show_settings
+	_summary_button.visible = show_summary
+	_export_button.visible = show_export
+	_theme_toggle_button.visible = show_theme_toggle
+	_sfx_heading_label.visible = show_sfx_controls
+	_sfx_row.visible = show_sfx_controls
+	_fill_test_answers_button.visible = show_fill_test_answers
+	_section_heading.visible = show_section_tools
+	_section_scroll.visible = show_section_tools
+	_navigation_actions.visible = show_onboarding or show_template_picker or show_settings or show_summary or show_export
+
 func _refresh_sections() -> void:
 	_clear_section_list()
 	if _survey == null:
-		_position_label.text = ""
+		_position_label.text = _option_text("position_text", "")
 		_restart_button.disabled = true
 		return
 
@@ -158,8 +212,11 @@ func _refresh_sections() -> void:
 	var answered_total: int = _total_answered_count()
 	var stored_total: int = _total_stored_response_count()
 	var visible_section_number: int = clampi(_current_section_index + 1, 1, max(section_count, 1))
-	_position_label.text = "Currently viewing section %d of %d. %d answered so far." % [visible_section_number, section_count, answered_total]
+	var custom_position_text: String = _option_text("position_text", "")
+	_position_label.text = custom_position_text if not custom_position_text.is_empty() else "Currently viewing section %d of %d. %d answered so far." % [visible_section_number, section_count, answered_total]
 	_restart_button.disabled = stored_total == 0
+	if not _option_bool("show_section_tools", true):
+		return
 
 	for index in range(section_count):
 		var section: SurveySection = _survey.sections[index]

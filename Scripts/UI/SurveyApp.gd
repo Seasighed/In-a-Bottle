@@ -28,6 +28,7 @@ const TEMPLATE_SELECTION_STORE_PATH := "user://selected_survey_template.json"
 const SURVEY_VIEW_MODE_AUTO := "auto"
 const SURVEY_VIEW_MODE_SCROLL := "scroll"
 const SURVEY_VIEW_MODE_FOCUS := "focus"
+const SURVEY_JOURNEY_SCENE_PATH := "res://Scenes/SurveyJourney.tscn"
 
 @export_file("*.json") var survey_template_path := "res://Dev/SurveyTemplates/studio_feedback.json"
 @export var dark_palette: Resource = DEFAULT_DARK_PALETTE
@@ -353,16 +354,16 @@ func _ensure_upload_request() -> void:
 	add_child(_upload_request)
 
 func _wire_static_feedback() -> void:
-	_wire_button_feedback(_previous_button)
-	_wire_button_feedback(_next_button)
-	_wire_button_feedback(_focus_previous_button)
-	_wire_button_feedback(_focus_next_button)
+	_wire_button_hover_feedback(_previous_button)
+	_wire_button_hover_feedback(_next_button)
+	_wire_button_hover_feedback(_focus_previous_button)
+	_wire_button_hover_feedback(_focus_next_button)
 	_wire_button_feedback(_menu_access_button)
 	if _clear_filter_button != null:
 		_wire_button_feedback(_clear_filter_button)
 
 func _wire_button_feedback(button: BaseButton) -> void:
-	button.mouse_entered.connect(_on_button_hovered)
+	_wire_button_hover_feedback(button)
 	button.pressed.connect(_on_button_pressed_feedback)
 
 func _prime_preferences_from_store() -> void:
@@ -446,6 +447,16 @@ func _on_button_hovered() -> void:
 func _on_button_pressed_feedback() -> void:
 	SURVEY_UI_FEEDBACK.play_select()
 
+func _on_previous_button_pressed_feedback() -> void:
+	SURVEY_UI_FEEDBACK.play_navigation_previous()
+
+func _on_next_button_pressed_feedback() -> void:
+	SURVEY_UI_FEEDBACK.play_navigation_next()
+
+func _wire_button_hover_feedback(button: BaseButton) -> void:
+	button.mouse_entered.connect(_on_button_hovered)
+	button.focus_entered.connect(_on_button_hovered)
+
 func _apply_static_styles() -> void:
 	_background.color = SurveyStyle.BACKGROUND
 	SurveyStyle.apply_panel(_content_card, SurveyStyle.SURFACE, SurveyStyle.BORDER, 26, 1)
@@ -510,6 +521,10 @@ func _connect_actions() -> void:
 	var scroll_bar := _question_scroll.get_v_scroll_bar()
 	if scroll_bar != null:
 		scroll_bar.value_changed.connect(_on_question_scroll_value_changed)
+	_previous_button.pressed.connect(_on_previous_button_pressed_feedback)
+	_next_button.pressed.connect(_on_next_button_pressed_feedback)
+	_focus_previous_button.pressed.connect(_on_previous_button_pressed_feedback)
+	_focus_next_button.pressed.connect(_on_next_button_pressed_feedback)
 	_previous_button.pressed.connect(_go_to_previous_section)
 	_next_button.pressed.connect(_go_to_next_section)
 	_focus_previous_button.pressed.connect(_on_focus_previous_pressed)
@@ -537,6 +552,7 @@ func _connect_actions() -> void:
 	_onboarding_overlay.template_selected_requested.connect(_on_onboarding_template_selected_requested)
 	_onboarding_overlay.template_folder_requested.connect(_open_template_folder_from_onboarding)
 	_onboarding_overlay.navigate_requested.connect(_on_onboarding_navigate_requested)
+	_onboarding_overlay.journey_requested.connect(_on_onboarding_journey_requested)
 	_onboarding_overlay.close_requested.connect(_on_onboarding_close_requested)
 	if _settings_overlay != null:
 		_settings_overlay.close_requested.connect(_close_settings_overlay)
@@ -2422,6 +2438,15 @@ func _on_onboarding_navigate_requested(section_index: int, question_id: String) 
 	_remember_onboarding_preference(mode if not mode.is_empty() else "guided")
 	_close_onboarding_overlay()
 	_scroll_to_target(section_index, question_id)
+
+func _on_onboarding_journey_requested() -> void:
+	_remember_onboarding_preference("explore")
+	_persist_session()
+	_persist_selected_template_path()
+	get_tree().root.set_meta("survey_journey_template_path", survey_template_path)
+	var change_error: Error = get_tree().change_scene_to_file(SURVEY_JOURNEY_SCENE_PATH)
+	if change_error != OK:
+		_show_status_message("Failed to open Journey mode.", true)
 
 func _on_onboarding_close_requested() -> void:
 	_remember_onboarding_preference("explore")

@@ -22,9 +22,16 @@ var _drag_index := -1
 var _drop_slot := -1
 var _rank_list_rebuild_queued := false
 var _rank_list_layout_refresh_queued := false
+var _rank_commit_queued := false
 var _compact_layout := false
 var _focus_top_spacer: Control
 var _focus_bottom_spacer: Control
+var _row_panels: Array[PanelContainer] = []
+var _row_badges: Array[Label] = []
+var _row_option_labels: Array[Label] = []
+var _row_drag_labels: Array[Label] = []
+var _row_move_up_buttons: Array[Button] = []
+var _row_move_down_buttons: Array[Button] = []
 
 func _ready() -> void:
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -57,7 +64,7 @@ func _apply_question() -> void:
 		return
 
 	_title_label.text = question.display_prompt()
-	_description_label.text = question.description if not question.description.is_empty() else "Drag options into place or use Up and Down to reorder them."
+	_refresh_description_text()
 	_order = _build_rank_order()
 	_cancel_drag()
 	_rebuild_rank_list()
@@ -85,17 +92,20 @@ func focus_primary_control() -> void:
 func refresh_responsive_layout(viewport_size: Vector2) -> void:
 	var compact_layout: bool = viewport_size.x <= 640.0
 	var focus_layout := is_focus_presentation()
+	var centered_focus_layout := uses_centered_focus_layout()
 	_ensure_focus_spacers()
-	_stack.size_flags_vertical = Control.SIZE_EXPAND_FILL if focus_layout else Control.SIZE_FILL
-	_focus_top_spacer.visible = focus_layout
-	_focus_bottom_spacer.visible = focus_layout
+	_stack.size_flags_vertical = Control.SIZE_EXPAND_FILL if centered_focus_layout else Control.SIZE_FILL
+	_focus_top_spacer.visible = centered_focus_layout
+	_focus_bottom_spacer.visible = centered_focus_layout
 	if _compact_layout == compact_layout:
 		_apply_responsive_metrics()
+		_refresh_description_text()
 		_apply_selection_state()
 		_refresh_layout_metrics()
 		return
 	_compact_layout = compact_layout
 	_apply_responsive_metrics()
+	_refresh_description_text()
 	_apply_selection_state()
 	if question != null and is_node_ready():
 		_queue_rank_list_rebuild(true)
@@ -130,68 +140,98 @@ func _build_rank_order() -> Array[String]:
 	return ordered
 
 func _rebuild_rank_list() -> void:
-	for child in _rank_list.get_children():
-		_rank_list.remove_child(child)
-		child.queue_free()
+	if _row_panels.size() != _order.size():
+		_recreate_rank_rows()
 	_primary_control = null
 
 	var preview_index: int = _effective_drop_index()
 	for index in range(_order.size()):
+		var row_panel := _row_panels[index]
+		var badge := _row_badges[index]
+		var option_label := _row_option_labels[index]
+		var drag_label := _row_drag_labels[index]
+		var move_up_button := _row_move_up_buttons[index]
+		var move_down_button := _row_move_down_buttons[index]
+		row_panel.set_meta("rank_row_index", index)
+		move_up_button.set_meta("rank_row_index", index)
+		move_down_button.set_meta("rank_row_index", index)
+		_apply_rank_row_style(row_panel, index == _drag_index, preview_index == index and index != _drag_index)
+		badge.custom_minimum_size = Vector2(_badge_width(), 0)
+		badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		badge.text = "%d" % [index + 1]
+		SurveyStyle.style_heading(badge, (18 if _compact_layout else 20) if is_journey_focus_presentation() else ((20 if _compact_layout else 24) if is_focus_presentation() else (16 if _compact_layout else 18)), SurveyStyle.ACCENT)
+		option_label.text = _order[index]
+		SurveyStyle.style_body(option_label, SurveyStyle.TEXT_PRIMARY)
+		option_label.add_theme_font_size_override("font_size", (16 if _compact_layout else 18) if is_journey_focus_presentation() else ((18 if _compact_layout else 22) if is_focus_presentation() else (14 if _compact_layout else 15)))
+		drag_label.visible = false
+		drag_label.text = ""
+		move_up_button.disabled = index <= 0
+		_style_rank_action_button(move_up_button)
+		move_down_button.disabled = index >= _order.size() - 1
+		_style_rank_action_button(move_down_button)
+		if _primary_control == null:
+			_primary_control = row_panel
+
+func _recreate_rank_rows() -> void:
+	for child in _rank_list.get_children():
+		child.queue_free()
+	_row_panels.clear()
+	_row_badges.clear()
+	_row_option_labels.clear()
+	_row_drag_labels.clear()
+	_row_move_up_buttons.clear()
+	_row_move_down_buttons.clear()
+	for _index in range(_order.size()):
 		var row_panel := PanelContainer.new()
 		row_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row_panel.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		row_panel.focus_mode = Control.FOCUS_ALL
-		_apply_rank_row_style(row_panel, index == _drag_index, preview_index == index and index != _drag_index)
-		row_panel.gui_input.connect(_on_row_gui_input.bind(index, row_panel))
+		row_panel.gui_input.connect(_on_row_gui_input.bind(row_panel))
 		row_panel.mouse_entered.connect(_on_row_mouse_entered)
 		row_panel.focus_entered.connect(_on_row_focus_entered)
 
 		var row := HBoxContainer.new()
 		row.layout_mode = 2
-		row.add_theme_constant_override("separation", (12 if _compact_layout else 16) if is_focus_presentation() else (8 if _compact_layout else 10))
-		row_panel.add_child(row)
+		row.add_theme_constant_override("separation", (10 if _compact_layout else 12) if is_journey_focus_presentation() else ((12 if _compact_layout else 16) if is_focus_presentation() else (8 if _compact_layout else 10)))
+		var row_stack: VBoxContainer = null
+		if _uses_stacked_mobile_actions():
+			row_stack = VBoxContainer.new()
+			row_stack.layout_mode = 2
+			row_stack.add_theme_constant_override("separation", 8)
+			row_panel.add_child(row_stack)
+			row_stack.add_child(row)
+		else:
+			row_panel.add_child(row)
 
 		var badge := Label.new()
-		badge.custom_minimum_size = Vector2(_badge_width(), 0)
-		badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		badge.text = "%d" % [index + 1]
 		badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		SurveyStyle.style_heading(badge, (20 if _compact_layout else 24) if is_focus_presentation() else (16 if _compact_layout else 18), SurveyStyle.ACCENT)
 
 		var option_label := Label.new()
-		option_label.text = _order[index]
 		option_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		option_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		option_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		SurveyStyle.style_body(option_label, SurveyStyle.TEXT_PRIMARY)
-		option_label.add_theme_font_size_override("font_size", (18 if _compact_layout else 22) if is_focus_presentation() else (14 if _compact_layout else 15))
 
 		var actions := HBoxContainer.new()
 		actions.alignment = BoxContainer.ALIGNMENT_END
-		actions.size_flags_horizontal = Control.SIZE_SHRINK_END
-		actions.add_theme_constant_override("separation", 8 if is_focus_presentation() else 6)
+		actions.size_flags_horizontal = Control.SIZE_EXPAND_FILL if _uses_stacked_mobile_actions() else Control.SIZE_SHRINK_END
+		actions.add_theme_constant_override("separation", 6 if is_journey_focus_presentation() else (8 if is_focus_presentation() else 6))
 
 		var drag_label := Label.new()
-		drag_label.text = "Drag"
+		drag_label.text = ""
+		drag_label.visible = false
 		drag_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		SurveyStyle.style_caption(drag_label, SurveyStyle.ACCENT_ALT if index == _drag_index else SurveyStyle.SOFT_WHITE)
-		drag_label.add_theme_font_size_override("font_size", (15 if _compact_layout else 17) if is_focus_presentation() else (12 if _compact_layout else 13))
 
 		var move_up_button := Button.new()
 		move_up_button.text = "Up"
-		move_up_button.disabled = index <= 0
 		SurveyStyle.apply_secondary_button(move_up_button)
-		_style_rank_action_button(move_up_button)
-		move_up_button.pressed.connect(_on_move_up_pressed.bind(index))
+		move_up_button.pressed.connect(_on_move_up_pressed.bind(move_up_button))
 		_wire_rank_button_feedback(move_up_button)
 
 		var move_down_button := Button.new()
 		move_down_button.text = "Down"
-		move_down_button.disabled = index >= _order.size() - 1
 		SurveyStyle.apply_secondary_button(move_down_button)
-		_style_rank_action_button(move_down_button)
-		move_down_button.pressed.connect(_on_move_down_pressed.bind(index))
+		move_down_button.pressed.connect(_on_move_down_pressed.bind(move_down_button))
 		_wire_rank_button_feedback(move_down_button)
 
 		row.add_child(badge)
@@ -199,11 +239,18 @@ func _rebuild_rank_list() -> void:
 		actions.add_child(drag_label)
 		actions.add_child(move_up_button)
 		actions.add_child(move_down_button)
-		row.add_child(actions)
+		if _uses_stacked_mobile_actions():
+			row_stack.add_child(actions)
+		else:
+			row.add_child(actions)
 		_rank_list.add_child(row_panel)
 
-		if _primary_control == null:
-			_primary_control = row_panel
+		_row_panels.append(row_panel)
+		_row_badges.append(badge)
+		_row_option_labels.append(option_label)
+		_row_drag_labels.append(drag_label)
+		_row_move_up_buttons.append(move_up_button)
+		_row_move_down_buttons.append(move_down_button)
 
 func _queue_rank_list_rebuild(refresh_layout: bool = false) -> void:
 	_rank_list_layout_refresh_queued = _rank_list_layout_refresh_queued or refresh_layout
@@ -219,6 +266,18 @@ func _flush_rank_list_rebuild() -> void:
 		_rank_list_layout_refresh_queued = false
 		_refresh_layout_metrics()
 
+func _queue_rank_commit() -> void:
+	if _rank_commit_queued:
+		return
+	_rank_commit_queued = true
+	call_deferred("_flush_rank_commit")
+
+func _flush_rank_commit() -> void:
+	_rank_commit_queued = false
+	_queue_rank_list_rebuild(true)
+	emit_selected()
+	emit_answer(_order.duplicate())
+
 func _apply_rank_row_style(row_panel: PanelContainer, is_dragged: bool, is_drop_target: bool) -> void:
 	var fill: Color = SurveyStyle.SURFACE_ALT
 	var border: Color = SurveyStyle.BORDER
@@ -232,19 +291,23 @@ func _apply_rank_row_style(row_panel: PanelContainer, is_dragged: bool, is_drop_
 		border = SurveyStyle.HIGHLIGHT_GOLD
 		border_width = 2
 	SurveyStyle.apply_panel(row_panel, fill, border, 18 if is_focus_presentation() else 16, border_width)
-	row_panel.custom_minimum_size = Vector2(0.0, 82.0 if is_focus_presentation() else 0.0)
+	if _uses_stacked_mobile_actions():
+		row_panel.custom_minimum_size = Vector2(0.0, 104.0)
+	else:
+		row_panel.custom_minimum_size = Vector2(0.0, 70.0 if is_journey_focus_presentation() else (82.0 if is_focus_presentation() else 0.0))
 
 func _apply_responsive_metrics() -> void:
 	var focus_layout := is_focus_presentation()
-	_stack.add_theme_constant_override("separation", (16 if _compact_layout else 20) if focus_layout else (8 if _compact_layout else 10))
-	_rank_list.add_theme_constant_override("separation", (12 if _compact_layout else 16) if focus_layout else (6 if _compact_layout else 8))
-	SurveyStyle.style_heading(_title_label, (30 if _compact_layout else 38) if focus_layout else (19 if _compact_layout else 21))
+	var journey_focus_layout := is_journey_focus_presentation()
+	_stack.add_theme_constant_override("separation", (12 if _compact_layout else 16) if journey_focus_layout else ((16 if _compact_layout else 20) if focus_layout else (8 if _compact_layout else 10)))
+	_rank_list.add_theme_constant_override("separation", (8 if _compact_layout else 10) if journey_focus_layout else ((12 if _compact_layout else 16) if focus_layout else (6 if _compact_layout else 8)))
+	SurveyStyle.style_heading(_title_label, (22 if _compact_layout else 28) if journey_focus_layout else ((30 if _compact_layout else 38) if focus_layout else (19 if _compact_layout else 21)))
 	SurveyStyle.style_body(_description_label)
-	_description_label.add_theme_font_size_override("font_size", (18 if _compact_layout else 22) if focus_layout else 15)
+	_description_label.add_theme_font_size_override("font_size", (14 if _compact_layout else 16) if journey_focus_layout else ((18 if _compact_layout else 22) if focus_layout else 15))
 
 func _style_rank_action_button(button: Button) -> void:
 	button.custom_minimum_size = Vector2(_action_button_width(), _action_button_height())
-	button.add_theme_font_size_override("font_size", (15 if _compact_layout else 17) if is_focus_presentation() else (13 if _compact_layout else 14))
+	button.add_theme_font_size_override("font_size", (13 if _compact_layout else 15) if is_journey_focus_presentation() else ((15 if _compact_layout else 17) if is_focus_presentation() else (13 if _compact_layout else 14)))
 
 func _wire_rank_button_feedback(button: Button) -> void:
 	button.mouse_entered.connect(_on_row_mouse_entered)
@@ -252,21 +315,31 @@ func _wire_rank_button_feedback(button: Button) -> void:
 
 func _badge_width() -> float:
 	if is_focus_presentation():
+		if is_journey_focus_presentation():
+			return 30.0 if _compact_layout else 34.0
 		return 34.0 if _compact_layout else 40.0
 	return COMPACT_ROW_BADGE_WIDTH if _compact_layout else ROW_BADGE_WIDTH
 
 func _action_button_width() -> float:
 	if is_focus_presentation():
+		if is_journey_focus_presentation():
+			return 54.0 if _compact_layout else 60.0
 		return 62.0 if _compact_layout else 70.0
 	return COMPACT_ACTION_BUTTON_WIDTH if _compact_layout else ACTION_BUTTON_WIDTH
 
 func _action_button_height() -> float:
 	if is_focus_presentation():
+		if is_journey_focus_presentation():
+			return 34.0 if _compact_layout else 38.0
 		return 40.0 if _compact_layout else 46.0
 	return COMPACT_ACTION_BUTTON_HEIGHT if _compact_layout else ACTION_BUTTON_HEIGHT
 
 func _row_actions_reserved_width() -> float:
+	if _uses_stacked_mobile_actions():
+		return 0.0
 	if is_focus_presentation():
+		if is_journey_focus_presentation():
+			return 176.0 if _compact_layout else 196.0
 		return 210.0 if _compact_layout else 232.0
 	return COMPACT_ROW_ACTIONS_RESERVED_WIDTH if _compact_layout else ROW_ACTIONS_RESERVED_WIDTH
 
@@ -276,13 +349,19 @@ func _on_panel_gui_input(event: InputEvent) -> void:
 		if mouse_event.pressed and mouse_event.button_index == MOUSE_BUTTON_LEFT:
 			emit_selected()
 
-func _on_row_gui_input(event: InputEvent, index: int, row_panel: Control) -> void:
+func _on_row_gui_input(event: InputEvent, row_panel: Control) -> void:
 	if event is not InputEventMouseButton:
 		return
 	var mouse_event := event as InputEventMouseButton
 	if mouse_event.button_index != MOUSE_BUTTON_LEFT:
 		return
 	if mouse_event.pressed:
+		var index := _row_index_from_control(row_panel)
+		if index < 0:
+			return
+		if _uses_stacked_mobile_actions():
+			emit_selected()
+			return
 		if mouse_event.position.x >= row_panel.size.x - _row_actions_reserved_width():
 			emit_selected()
 			return
@@ -292,7 +371,6 @@ func _begin_drag(index: int, row_panel: Control) -> void:
 	_drag_index = index
 	_drop_slot = index
 	SURVEY_UI_FEEDBACK.play_answer_select()
-	SURVEY_UI_FEEDBACK.pulse(row_panel, 0.03, 0.12)
 	emit_selected()
 	_queue_rank_list_rebuild()
 
@@ -341,10 +419,7 @@ func _finish_drag() -> void:
 	else:
 		_order.insert(target_index, value)
 	SURVEY_UI_FEEDBACK.play_answer_select()
-	SURVEY_UI_FEEDBACK.pulse(_panel, 0.025, 0.16)
-	_queue_rank_list_rebuild(true)
-	emit_selected()
-	emit_answer(_order.duplicate())
+	_queue_rank_commit()
 
 func _cancel_drag() -> void:
 	_drag_index = -1
@@ -361,15 +436,18 @@ func _move_rank_item(source_index: int, direction: int) -> void:
 	_order.insert(target_index, value)
 	_cancel_drag()
 	SURVEY_UI_FEEDBACK.play_answer_select()
-	SURVEY_UI_FEEDBACK.pulse(_panel, 0.025, 0.16)
-	_queue_rank_list_rebuild(true)
-	emit_selected()
-	emit_answer(_order.duplicate())
+	_queue_rank_commit()
 
-func _on_move_up_pressed(index: int) -> void:
+func _on_move_up_pressed(button: Button) -> void:
+	var index := _row_index_from_control(button)
+	if index < 0:
+		return
 	_move_rank_item(index, -1)
 
-func _on_move_down_pressed(index: int) -> void:
+func _on_move_down_pressed(button: Button) -> void:
+	var index := _row_index_from_control(button)
+	if index < 0:
+		return
 	_move_rank_item(index, 1)
 
 func _on_row_mouse_entered() -> void:
@@ -377,3 +455,19 @@ func _on_row_mouse_entered() -> void:
 
 func _on_row_focus_entered() -> void:
 	emit_selected()
+
+func _row_index_from_control(control: Control) -> int:
+	if control == null or not is_instance_valid(control):
+		return -1
+	return int(control.get_meta("rank_row_index", -1))
+
+func _uses_stacked_mobile_actions() -> bool:
+	return is_journey_focus_presentation() and _compact_layout
+
+func _refresh_description_text() -> void:
+	if question == null:
+		return
+	if not question.description.is_empty():
+		_description_label.text = question.description
+		return
+	_description_label.text = "Use the arrow buttons to reorder your picks." if _uses_stacked_mobile_actions() else "Drag options into place or use Up and Down to reorder them."

@@ -10,6 +10,7 @@ const SILENT_DB := -80.0
 var _hover_player: AudioStreamPlayer
 var _select_player: AudioStreamPlayer
 var _answer_player: AudioStreamPlayer
+var _answer_unselect_player: AudioStreamPlayer
 var _export_player: AudioStreamPlayer
 var _gamble_player: AudioStreamPlayer
 var _menu_open_player: AudioStreamPlayer
@@ -24,6 +25,7 @@ func _ready() -> void:
 	_hover_player = _create_player(_build_tone_stream(PackedFloat32Array([920.0]), PackedFloat32Array([0.028]), 0.12))
 	_select_player = _create_player(_build_tone_stream(PackedFloat32Array([620.0, 860.0]), PackedFloat32Array([0.038, 0.045]), 0.14))
 	_answer_player = _create_player(_build_tone_stream(PackedFloat32Array([760.0, 1040.0]), PackedFloat32Array([0.03, 0.05]), 0.15))
+	_answer_unselect_player = _create_player(_build_tone_stream(PackedFloat32Array([340.0, 240.0]), PackedFloat32Array([0.035, 0.055]), 0.14))
 	_export_player = _create_player(_build_tone_stream(PackedFloat32Array([560.0, 760.0, 1040.0]), PackedFloat32Array([0.04, 0.05, 0.07]), 0.18))
 	_gamble_player = _create_player(_build_tone_stream(PackedFloat32Array([1120.0]), PackedFloat32Array([0.024]), 0.11))
 	_menu_open_player = _create_player(_build_tone_stream(PackedFloat32Array([180.0, 240.0]), PackedFloat32Array([0.06, 0.08]), 0.18))
@@ -45,10 +47,25 @@ static func play_select() -> void:
 	if hub != null:
 		hub._play_player(hub._select_player, 0.96, 1.03)
 
+static func play_navigation_next() -> void:
+	var hub: SurveyUiFeedback = _get_hub()
+	if hub != null:
+		hub._play_player(hub._select_player, 0.82, 0.89)
+
+static func play_navigation_previous() -> void:
+	var hub: SurveyUiFeedback = _get_hub()
+	if hub != null:
+		hub._play_player(hub._select_player, 0.68, 0.76)
+
 static func play_answer_select() -> void:
 	var hub: SurveyUiFeedback = _get_hub()
 	if hub != null:
 		hub._play_player(hub._answer_player, 0.97, 1.05)
+
+static func play_answer_unselect() -> void:
+	var hub: SurveyUiFeedback = _get_hub()
+	if hub != null:
+		hub._play_player(hub._answer_unselect_player, 0.92, 0.98)
 
 static func play_export() -> void:
 	var hub: SurveyUiFeedback = _get_hub()
@@ -116,7 +133,7 @@ func _set_hover_sfx_enabled(enabled: bool) -> void:
 	_hover_sfx_enabled = enabled
 
 func _apply_volume_to_players() -> void:
-	for player in [_hover_player, _select_player, _answer_player, _export_player, _gamble_player, _menu_open_player, _menu_close_player]:
+	for player in [_hover_player, _select_player, _answer_player, _answer_unselect_player, _export_player, _gamble_player, _menu_open_player, _menu_close_player]:
 		_apply_volume_to_player(player)
 
 func _apply_volume_to_player(player: AudioStreamPlayer) -> void:

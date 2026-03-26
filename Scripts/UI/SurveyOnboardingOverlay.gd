@@ -24,6 +24,7 @@ signal template_picker_requested
 signal template_selected_requested(template_path: String)
 signal template_folder_requested
 signal navigate_requested(section_index: int, question_id: String)
+signal journey_requested
 signal close_requested
 
 @onready var _dimmer: ColorRect = $Dimmer
@@ -40,6 +41,7 @@ signal close_requested
 @onready var _template_grid: GridContainer = $Bounds/Center/Panel/PanelScroll/Stack/TemplateSection/TemplateGrid
 @onready var _template_continue_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/TemplateSection/TemplateContinueButton
 @onready var _template_focus_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/TemplateSection/TemplateFocusButton
+@onready var _template_journey_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/TemplateSection/TemplateJourneyButton
 @onready var _mode_section_heading_label: Label = $Bounds/Center/Panel/PanelScroll/Stack/ModeSection/ModeHeadingLabel
 @onready var _mode_section_caption_label: Label = $Bounds/Center/Panel/PanelScroll/Stack/ModeSection/ModeCaptionLabel
 @onready var _mode_buttons: GridContainer = $Bounds/Center/Panel/PanelScroll/Stack/ModeSection/ModeButtons
@@ -54,6 +56,7 @@ signal close_requested
 @onready var _explore_actions: VBoxContainer = $Bounds/Center/Panel/PanelScroll/Stack/ContentPanel/ContentStack/ExploreActions
 @onready var _continue_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/ContentPanel/ContentStack/ExploreActions/ContinueButton
 @onready var _focus_mode_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/ContentPanel/ContentStack/ExploreActions/FocusModeButton
+@onready var _journey_mode_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/ContentPanel/ContentStack/ExploreActions/JourneyModeButton
 @onready var _search_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/ContentPanel/ContentStack/ExploreActions/SearchButton
 @onready var _topic_group: VBoxContainer = $Bounds/Center/Panel/PanelScroll/Stack/ContentPanel/ContentStack/TopicGroup
 @onready var _topic_heading_label: Label = $Bounds/Center/Panel/PanelScroll/Stack/ContentPanel/ContentStack/TopicGroup/TopicHeadingLabel
@@ -114,6 +117,7 @@ func _ready() -> void:
 	_template_folder_button.pressed.connect(_on_template_folder_pressed)
 	_template_continue_button.pressed.connect(_on_scroll_continue_pressed)
 	_template_focus_button.pressed.connect(_on_focus_continue_pressed)
+	_template_journey_button.pressed.connect(_on_journey_pressed)
 	_explore_button.pressed.connect(_on_explore_mode_pressed)
 	_search_mode_button.pressed.connect(_on_search_mode_pressed)
 	_topics_button.pressed.connect(_on_topics_mode_pressed)
@@ -121,6 +125,7 @@ func _ready() -> void:
 	_random_button.pressed.connect(_on_random_mode_pressed)
 	_continue_button.pressed.connect(_on_scroll_continue_pressed)
 	_focus_mode_button.pressed.connect(_on_focus_continue_pressed)
+	_journey_mode_button.pressed.connect(_on_journey_pressed)
 	_search_button.pressed.connect(_on_search_pressed)
 	_random_pick_button.pressed.connect(_on_random_pick_pressed)
 	_random_faq_button.mouse_entered.connect(_on_random_faq_entered)
@@ -128,7 +133,7 @@ func _ready() -> void:
 	_random_faq_button.focus_entered.connect(_on_random_faq_entered)
 	_random_faq_button.focus_exited.connect(_on_random_faq_exited)
 
-	for button in [_close_button, _import_template_button, _template_folder_button, _template_continue_button, _template_focus_button, _explore_button, _search_mode_button, _topics_button, _guided_button, _random_button, _continue_button, _focus_mode_button, _search_button, _random_pick_button, _random_faq_button]:
+	for button in [_close_button, _import_template_button, _template_folder_button, _template_continue_button, _template_focus_button, _template_journey_button, _explore_button, _search_mode_button, _topics_button, _guided_button, _random_button, _continue_button, _focus_mode_button, _journey_mode_button, _search_button, _random_pick_button, _random_faq_button]:
 		_wire_feedback(button)
 	_apply_external_template_action_state()
 
@@ -284,12 +289,16 @@ func _refresh_entry_view_buttons() -> void:
 		return
 	_template_continue_button.text = "Open Survey Scroll\nMove through the full questionnaire with the Survey Map visible."
 	_template_focus_button.text = "Open Focus Mode\nAnswer one question at a time with touch-friendly navigation."
+	_template_journey_button.text = "Open Journey Mode\nUse the redesigned landing, survey selection, and section grid flow."
 	_continue_button.text = "Open Survey Scroll\nMove through the full questionnaire with the Survey Map visible."
 	_focus_mode_button.text = "Open Focus Mode\nAnswer one question at a time with touch-friendly navigation."
+	_journey_mode_button.text = "Open Journey Mode\nSwitch into the separate journey-first survey experience."
 	_refresh_entry_view_button(_template_continue_button, _current_survey_view_mode == SURVEY_VIEW_MODE_SCROLL, true)
 	_refresh_entry_view_button(_template_focus_button, _current_survey_view_mode == SURVEY_VIEW_MODE_FOCUS, false)
+	_refresh_journey_entry_button(_template_journey_button)
 	_refresh_entry_view_button(_continue_button, _current_survey_view_mode == SURVEY_VIEW_MODE_SCROLL, true)
 	_refresh_entry_view_button(_focus_mode_button, _current_survey_view_mode == SURVEY_VIEW_MODE_FOCUS, false)
+	_refresh_journey_entry_button(_journey_mode_button)
 
 func _refresh_entry_view_button(button: Button, is_selected: bool, is_primary_entry: bool) -> void:
 	if button == null:
@@ -304,6 +313,12 @@ func _refresh_entry_view_button(button: Button, is_selected: bool, is_primary_en
 		button.custom_minimum_size = Vector2(0.0, primary_height if button == _continue_button else secondary_height)
 	else:
 		button.custom_minimum_size = Vector2(0.0, secondary_height)
+
+func _refresh_journey_entry_button(button: Button) -> void:
+	if button == null:
+		return
+	SurveyStyle.apply_secondary_button(button)
+	button.custom_minimum_size = Vector2(0.0, 64.0 if _compact_layout else 72.0)
 
 func _search_subject() -> String:
 	if _survey == null:
@@ -360,6 +375,7 @@ func _rebuild_template_grid() -> void:
 func _refresh_mode_buttons() -> void:
 	_template_continue_button.disabled = _question_entries.is_empty()
 	_template_focus_button.disabled = _question_entries.is_empty()
+	_template_journey_button.disabled = _question_entries.is_empty()
 	_explore_button.disabled = _question_entries.is_empty()
 	_search_mode_button.disabled = _question_entries.is_empty()
 	_topics_button.disabled = _topic_tags.is_empty()
@@ -367,6 +383,7 @@ func _refresh_mode_buttons() -> void:
 	_random_button.disabled = _question_entries.is_empty()
 	_continue_button.disabled = _question_entries.is_empty()
 	_focus_mode_button.disabled = _question_entries.is_empty()
+	_journey_mode_button.disabled = _question_entries.is_empty()
 	_refresh_mode_button(_explore_button, _current_mode == MODE_EXPLORE, "Survey Views", "Choose between the full survey scroll and one-question-at-a-time focus mode.", MODE_ICON_EXPLORE)
 	_refresh_mode_button(_search_mode_button, _current_mode == MODE_SEARCH, "Search", "Look for matching questions by words, phrases, or topics.", MODE_ICON_SEARCH)
 	_refresh_mode_button(_topics_button, _current_mode == MODE_TOPICS, "Browse Topics", "Pick one topic tag and jump to related questions.", MODE_ICON_TOPICS)
@@ -1146,6 +1163,9 @@ func _on_scroll_continue_pressed() -> void:
 func _on_focus_continue_pressed() -> void:
 	_current_survey_view_mode = SURVEY_VIEW_MODE_FOCUS
 	continue_requested.emit(SURVEY_VIEW_MODE_FOCUS)
+
+func _on_journey_pressed() -> void:
+	journey_requested.emit()
 
 func _on_search_pressed() -> void:
 	search_requested.emit()

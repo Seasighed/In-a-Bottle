@@ -25,6 +25,44 @@ autowrap_mode = 3
 layout_mode = 2
 autowrap_mode = 3
 
+[node name="SliderBox" type="VBoxContainer" parent="Panel/Stack" unique_id=199828761]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="SliderValueRow" type="HBoxContainer" parent="Panel/Stack/SliderBox" unique_id=1022226720]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SliderValueLabel" type="Label" parent="Panel/Stack/SliderBox/SliderValueRow" unique_id=1707895740]
+layout_mode = 2
+
+[node name="SliderValueSpacer" type="Control" parent="Panel/Stack/SliderBox/SliderValueRow" unique_id=1579997664]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="SliderClearButton" type="Button" parent="Panel/Stack/SliderBox/SliderValueRow" unique_id=488827823]
+layout_mode = 2
+text = "Clear"
+
+[node name="ScoreSlider" type="HSlider" parent="Panel/Stack/SliderBox" unique_id=403377023]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="SliderCaptionRow" type="HBoxContainer" parent="Panel/Stack/SliderBox" unique_id=35177947]
+layout_mode = 2
+
+[node name="SliderMinLabel" type="Label" parent="Panel/Stack/SliderBox/SliderCaptionRow" unique_id=586429188]
+layout_mode = 2
+
+[node name="SliderCaptionSpacer" type="Control" parent="Panel/Stack/SliderBox/SliderCaptionRow" unique_id=996632644]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="SliderMaxLabel" type="Label" parent="Panel/Stack/SliderBox/SliderCaptionRow" unique_id=214657028]
+layout_mode = 2
+horizontal_alignment = 2
+
 [node name="Flow" type="HFlowContainer" parent="Panel/Stack" unique_id=1494401475]
 layout_mode = 2
 theme_override_constants/h_separation = 10

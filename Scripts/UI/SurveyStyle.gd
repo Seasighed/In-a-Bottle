@@ -72,8 +72,13 @@ static func apply_text_outline(control: Control, outline_size: int = 3, outline_
 	control.add_theme_color_override("font_outline_color", outline_color if outline_color != Color(0, 0, 0, 0) else TEXT_OUTLINE)
 	control.add_theme_constant_override("outline_size", outline_size)
 
+static func _ensure_control_minimum_height(control: Control, minimum_height: float = 44.0) -> void:
+	var current_size := control.custom_minimum_size
+	control.custom_minimum_size = Vector2(maxf(current_size.x, 0.0), maxf(current_size.y, minimum_height))
+
 static func apply_primary_button(button: Button) -> void:
 	button.add_theme_stylebox_override("normal", panel(ACCENT, ACCENT, 14, 0))
+	button.add_theme_stylebox_override("focus", panel(ACCENT.lightened(0.05), ACCENT, 14, 0))
 	button.add_theme_stylebox_override("hover", panel(ACCENT.lightened(0.08), ACCENT, 14, 0))
 	button.add_theme_stylebox_override("pressed", panel(ACCENT.darkened(0.08), ACCENT, 14, 0))
 	button.add_theme_color_override("font_color", TEXT_ON_ACCENT)
@@ -82,10 +87,11 @@ static func apply_primary_button(button: Button) -> void:
 	button.add_theme_color_override("font_pressed_color", TEXT_ON_ACCENT)
 	button.add_theme_color_override("font_disabled_color", TEXT_MUTED)
 	apply_text_outline(button, 2)
-	button.custom_minimum_size = Vector2(0, 44)
+	_ensure_control_minimum_height(button)
 
 static func apply_secondary_button(button: Button) -> void:
 	button.add_theme_stylebox_override("normal", panel(SURFACE_ALT, BORDER, 14, 1))
+	button.add_theme_stylebox_override("focus", panel(SURFACE_MUTED, ACCENT_ALT, 14, 1))
 	button.add_theme_stylebox_override("hover", panel(SURFACE_MUTED, BORDER.lightened(0.08), 14, 1))
 	button.add_theme_stylebox_override("pressed", panel(SURFACE, ACCENT_ALT, 14, 1))
 	button.add_theme_color_override("font_color", TEXT_PRIMARY)
@@ -94,11 +100,12 @@ static func apply_secondary_button(button: Button) -> void:
 	button.add_theme_color_override("font_pressed_color", TEXT_PRIMARY)
 	button.add_theme_color_override("font_disabled_color", TEXT_MUTED)
 	apply_text_outline(button, 2)
-	button.custom_minimum_size = Vector2(0, 44)
+	_ensure_control_minimum_height(button)
 
 static func apply_answer_button(button: Button, is_selected: bool) -> void:
 	if is_selected:
 		button.add_theme_stylebox_override("normal", panel(SURFACE_MUTED, HIGHLIGHT_GOLD, 14, 2))
+		button.add_theme_stylebox_override("focus", panel(SURFACE_MUTED, HIGHLIGHT_GOLD.lightened(0.06), 14, 2))
 		button.add_theme_stylebox_override("hover", panel(SURFACE_MUTED.lightened(0.03), HIGHLIGHT_GOLD.lightened(0.08), 14, 2))
 		button.add_theme_stylebox_override("pressed", panel(SURFACE, HIGHLIGHT_GOLD, 14, 2))
 		button.add_theme_color_override("font_color", TEXT_PRIMARY)
@@ -107,12 +114,23 @@ static func apply_answer_button(button: Button, is_selected: bool) -> void:
 		button.add_theme_color_override("font_pressed_color", TEXT_PRIMARY)
 		button.add_theme_color_override("font_disabled_color", TEXT_MUTED)
 		apply_text_outline(button, 2)
-		button.custom_minimum_size = Vector2(0, 44)
+		_ensure_control_minimum_height(button)
 		return
-	apply_secondary_button(button)
+	button.add_theme_stylebox_override("normal", panel(SURFACE_ALT, BORDER, 14, 2))
+	button.add_theme_stylebox_override("focus", panel(SURFACE_MUTED, ACCENT_ALT, 14, 2))
+	button.add_theme_stylebox_override("hover", panel(SURFACE_MUTED, BORDER.lightened(0.08), 14, 2))
+	button.add_theme_stylebox_override("pressed", panel(SURFACE, ACCENT_ALT, 14, 2))
+	button.add_theme_color_override("font_color", TEXT_PRIMARY)
+	button.add_theme_color_override("font_focus_color", TEXT_PRIMARY)
+	button.add_theme_color_override("font_hover_color", TEXT_PRIMARY)
+	button.add_theme_color_override("font_pressed_color", TEXT_PRIMARY)
+	button.add_theme_color_override("font_disabled_color", TEXT_MUTED)
+	apply_text_outline(button, 2)
+	_ensure_control_minimum_height(button)
 
 static func apply_danger_button(button: Button) -> void:
 	button.add_theme_stylebox_override("normal", panel(DANGER, DANGER, 14, 0))
+	button.add_theme_stylebox_override("focus", panel(DANGER.lightened(0.04), DANGER, 14, 0))
 	button.add_theme_stylebox_override("hover", panel(DANGER.lightened(0.06), DANGER, 14, 0))
 	button.add_theme_stylebox_override("pressed", panel(DANGER.darkened(0.08), DANGER, 14, 0))
 	button.add_theme_color_override("font_color", TEXT_ON_ACCENT)
@@ -120,7 +138,7 @@ static func apply_danger_button(button: Button) -> void:
 	button.add_theme_color_override("font_hover_color", TEXT_ON_ACCENT)
 	button.add_theme_color_override("font_pressed_color", TEXT_ON_ACCENT)
 	apply_text_outline(button, 2)
-	button.custom_minimum_size = Vector2(0, 44)
+	_ensure_control_minimum_height(button)
 
 static func style_heading(label: Label, size: int = 26, color: Color = Color(0, 0, 0, 0)) -> void:
 	label.add_theme_color_override("font_color", color if color != Color(0, 0, 0, 0) else TEXT_PRIMARY)
@@ -160,7 +178,7 @@ static func style_text_edit(field: TextEdit) -> void:
 	field.add_theme_stylebox_override("focus", panel(SURFACE_MUTED, ACCENT_ALT, 14, 1))
 
 static func style_option_button(button: OptionButton) -> void:
-	button.custom_minimum_size = Vector2(0, 44)
+	_ensure_control_minimum_height(button)
 	button.add_theme_stylebox_override("normal", panel(SURFACE_ALT, BORDER, 14, 1))
 	button.add_theme_stylebox_override("hover", panel(SURFACE_MUTED, BORDER, 14, 1))
 	button.add_theme_stylebox_override("pressed", panel(SURFACE, ACCENT_ALT, 14, 1))
