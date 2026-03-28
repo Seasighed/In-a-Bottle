@@ -81,7 +81,18 @@ static func import_template_file(source_path: String) -> Dictionary:
 	var report: Dictionary = validate_template_file(source_path)
 	if not bool(report.get("ok", false)):
 		return report
+	return _import_validated_template_report(report, source_path)
 
+static func import_template_json_text(source_text: String, source_name: String = "imported_template.json") -> Dictionary:
+	var parsed: Variant = JSON.parse_string(source_text)
+	if not (parsed is Dictionary):
+		return _validation_report(false, ["Survey template root must be a JSON object."], PackedStringArray(), {}, source_name)
+	var report: Dictionary = validate_template_dict(parsed as Dictionary, source_name)
+	if not bool(report.get("ok", false)):
+		return report
+	return _import_validated_template_report(report, source_name)
+
+static func _import_validated_template_report(report: Dictionary, source_path: String) -> Dictionary:
 	var normalized_template: Dictionary = _dictionary_from_variant(report.get("normalized_template", {}))
 	var user_dir_error: Error = DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(USER_TEMPLATE_DIR))
 	if user_dir_error != OK:

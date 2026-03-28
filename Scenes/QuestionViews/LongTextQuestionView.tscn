@@ -1,0 +1,79 @@
+[gd_scene format=3 uid="uid://drpkynkt44863"]
+
+[ext_resource type="Script" uid="uid://br8u7bbc5xd10" path="res://Scripts/UI/DefaultQuestionView.gd" id="1"]
+
+[node name="LongTextQuestionView" type="Control" unique_id=768092872]
+layout_mode = 3
+anchors_preset = 0
+size_flags_horizontal = 3
+size_flags_vertical = 3
+script = ExtResource("1")
+
+[node name="Card" type="PanelContainer" parent="." unique_id=638239052]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+
+[node name="QuestionAccentRail" type="VSeparator" parent="Card" unique_id=687882742]
+layout_mode = 2
+
+[node name="Stack" type="VBoxContainer" parent="Card" unique_id=2012621957]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="TitleLabel" type="Label" parent="Card/Stack" unique_id=2072375311]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "✍️ Tell us more about your workflow."
+autowrap_mode = 3
+
+[node name="QuestionTypeBar" type="HBoxContainer" parent="Card/Stack" unique_id=940630948]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="QuestionTypeBarLeftSeparator" type="HSeparator" parent="Card/Stack/QuestionTypeBar" unique_id=432587119]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="QuestionTypeBarLabel" type="Label" parent="Card/Stack/QuestionTypeBar" unique_id=693584330]
+layout_mode = 2
+text = "Long Answer"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="QuestionTypeBarRightSeparator" type="HSeparator" parent="Card/Stack/QuestionTypeBar" unique_id=2010147442]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="DescriptionLabel" type="Label" parent="Card/Stack" unique_id=213451229]
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "Long-form answers support multiple lines and more context."
+autowrap_mode = 3
+
+[node name="MetaLabel" type="Label" parent="Card/Stack" unique_id=806241717]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "Optional | Long answer"
+
+[node name="QuestionContentSeparator" type="HSeparator" parent="Card/Stack" unique_id=465163648]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="FieldHost" type="VBoxContainer" parent="Card/Stack" unique_id=1779554781]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="PreviewLongAnswer" type="TextEdit" parent="Card/Stack/FieldHost" unique_id=1258461619]
+custom_minimum_size = Vector2(0, 132)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "I usually start by sketching the rough structure, then I tighten the details after I can already interact with the whole flow."
+placeholder_text = "Write as much detail as you need"
+wrap_mode = 1

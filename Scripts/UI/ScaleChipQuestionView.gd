@@ -20,18 +20,14 @@ var _focus_bottom_spacer: Control
 var _syncing_slider := false
 
 func _ready() -> void:
-	size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_ensure_focus_spacers()
+	configure_question_chrome(_panel, _stack, _title_label, _slider_box)
 	SurveyStyle.style_heading(_title_label, 21)
 	SurveyStyle.style_body(_description_label)
 	SurveyStyle.style_heading(_slider_value_label, 18)
 	SurveyStyle.style_caption(_slider_min_label, SurveyStyle.TEXT_PRIMARY)
 	SurveyStyle.style_caption(_slider_max_label, SurveyStyle.TEXT_PRIMARY)
 	SurveyStyle.apply_secondary_button(_slider_clear_button)
-	_title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_description_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_panel.gui_input.connect(_on_panel_gui_input)
 	_score_slider.value_changed.connect(_on_score_slider_value_changed)
 	_score_slider.drag_ended.connect(_on_score_slider_drag_ended)
@@ -45,6 +41,7 @@ func _apply_question() -> void:
 
 	_title_label.text = question.display_prompt()
 	_description_label.text = question.description if not question.description.is_empty() else "Tap a score to answer quickly."
+	_refresh_question_chrome()
 
 	for child in _flow.get_children():
 		_flow.remove_child(child)
@@ -65,6 +62,7 @@ func _apply_question() -> void:
 	_apply_selection_state()
 	refresh_responsive_layout(get_viewport().get_visible_rect().size)
 	_refresh_layout_metrics()
+	_refresh_question_chrome()
 
 func _apply_selection_state() -> void:
 	if is_focus_presentation():
@@ -91,30 +89,31 @@ func refresh_responsive_layout(viewport_size: Vector2) -> void:
 	var focus_layout := is_focus_presentation()
 	var centered_focus_layout := uses_centered_focus_layout()
 	var journey_focus_layout := is_journey_focus_presentation()
+	var journey_scale := SurveyStyle.journey_mobile_scale(viewport_size) if journey_focus_layout and _compact_layout else 1.0
 	_ensure_focus_spacers()
 	_stack.size_flags_vertical = Control.SIZE_EXPAND_FILL if centered_focus_layout else Control.SIZE_FILL
 	_focus_top_spacer.visible = centered_focus_layout
 	_focus_bottom_spacer.visible = centered_focus_layout
-	_stack.add_theme_constant_override("separation", (12 if _compact_layout else 16) if journey_focus_layout else ((16 if _compact_layout else 20) if focus_layout else (8 if _compact_layout else 10)))
-	_flow.add_theme_constant_override("h_separation", (10 if _compact_layout else 12) if journey_focus_layout else ((14 if _compact_layout else 18) if focus_layout else (8 if _compact_layout else 10)))
-	_flow.add_theme_constant_override("v_separation", (10 if _compact_layout else 12) if journey_focus_layout else ((14 if _compact_layout else 18) if focus_layout else (8 if _compact_layout else 10)))
-	SurveyStyle.style_heading(_title_label, (22 if _compact_layout else 28) if journey_focus_layout else ((30 if _compact_layout else 38) if focus_layout else (19 if _compact_layout else 21)))
+	_stack.add_theme_constant_override("separation", int(round((((12 if _compact_layout else 16) * journey_scale) if journey_focus_layout else ((16 if _compact_layout else 20) if focus_layout else (8 if _compact_layout else 10))))))
+	_flow.add_theme_constant_override("h_separation", int(round((((10 if _compact_layout else 12) * journey_scale) if journey_focus_layout else ((14 if _compact_layout else 18) if focus_layout else (8 if _compact_layout else 10))))))
+	_flow.add_theme_constant_override("v_separation", int(round((((10 if _compact_layout else 12) * journey_scale) if journey_focus_layout else ((14 if _compact_layout else 18) if focus_layout else (8 if _compact_layout else 10))))))
+	SurveyStyle.style_heading(_title_label, int(round((((22 if _compact_layout else 28) * journey_scale) if journey_focus_layout else ((30 if _compact_layout else 38) if focus_layout else (19 if _compact_layout else 21))))))
 	SurveyStyle.style_body(_description_label)
-	_description_label.add_theme_font_size_override("font_size", (14 if _compact_layout else 16) if journey_focus_layout else ((18 if _compact_layout else 22) if focus_layout else 15))
+	_description_label.add_theme_font_size_override("font_size", int(round((((14 if _compact_layout else 16) * journey_scale) if journey_focus_layout else ((18 if _compact_layout else 22) if focus_layout else 15)))))
 	_slider_box.visible = _uses_mobile_slider()
 	_flow.visible = not _slider_box.visible
-	_slider_box.add_theme_constant_override("separation", 10 if _compact_layout else 12)
-	SurveyStyle.style_heading(_slider_value_label, (18 if _compact_layout else 22) if journey_focus_layout else 18)
+	_slider_box.add_theme_constant_override("separation", int(round((10 if _compact_layout else 12) * journey_scale)) if journey_focus_layout else (10 if _compact_layout else 12))
+	SurveyStyle.style_heading(_slider_value_label, int(round((((18 if _compact_layout else 22) * journey_scale) if journey_focus_layout else 18))))
 	_slider_value_label.add_theme_color_override("font_color", SurveyStyle.TEXT_PRIMARY)
 	_slider_value_label.add_theme_constant_override("outline_size", 2)
-	_slider_clear_button.custom_minimum_size = Vector2(82.0, 34.0 if _compact_layout else 38.0)
-	_score_slider.custom_minimum_size = Vector2(0.0, 34.0 if _compact_layout else 40.0)
-	_slider_min_label.add_theme_font_size_override("font_size", 12 if _compact_layout else 13)
-	_slider_max_label.add_theme_font_size_override("font_size", 12 if _compact_layout else 13)
-	var button_size: float = (54.0 if _compact_layout else 64.0) if journey_focus_layout else ((72.0 if _compact_layout else 88.0) if focus_layout else (48.0 if _compact_layout else 56.0))
+	_slider_clear_button.custom_minimum_size = Vector2((90.0 * journey_scale) if journey_focus_layout else 82.0, (((38.0 if _compact_layout else 42.0) * journey_scale) if journey_focus_layout else (34.0 if _compact_layout else 38.0)))
+	_score_slider.custom_minimum_size = Vector2(0.0, (((40.0 if _compact_layout else 46.0) * journey_scale) if journey_focus_layout else (34.0 if _compact_layout else 40.0)))
+	_slider_min_label.add_theme_font_size_override("font_size", int(round((((13 if _compact_layout else 14) * journey_scale) if journey_focus_layout else (12 if _compact_layout else 13)))))
+	_slider_max_label.add_theme_font_size_override("font_size", int(round((((13 if _compact_layout else 14) * journey_scale) if journey_focus_layout else (12 if _compact_layout else 13)))))
+	var button_size: float = (((60.0 if _compact_layout else 70.0) * journey_scale) if journey_focus_layout else ((72.0 if _compact_layout else 88.0) if focus_layout else (48.0 if _compact_layout else 56.0)))
 	for button in _buttons:
 		button.custom_minimum_size = Vector2(button_size, button_size)
-		button.add_theme_font_size_override("font_size", (17 if _compact_layout else 19) if journey_focus_layout else ((22 if _compact_layout else 26) if focus_layout else (15 if _compact_layout else 16)))
+		button.add_theme_font_size_override("font_size", int(round((((18 if _compact_layout else 20) * journey_scale) if journey_focus_layout else ((22 if _compact_layout else 26) if focus_layout else (15 if _compact_layout else 16))))))
 	_sync_slider_state()
 	_apply_selection_state()
 	_refresh_layout_metrics()

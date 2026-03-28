@@ -195,3 +195,55 @@ static func style_check_box(check_box: CheckBox) -> void:
 	check_box.add_theme_color_override("font_hover_color", TEXT_PRIMARY)
 	check_box.add_theme_color_override("font_pressed_color", TEXT_PRIMARY)
 	apply_text_outline(check_box, 1)
+
+static func separator_gradient_style(colors: PackedColorArray, offsets: PackedFloat32Array, horizontal: bool = true) -> StyleBoxTexture:
+	var gradient := Gradient.new()
+	gradient.colors = colors
+	gradient.offsets = offsets
+	var texture := GradientTexture2D.new()
+	texture.fill = GradientTexture2D.FILL_LINEAR
+	texture.gradient = gradient
+	texture.width = 256 if horizontal else 12
+	texture.height = 12 if horizontal else 256
+	texture.fill_from = Vector2(0.0, 0.5) if horizontal else Vector2(0.5, 0.0)
+	texture.fill_to = Vector2(1.0, 0.5) if horizontal else Vector2(0.5, 1.0)
+	var style := StyleBoxTexture.new()
+	style.texture = texture
+	return style
+
+static func question_type_color(kind: StringName) -> Color:
+	match kind:
+		SurveyQuestion.TYPE_SHORT_TEXT:
+			return Color("4ec9b0")
+		SurveyQuestion.TYPE_LONG_TEXT:
+			return Color("3fb68f")
+		SurveyQuestion.TYPE_SINGLE_CHOICE:
+			return Color("3794ff")
+		SurveyQuestion.TYPE_MULTI_CHOICE:
+			return Color("46b6d9")
+		SurveyQuestion.TYPE_BOOLEAN:
+			return Color("d7b154")
+		SurveyQuestion.TYPE_SCALE:
+			return Color("c586c0")
+		SurveyQuestion.TYPE_RANKED_CHOICE:
+			return Color("e06c75")
+		SurveyQuestion.TYPE_DROPDOWN:
+			return Color("ce9178")
+		SurveyQuestion.TYPE_EMAIL:
+			return Color("d16d9e")
+		SurveyQuestion.TYPE_NUMBER:
+			return Color("9cdc78")
+		SurveyQuestion.TYPE_DATE:
+			return Color("dcdcaa")
+		SurveyQuestion.TYPE_NPS:
+			return Color("7aa2f7")
+		SurveyQuestion.TYPE_MATRIX:
+			return Color("f29e74")
+	return ACCENT_ALT
+
+static func journey_mobile_scale(viewport_size: Vector2) -> float:
+	if viewport_size == Vector2.ZERO:
+		return 1.0
+	var width_scale: float = viewport_size.x / 320.0
+	var height_scale: float = viewport_size.y / 700.0
+	return clampf(minf(width_scale, height_scale), 1.0, 1.28)

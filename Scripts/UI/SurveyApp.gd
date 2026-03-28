@@ -15,11 +15,14 @@ const SURVEY_UPLOAD_AUDIT_STORE = preload("res://Scripts/Survey/SurveyUploadAudi
 const SURVEY_SETTINGS_OVERLAY_SCENE: PackedScene = preload("res://Scenes/UI/SurveySettingsOverlay.tscn")
 const SURVEY_SUMMARY_OVERLAY_SCENE: PackedScene = preload("res://Scenes/UI/SurveySummaryOverlay.tscn")
 const SURVEY_EXPORT_OVERLAY_SCENE: PackedScene = preload("res://Scenes/UI/SurveyExportOverlay.tscn")
+const QUESTION_HELP_OVERLAY_SCENE: PackedScene = preload("res://Scenes/UI/QuestionHelpOverlay.tscn")
+const QUESTION_VIEW_REGISTRY = preload("res://Scripts/UI/QuestionViewRegistry.gd")
 const DEFAULT_DARK_PALETTE = preload("res://Themes/SurveyDarkPalette.tres")
 const DEFAULT_LIGHT_PALETTE = preload("res://Themes/SurveyLightPalette.tres")
 const SPRITE_ICON_HOST = preload("res://Scripts/UI/SpriteIconHost.gd")
 const SURVEY_ICON_LIBRARY = preload("res://Scripts/UI/SurveyIconLibrary.gd")
 const SURVEY_UI_FEEDBACK = preload("res://Scripts/UI/SurveyUiFeedback.gd")
+const SURVEY_PREVIEW_CONFIG = preload("res://Scripts/UI/SurveyPreviewConfig.gd")
 const COMPLETE_STATUS_COLOR := Color("3cab68")
 const DEFAULT_CONTENT_SIZE := Vector2i(1440, 900)
 const EXPORT_FORMAT_JSON := "json"
@@ -100,6 +103,9 @@ var _pending_upload_payload_hash := ""
 var _last_upload_response_text := ""
 var _last_upload_status_text := ""
 var _last_upload_status_is_error := false
+var _preview_mode_override := SURVEY_PREVIEW_CONFIG.MODE_AUTO
+var _preview_resolution_preset := ""
+var _question_debug_ids_enabled := false
 
 @onready var _background: ColorRect = $Background
 @onready var _margin: MarginContainer = $Margin
@@ -143,15 +149,20 @@ var _last_upload_status_is_error := false
 @onready var _overlay_menu: OverlayMenu = $OverlayMenu
 @onready var _menu_access_layer: CanvasLayer = $MenuAccessLayer
 @onready var _menu_access_button: Button = $MenuAccessLayer/MenuAccessButton
+@onready var _help_access_button: Button = get_node_or_null("MenuAccessLayer/HelpAccessButton") as Button
+@onready var _help_overlay = get_node_or_null("QuestionHelpOverlay")
 
 func _ensure_optional_ui_nodes() -> void:
 	_ensure_filter_ui_nodes()
 	_ensure_overlay_node("SettingsOverlay", SURVEY_SETTINGS_OVERLAY_SCENE)
 	_ensure_overlay_node("SummaryOverlay", SURVEY_SUMMARY_OVERLAY_SCENE)
 	_ensure_overlay_node("ExportOverlay", SURVEY_EXPORT_OVERLAY_SCENE)
+	_ensure_overlay_node("QuestionHelpOverlay", QUESTION_HELP_OVERLAY_SCENE)
 	_settings_overlay = get_node_or_null("SettingsOverlay")
 	_summary_overlay = get_node_or_null("SummaryOverlay")
 	_export_overlay = get_node_or_null("ExportOverlay")
+	_help_overlay = get_node_or_null("QuestionHelpOverlay")
+	_ensure_menu_access_buttons()
 
 func _ensure_overlay_node(node_name: String, scene_resource: PackedScene) -> void:
 	if get_node_or_null(node_name) != null or scene_resource == null:
@@ -161,6 +172,34 @@ func _ensure_overlay_node(node_name: String, scene_resource: PackedScene) -> voi
 		return
 	overlay.name = node_name
 	add_child(overlay)
+
+func _ensure_menu_access_buttons() -> void:
+	if _menu_access_layer == null:
+		return
+	if _menu_access_button == null:
+		var menu_button := Button.new()
+		menu_button.name = "MenuAccessButton"
+		menu_button.text = "☰"
+		menu_button.tooltip_text = "Open menu"
+		menu_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+		menu_button.anchor_left = 1.0
+		menu_button.anchor_right = 1.0
+		menu_button.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+		menu_button.grow_vertical = Control.GROW_DIRECTION_BOTH
+		_menu_access_layer.add_child(menu_button)
+		_menu_access_button = menu_button
+	if _help_access_button == null:
+		var help_button := Button.new()
+		help_button.name = "HelpAccessButton"
+		help_button.text = "?"
+		help_button.tooltip_text = "Open question help"
+		help_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+		help_button.anchor_left = 1.0
+		help_button.anchor_right = 1.0
+		help_button.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+		help_button.grow_vertical = Control.GROW_DIRECTION_BOTH
+		_menu_access_layer.add_child(help_button)
+		_help_access_button = help_button
 
 func _ensure_filter_ui_nodes() -> void:
 	if _content_stack == null or _question_scroll == null:
@@ -246,6 +285,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if key_event.keycode == KEY_ESCAPE:
 		if _search_overlay.visible:
 			_close_search_overlay()
+		elif _help_overlay != null and _help_overlay.visible:
+			_close_question_help()
 		elif _summary_overlay != null and _summary_overlay.visible:
 			_close_summary_overlay()
 		elif _settings_overlay != null and _settings_overlay.visible:
@@ -359,6 +400,8 @@ func _wire_static_feedback() -> void:
 	_wire_button_hover_feedback(_focus_previous_button)
 	_wire_button_hover_feedback(_focus_next_button)
 	_wire_button_feedback(_menu_access_button)
+	if _help_access_button != null:
+		_wire_button_feedback(_help_access_button)
 	if _clear_filter_button != null:
 		_wire_button_feedback(_clear_filter_button)
 
@@ -437,6 +480,8 @@ func _refresh_static_theme_shell() -> void:
 		_summary_overlay.refresh_theme()
 	if _export_overlay != null:
 		_export_overlay.refresh_theme()
+	if _help_overlay != null:
+		_help_overlay.refresh_theme()
 	_refresh_menu_access_button()
 	if is_node_ready():
 		_refresh_focus_mode(true)
@@ -490,7 +535,14 @@ func _apply_static_styles() -> void:
 	SurveyStyle.apply_secondary_button(_focus_previous_button)
 	SurveyStyle.apply_primary_button(_focus_next_button)
 	SurveyStyle.apply_primary_button(_menu_access_button)
-	_menu_access_button.custom_minimum_size = Vector2(92, 52)
+	_menu_access_button.text = "☰"
+	_menu_access_button.tooltip_text = "Open menu"
+	_menu_access_button.custom_minimum_size = Vector2(52, 52)
+	_menu_access_button.add_theme_font_size_override("font_size", 20)
+	if _help_access_button != null:
+		SurveyStyle.apply_secondary_button(_help_access_button)
+		_help_access_button.tooltip_text = "Open question help"
+		_help_access_button.custom_minimum_size = Vector2(52, 52)
 	_section_title_label.visible = false
 	_section_description_label.visible = false
 	_section_header_host.visible = false
@@ -530,6 +582,8 @@ func _connect_actions() -> void:
 	_focus_previous_button.pressed.connect(_on_focus_previous_pressed)
 	_focus_next_button.pressed.connect(_on_focus_next_pressed)
 	_menu_access_button.pressed.connect(_open_overlay_menu)
+	if _help_access_button != null:
+		_help_access_button.pressed.connect(_open_question_help)
 	_overlay_menu.resume_requested.connect(_close_overlay_menu)
 	_overlay_menu.go_to_start_requested.connect(_go_to_start_from_overlay)
 	_overlay_menu.restart_requested.connect(_clear_all_answers)
@@ -544,6 +598,9 @@ func _connect_actions() -> void:
 	_overlay_menu.theme_mode_requested.connect(_on_theme_mode_requested)
 	_overlay_menu.sfx_volume_requested.connect(_on_sfx_volume_requested)
 	_overlay_menu.fill_test_answers_requested.connect(_fill_test_answers)
+	_overlay_menu.preview_mode_requested.connect(_on_preview_mode_requested)
+	_overlay_menu.preview_resolution_requested.connect(_on_preview_resolution_requested)
+	_overlay_menu.question_debug_ids_requested.connect(_on_question_debug_ids_requested)
 	_search_overlay.navigate_requested.connect(_on_search_navigate_requested)
 	_search_overlay.close_requested.connect(_close_search_overlay)
 	_onboarding_overlay.continue_requested.connect(_on_onboarding_continue_requested)
@@ -576,6 +633,8 @@ func _connect_actions() -> void:
 		_export_overlay.save_csv_requested.connect(_save_csv)
 		_export_overlay.upload_requested.connect(_submit_export_upload)
 		_export_overlay.copy_response_requested.connect(_copy_upload_response_to_clipboard)
+	if _help_overlay != null:
+		_help_overlay.closed.connect(_refresh_menu_access_button)
 
 func _load_survey() -> void:
 	_close_summary_overlay()
@@ -913,9 +972,11 @@ func _populate_document() -> void:
 				answers[question.id] = question.default_value
 			var view := _create_question_view(question)
 			view.set_presentation_mode(SurveyQuestionView.PRESENTATION_DOCUMENT)
+			view.set_question_debug_ids_enabled(_question_debug_ids_enabled)
 			question_holder.add_child(view)
 			view.answer_changed.connect(_on_answer_changed)
 			view.question_selected.connect(_on_question_selected)
+			view.help_requested.connect(_on_question_help_requested)
 			view.configure(question, answers.get(question.id, question.default_value))
 			_question_views[question.id] = view
 			_question_to_section_index[question.id] = section_index
@@ -1155,27 +1216,9 @@ func _first_visible_question_id_in_section(section_index: int) -> String:
 	return ""
 
 func _create_question_view(question: SurveyQuestion) -> SurveyQuestionView:
-	if question.custom_view_scene != null:
-		var custom_node := question.custom_view_scene.instantiate()
-		var custom_view := custom_node as SurveyQuestionView
-		if custom_view != null:
-			return custom_view
-	match question.type:
-		SurveyQuestion.TYPE_NPS:
-			var nps_node := SCALE_CHIPS_VIEW_SCENE.instantiate()
-			var nps_view := nps_node as SurveyQuestionView
-			if nps_view != null:
-				return nps_view
-		SurveyQuestion.TYPE_RANKED_CHOICE:
-			var ranked_node := RANKED_CHOICE_VIEW_SCENE.instantiate()
-			var ranked_view := ranked_node as SurveyQuestionView
-			if ranked_view != null:
-				return ranked_view
-		SurveyQuestion.TYPE_MATRIX:
-			var matrix_node := MATRIX_QUESTION_VIEW_SCENE.instantiate()
-			var matrix_view := matrix_node as SurveyQuestionView
-			if matrix_view != null:
-				return matrix_view
+	var resolved_view := QUESTION_VIEW_REGISTRY.instantiate_for_question(question)
+	if resolved_view != null:
+		return resolved_view
 	var fallback_node := DEFAULT_QUESTION_VIEW_SCENE.instantiate()
 	var fallback_view := fallback_node as SurveyQuestionView
 	if fallback_view != null:
@@ -1277,6 +1320,57 @@ func _normalized_survey_view_mode(raw_mode: String) -> String:
 			return SURVEY_VIEW_MODE_FOCUS
 	return SURVEY_VIEW_MODE_AUTO
 
+func _normalized_preview_mode(raw_mode: String) -> String:
+	return SURVEY_PREVIEW_CONFIG.normalized_mode(raw_mode)
+
+func _normalized_preview_resolution_id(raw_id: String) -> String:
+	return SURVEY_PREVIEW_CONFIG.normalized_resolution_id(raw_id)
+
+func _effective_preview_mode(viewport_size: Vector2) -> String:
+	match _preview_mode_override:
+		SURVEY_PREVIEW_CONFIG.MODE_MOBILE:
+			return SURVEY_PREVIEW_CONFIG.MODE_MOBILE
+		SURVEY_PREVIEW_CONFIG.MODE_DESKTOP:
+			return SURVEY_PREVIEW_CONFIG.MODE_DESKTOP
+	return SURVEY_PREVIEW_CONFIG.MODE_MOBILE if OS.has_feature("mobile") or viewport_size.x <= focus_mode_breakpoint else SURVEY_PREVIEW_CONFIG.MODE_DESKTOP
+
+func _is_phone_layout_for_size(viewport_size: Vector2) -> bool:
+	match _preview_mode_override:
+		SURVEY_PREVIEW_CONFIG.MODE_MOBILE:
+			return true
+		SURVEY_PREVIEW_CONFIG.MODE_DESKTOP:
+			return false
+	return OS.has_feature("mobile") or viewport_size.x <= 480.0
+
+func _is_compact_layout_for_size(viewport_size: Vector2) -> bool:
+	match _preview_mode_override:
+		SURVEY_PREVIEW_CONFIG.MODE_MOBILE:
+			return true
+		SURVEY_PREVIEW_CONFIG.MODE_DESKTOP:
+			return false
+	return viewport_size.x <= 640.0
+
+func _preview_mode_option_dictionaries() -> Array[Dictionary]:
+	var options: Array[Dictionary] = []
+	for option in SURVEY_PREVIEW_CONFIG.preview_mode_options():
+		options.append({
+			"value": str(option.get("id", SURVEY_PREVIEW_CONFIG.MODE_AUTO)),
+			"label": str(option.get("label", "Auto"))
+		})
+	return options
+
+func _preview_resolution_option_dictionaries() -> Array[Dictionary]:
+	var options: Array[Dictionary] = [{
+		"value": "",
+		"label": "Current Window"
+	}]
+	for preset in SURVEY_PREVIEW_CONFIG.resolution_presets():
+		options.append({
+			"value": str(preset.get("id", "")),
+			"label": str(preset.get("label", ""))
+		})
+	return options
+
 func _current_survey_view_mode_name() -> String:
 	match _survey_view_mode_preference:
 		SURVEY_VIEW_MODE_FOCUS:
@@ -1303,7 +1397,7 @@ func _should_use_focus_mode(viewport_size: Vector2) -> bool:
 			return true
 		SURVEY_VIEW_MODE_SCROLL:
 			return false
-	return OS.has_feature("mobile") or viewport_size.x <= focus_mode_breakpoint
+	return _effective_preview_mode(viewport_size) == SURVEY_PREVIEW_CONFIG.MODE_MOBILE
 
 func _set_focus_mode_active(enabled: bool) -> void:
 	var mode_changed := _focus_mode_active != enabled
@@ -1346,8 +1440,14 @@ func _set_focus_mode_active(enabled: bool) -> void:
 func _refresh_menu_access_button() -> void:
 	if _menu_access_layer == null:
 		return
-	var overlay_blocking: bool = (_overlay_menu != null and _overlay_menu.visible) or (_search_overlay != null and _search_overlay.visible) or (_onboarding_overlay != null and _onboarding_overlay.visible) or (_settings_overlay != null and _settings_overlay.visible) or (_summary_overlay != null and _summary_overlay.visible) or (_export_overlay != null and _export_overlay.visible)
-	_menu_access_layer.visible = survey != null and not overlay_blocking and not _focus_mode_active
+	var overlay_blocking: bool = (_overlay_menu != null and _overlay_menu.visible) or (_search_overlay != null and _search_overlay.visible) or (_onboarding_overlay != null and _onboarding_overlay.visible) or (_settings_overlay != null and _settings_overlay.visible) or (_summary_overlay != null and _summary_overlay.visible) or (_export_overlay != null and _export_overlay.visible) or (_help_overlay != null and _help_overlay.visible)
+	var can_show_access: bool = survey != null and not overlay_blocking
+	if _menu_access_button != null:
+		_menu_access_button.visible = can_show_access
+	var help_question_available: bool = _current_help_question() != null
+	if _help_access_button != null:
+		_help_access_button.visible = false and can_show_access and help_question_available
+	_menu_access_layer.visible = can_show_access and (_menu_access_button != null and _menu_access_button.visible)
 
 func _apply_focus_mode_shell_theme() -> void:
 	if _content_card == null or _focus_footer_panel == null or _focus_header_panel == null:
@@ -1517,9 +1617,11 @@ func _present_focus_question(question_id: String, direction: int = 0) -> void:
 	_cleanup_focus_question_stage(_focus_question_view)
 	var new_view := _create_question_view(question)
 	new_view.set_presentation_mode(SurveyQuestionView.PRESENTATION_FOCUS)
+	new_view.set_question_debug_ids_enabled(_question_debug_ids_enabled)
 	_focus_question_stage.add_child(new_view)
 	new_view.answer_changed.connect(_on_answer_changed)
 	new_view.question_selected.connect(_on_question_selected)
+	new_view.help_requested.connect(_on_question_help_requested)
 	new_view.configure(question, answers.get(question.id, question.default_value))
 	new_view.set_selected(true)
 	var old_view := _focus_question_view
@@ -1805,6 +1907,7 @@ func _set_selected_question(question_id: String) -> void:
 		var view := _question_views[question_key] as SurveyQuestionView
 		if view != null:
 			view.set_selected(question_key == _selected_question_id)
+	_refresh_question_help_overlay()
 
 func _sync_document_question_view(question_id: String) -> void:
 	var view := _question_views.get(question_id) as SurveyQuestionView
@@ -1812,6 +1915,7 @@ func _sync_document_question_view(question_id: String) -> void:
 	if view == null or question == null:
 		return
 	view.set_presentation_mode(SurveyQuestionView.PRESENTATION_DOCUMENT)
+	view.set_question_debug_ids_enabled(_question_debug_ids_enabled)
 	view.configure(question, answers.get(question_id, question.default_value))
 	view.set_selected(question_id == _selected_question_id)
 
@@ -1913,6 +2017,16 @@ func _go_to_next_section() -> void:
 		return
 	_scroll_to_target(current_section_index + 1)
 
+func _build_overlay_menu_options() -> Dictionary:
+	return {
+		"show_preview_controls": true,
+		"preview_mode_options": _preview_mode_option_dictionaries(),
+		"preview_mode": _preview_mode_override,
+		"preview_resolution_options": _preview_resolution_option_dictionaries(),
+		"preview_resolution": _preview_resolution_preset,
+		"question_debug_ids": _question_debug_ids_enabled
+	}
+
 func _open_overlay_menu() -> void:
 	if survey == null:
 		return
@@ -1921,17 +2035,24 @@ func _open_overlay_menu() -> void:
 	_close_settings_overlay()
 	_close_summary_overlay()
 	_close_export_overlay()
-	_overlay_menu.open_menu(survey, current_section_index, answers, sfx_volume)
+	_close_question_help()
+	_overlay_menu.open_menu(survey, current_section_index, answers, sfx_volume, true, _build_overlay_menu_options())
 	_refresh_menu_access_button()
 
 func _close_overlay_menu() -> void:
 	_overlay_menu.close_menu()
 	_refresh_menu_access_button()
 
+func _refresh_overlay_menu_if_open() -> void:
+	if survey == null or _overlay_menu == null or not _overlay_menu.visible:
+		return
+	_overlay_menu.open_menu(survey, current_section_index, answers, sfx_volume, false, _build_overlay_menu_options())
+
 func _open_search_overlay() -> void:
 	if survey == null:
 		return
 	_close_overlay_menu()
+	_close_question_help()
 	_close_onboarding_overlay()
 	_close_settings_overlay()
 	_close_summary_overlay()
@@ -1947,6 +2068,7 @@ func _open_onboarding_overlay() -> void:
 		return
 	_close_overlay_menu()
 	_close_search_overlay()
+	_close_question_help()
 	_close_settings_overlay()
 	_close_summary_overlay()
 	_close_export_overlay()
@@ -1963,6 +2085,7 @@ func _open_settings_overlay() -> void:
 	_close_overlay_menu()
 	_close_search_overlay()
 	_close_onboarding_overlay()
+	_close_question_help()
 	_close_summary_overlay()
 	_close_export_overlay()
 	_settings_overlay.open_settings(use_dark_mode, sfx_volume, _hover_sfx_enabled, _remember_onboarding_preferences, _allow_local_session_cache)
@@ -1978,6 +2101,7 @@ func _open_summary_overlay() -> void:
 	_close_search_overlay()
 	_close_onboarding_overlay()
 	_close_settings_overlay()
+	_close_question_help()
 	_close_export_overlay()
 	_summary_overlay.open_summary(_build_summary_data(), _summary_adjective_text)
 
@@ -1993,6 +2117,7 @@ func _open_export_overlay() -> void:
 	_close_onboarding_overlay()
 	_close_settings_overlay()
 	_close_summary_overlay()
+	_close_question_help()
 	_export_overlay.open_export_menu(_build_export_overlay_state())
 
 func _close_export_overlay() -> void:
@@ -2999,8 +3124,8 @@ func _update_responsive_layout() -> void:
 		return
 	var viewport_size := get_viewport().get_visible_rect().size
 	var shortest_side := minf(viewport_size.x, viewport_size.y)
-	var compact_layout: bool = viewport_size.x <= 640.0
-	var phone_layout: bool = viewport_size.x <= 480.0
+	var compact_layout: bool = _is_compact_layout_for_size(viewport_size)
+	var phone_layout: bool = _is_phone_layout_for_size(viewport_size)
 	var margin := int(clampf(shortest_side * (0.02 if compact_layout else 0.024), 8.0 if phone_layout else 12.0, 32.0))
 	var shell_gap := int(clampf(viewport_size.x * 0.014, 8.0, 24.0))
 	var column_gap := int(clampf(shell_gap * 0.9, 10.0, 20.0))
@@ -3058,15 +3183,30 @@ func _update_responsive_layout() -> void:
 	if _clear_filter_button != null:
 		_clear_filter_button.custom_minimum_size = Vector2(92.0 if compact_layout else 110.0, 40.0 if compact_layout else 42.0)
 	if _menu_access_button != null:
-		_menu_access_button.custom_minimum_size = Vector2(72.0 if compact_layout else 84.0, 42.0 if compact_layout else 48.0)
-		_menu_access_button.add_theme_font_size_override("font_size", 14 if compact_layout else 15)
-	var menu_button_width := clampf(viewport_size.x * 0.16, 72.0, 96.0)
-	var menu_button_height := clampf(viewport_size.y * 0.05, 42.0, 50.0)
-	var menu_inset := clampf(shortest_side * 0.02, 12.0, 24.0)
-	_menu_access_button.offset_left = -menu_button_width - menu_inset
-	_menu_access_button.offset_top = menu_inset
-	_menu_access_button.offset_right = -menu_inset
-	_menu_access_button.offset_bottom = menu_inset + menu_button_height
+		var menu_button_size := 42.0 if compact_layout else 48.0
+		_menu_access_button.custom_minimum_size = Vector2(menu_button_size, menu_button_size)
+		_menu_access_button.text = "☰"
+		_menu_access_button.tooltip_text = "Open menu"
+		_menu_access_button.add_theme_font_size_override("font_size", 18 if compact_layout else 20)
+	if _help_access_button != null:
+		_help_access_button.tooltip_text = "Open question help"
+		_help_access_button.custom_minimum_size = Vector2(42.0 if compact_layout else 48.0, 42.0 if compact_layout else 48.0)
+		_help_access_button.add_theme_font_size_override("font_size", 18 if compact_layout else 20)
+	if _menu_access_button != null:
+		var menu_button_width := _menu_access_button.custom_minimum_size.x
+		var menu_button_height := _menu_access_button.custom_minimum_size.y
+		var menu_inset := clampf(shortest_side * 0.02, 12.0, 24.0)
+		_menu_access_button.offset_left = -menu_button_width - menu_inset
+		_menu_access_button.offset_top = menu_inset
+		_menu_access_button.offset_right = -menu_inset
+		_menu_access_button.offset_bottom = menu_inset + menu_button_height
+		if _help_access_button != null:
+			var help_button_size := menu_button_height
+			var help_gap := 8.0
+			_help_access_button.offset_left = -menu_button_width - help_button_size - menu_inset - help_gap
+			_help_access_button.offset_top = menu_inset
+			_help_access_button.offset_right = -menu_button_width - menu_inset - help_gap
+			_help_access_button.offset_bottom = menu_inset + help_button_size
 	_sync_focus_question_stage_size()
 	_refresh_question_view_layouts(viewport_size)
 	_refresh_menu_access_button()
@@ -3081,6 +3221,8 @@ func _update_responsive_layout() -> void:
 		_summary_overlay.refresh_layout(viewport_size)
 	if _export_overlay != null:
 		_export_overlay.refresh_layout(viewport_size)
+	if _help_overlay != null:
+		_help_overlay.refresh_layout(viewport_size)
 
 func _sync_question_stack_width() -> void:
 	if _question_stack == null or _question_scroll == null:
@@ -3115,6 +3257,102 @@ func _on_sfx_volume_requested(volume: float) -> void:
 	sfx_volume = clamped_volume
 	SURVEY_UI_FEEDBACK.set_sfx_volume(sfx_volume)
 	_persist_session()
+
+func _on_preview_mode_requested(mode: String) -> void:
+	var resolved_mode := _normalized_preview_mode(mode)
+	if _preview_mode_override == resolved_mode:
+		return
+	_preview_mode_override = resolved_mode
+	_update_responsive_layout()
+	_refresh_overlay_menu_if_open()
+	var mode_label := "auto" if resolved_mode == SURVEY_PREVIEW_CONFIG.MODE_AUTO else resolved_mode
+	_show_status_message("Preview mode set to %s." % mode_label.capitalize())
+
+func _on_preview_resolution_requested(resolution_id: String) -> void:
+	_apply_preview_resolution_preset(resolution_id)
+	_refresh_overlay_menu_if_open()
+
+func _apply_preview_resolution_preset(resolution_id: String) -> void:
+	var normalized_id := _normalized_preview_resolution_id(resolution_id)
+	_preview_resolution_preset = normalized_id
+	if normalized_id.is_empty():
+		_update_responsive_layout()
+		_show_status_message("Using the current window size for preview.")
+		return
+	if _is_web_platform() or OS.has_feature("mobile"):
+		_update_responsive_layout()
+		_show_status_message("Window presets are only available in desktop/editor builds.")
+		return
+	var preview_window := get_window()
+	if preview_window == null:
+		return
+	var preview_size := SURVEY_PREVIEW_CONFIG.resolution_size(normalized_id)
+	if preview_size == Vector2i.ZERO:
+		return
+	preview_window.mode = Window.MODE_WINDOWED
+	preview_window.size = preview_size
+	_show_status_message("Preview window set to %s." % SURVEY_PREVIEW_CONFIG.resolution_label(normalized_id))
+	call_deferred("_update_responsive_layout")
+
+func _on_question_debug_ids_requested(enabled: bool) -> void:
+	_set_question_debug_ids_enabled(enabled)
+	_refresh_overlay_menu_if_open()
+	_show_status_message("Question chrome now shows %s." % ("IDs" if enabled else "types"))
+
+func _set_question_debug_ids_enabled(enabled: bool) -> void:
+	if _question_debug_ids_enabled == enabled:
+		return
+	_question_debug_ids_enabled = enabled
+	for value in _question_views.values():
+		var view := value as SurveyQuestionView
+		if view != null:
+			view.set_question_debug_ids_enabled(enabled)
+	if _focus_question_view != null:
+		_focus_question_view.set_question_debug_ids_enabled(enabled)
+	_refresh_question_help_overlay()
+
+func _current_help_question_id() -> String:
+	if _focus_mode_active and not _focus_stage_question_id.is_empty():
+		return _focus_stage_question_id
+	if not _selected_question_id.is_empty():
+		return _selected_question_id
+	return _first_question_id_in_section(current_section_index)
+
+func _current_help_question() -> SurveyQuestion:
+	return _question_definition(_current_help_question_id())
+
+func _open_question_help() -> void:
+	if _help_overlay == null:
+		return
+	var question := _current_help_question()
+	if question == null:
+		_show_status_message("No question help is available yet.", true)
+		return
+	_close_overlay_menu()
+	_help_overlay.open_help(question, _question_debug_ids_enabled)
+	_refresh_menu_access_button()
+
+func _on_question_help_requested(question_id: String) -> void:
+	if question_id.is_empty():
+		return
+	_on_question_selected(question_id)
+	_open_question_help()
+
+func _close_question_help() -> void:
+	if _help_overlay != null:
+		_help_overlay.close_help()
+	_refresh_menu_access_button()
+
+func _refresh_question_help_overlay() -> void:
+	if _help_overlay == null or not _help_overlay.visible:
+		_refresh_menu_access_button()
+		return
+	var question := _current_help_question()
+	if question == null:
+		_close_question_help()
+		return
+	_help_overlay.open_help(question, _question_debug_ids_enabled)
+	_refresh_menu_access_button()
 
 func _on_hover_sfx_requested(enabled: bool) -> void:
 	if _hover_sfx_enabled == enabled:
@@ -3176,7 +3414,7 @@ func _restore_document_state(saved_scroll: int, was_overlay_open: bool) -> void:
 	_sync_outline_scroll_position()
 	_refresh_focus_mode(true)
 	if was_overlay_open and survey != null:
-		_overlay_menu.open_menu(survey, current_section_index, answers, sfx_volume, false)
+		_overlay_menu.open_menu(survey, current_section_index, answers, sfx_volume, false, _build_overlay_menu_options())
 	_refresh_menu_access_button()
 
 func _clear_container(container: Node) -> void:

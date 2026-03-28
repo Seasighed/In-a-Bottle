@@ -4,9 +4,11 @@
 
 [node name="CheckboxOptionRow" type="PanelContainer"]
 size_flags_horizontal = 3
+mouse_default_cursor_shape = 2
 script = ExtResource("1")
 
 [node name="CheckBox" type="CheckBox" parent="."]
 layout_mode = 2
 size_flags_horizontal = 3
+autowrap_mode = 3
 text = "Option"

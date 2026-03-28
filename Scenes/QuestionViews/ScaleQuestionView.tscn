@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://Scripts/UI/DefaultQuestionView.gd" id="1"]
 
-[node name="DefaultQuestionView" type="Control"]
+[node name="ScaleQuestionView" type="Control"]
 size_flags_horizontal = 3
 size_flags_vertical = 3
 script = ExtResource("1")
@@ -14,7 +14,6 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-size_flags_horizontal = 3
 mouse_filter = 1
 
 [node name="QuestionAccentRail" type="VSeparator" parent="Card"]
@@ -35,7 +34,7 @@ theme_override_constants/separation = 10
 layout_mode = 2
 theme_override_font_sizes/font_size = 20
 mouse_filter = 2
-text = "✍️ Question prompt"
+text = "📊 How confident do you feel with the current flow?"
 autowrap_mode = 3
 
 [node name="QuestionTypeBar" type="HBoxContainer" parent="Card/Stack"]
@@ -50,7 +49,7 @@ size_flags_horizontal = 3
 
 [node name="QuestionTypeBarLabel" type="Label" parent="Card/Stack/QuestionTypeBar"]
 layout_mode = 2
-text = "Question Type"
+text = "Scale"
 horizontal_alignment = 1
 vertical_alignment = 1
 
@@ -62,14 +61,14 @@ size_flags_horizontal = 3
 layout_mode = 2
 theme_override_font_sizes/font_size = 15
 mouse_filter = 2
-text = "Question description"
+text = "A slider with labels and a current value summary."
 autowrap_mode = 3
 
 [node name="MetaLabel" type="Label" parent="Card/Stack"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
 mouse_filter = 2
-text = "Optional | Question"
+text = "Required | Scale"
 
 [node name="QuestionContentSeparator" type="HSeparator" parent="Card/Stack"]
 layout_mode = 2
@@ -79,7 +78,33 @@ size_flags_horizontal = 3
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="PreviewField" type="LineEdit" parent="Card/Stack/FieldHost"]
+[node name="ScaleWrapper" type="VBoxContainer" parent="Card/Stack/FieldHost"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ScoreSlider" type="HSlider" parent="Card/Stack/FieldHost/ScaleWrapper"]
 layout_mode = 2
 size_flags_horizontal = 3
-placeholder_text = "Preview answer"
+min_value = 1.0
+max_value = 5.0
+step = 1.0
+value = 4.0
+
+[node name="BoundsRow" type="HBoxContainer" parent="Card/Stack/FieldHost/ScaleWrapper"]
+layout_mode = 2
+
+[node name="LowLabel" type="Label" parent="Card/Stack/FieldHost/ScaleWrapper/BoundsRow"]
+layout_mode = 2
+text = "Low"
+
+[node name="Spacer" type="Control" parent="Card/Stack/FieldHost/ScaleWrapper/BoundsRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HighLabel" type="Label" parent="Card/Stack/FieldHost/ScaleWrapper/BoundsRow"]
+layout_mode = 2
+text = "High"
+
+[node name="CaptionLabel" type="Label" parent="Card/Stack/FieldHost/ScaleWrapper"]
+layout_mode = 2
+text = "Current value: 4"

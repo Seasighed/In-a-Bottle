@@ -1,8 +1,9 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://Scripts/UI/DefaultQuestionView.gd" id="1"]
+[ext_resource type="PackedScene" path="res://Scenes/AnswerPrefabs/TypedAnswerField.tscn" id="2"]
 
-[node name="DefaultQuestionView" type="Control"]
+[node name="ShortTextQuestionView" type="Control"]
 size_flags_horizontal = 3
 size_flags_vertical = 3
 script = ExtResource("1")
@@ -14,7 +15,6 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-size_flags_horizontal = 3
 mouse_filter = 1
 
 [node name="QuestionAccentRail" type="VSeparator" parent="Card"]
@@ -35,7 +35,7 @@ theme_override_constants/separation = 10
 layout_mode = 2
 theme_override_font_sizes/font_size = 20
 mouse_filter = 2
-text = "✍️ Question prompt"
+text = "✍️ What name should appear in the response export?"
 autowrap_mode = 3
 
 [node name="QuestionTypeBar" type="HBoxContainer" parent="Card/Stack"]
@@ -50,7 +50,7 @@ size_flags_horizontal = 3
 
 [node name="QuestionTypeBarLabel" type="Label" parent="Card/Stack/QuestionTypeBar"]
 layout_mode = 2
-text = "Question Type"
+text = "Typed Answer"
 horizontal_alignment = 1
 vertical_alignment = 1
 
@@ -62,14 +62,14 @@ size_flags_horizontal = 3
 layout_mode = 2
 theme_override_font_sizes/font_size = 15
 mouse_filter = 2
-text = "Question description"
+text = "Use a participant code if you want anonymous exports."
 autowrap_mode = 3
 
 [node name="MetaLabel" type="Label" parent="Card/Stack"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
 mouse_filter = 2
-text = "Optional | Question"
+text = "Required | Typed answer"
 
 [node name="QuestionContentSeparator" type="HSeparator" parent="Card/Stack"]
 layout_mode = 2
@@ -79,7 +79,8 @@ size_flags_horizontal = 3
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="PreviewField" type="LineEdit" parent="Card/Stack/FieldHost"]
-layout_mode = 2
-size_flags_horizontal = 3
-placeholder_text = "Preview answer"
+[node name="PreviewField" parent="Card/Stack/FieldHost" instance=ExtResource("2")]
+
+[node name="LineEdit" parent="Card/Stack/FieldHost/PreviewField"]
+text = "Participant 014"
+placeholder_text = "Participant 014"

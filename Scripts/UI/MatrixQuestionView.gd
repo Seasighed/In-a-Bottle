@@ -7,6 +7,8 @@ const COMPACT_ROW_LABEL_MIN_WIDTH := 144.0
 const COMPACT_OPTION_LABEL_MIN_WIDTH := 72.0
 const CELL_SIZE := 52.0
 const COMPACT_CELL_SIZE := 44.0
+const MIN_OPTION_FONT_SIZE := 10
+const MIN_ROW_FONT_SIZE := 12
 @onready var _panel: PanelContainer = $Panel
 @onready var _stack: VBoxContainer = $Panel/Stack
 @onready var _title_label: Label = $Panel/Stack/TitleLabel
@@ -29,17 +31,10 @@ var _focus_bottom_spacer: Control
 var _syncing_row_selection := false
 
 func _ready() -> void:
-	size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_ensure_focus_spacers()
-	_grid_scroll.vertical_scroll_mode = 0
-	_grid_scroll.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	configure_question_chrome(_panel, _stack, _title_label, _grid_scroll)
 	SurveyStyle.style_heading(_title_label, 21)
 	SurveyStyle.style_body(_description_label)
-	_title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_description_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_panel.gui_input.connect(_on_panel_gui_input)
 	refresh_responsive_layout(get_viewport().get_visible_rect().size)
 	super()
@@ -50,6 +45,7 @@ func _apply_question() -> void:
 
 	_title_label.text = question.display_prompt()
 	_description_label.text = question.description if not question.description.is_empty() else "Choose one answer for each row."
+	_refresh_question_chrome()
 	_answers_by_row = {}
 	if current_value is Dictionary:
 		for row_name in question.rows:
@@ -59,6 +55,7 @@ func _apply_question() -> void:
 	_apply_selection_state()
 	refresh_responsive_layout(get_viewport().get_visible_rect().size)
 	_refresh_layout_metrics()
+	_refresh_question_chrome()
 
 func _apply_selection_state() -> void:
 	if is_focus_presentation():
@@ -85,6 +82,7 @@ func refresh_responsive_layout(viewport_size: Vector2) -> void:
 	var centered_focus_layout := uses_centered_focus_layout()
 	var compact_layout: bool = available_width <= (720.0 if focus_layout else 640.0) or viewport_size.x <= (720.0 if focus_layout else 640.0)
 	var mobile_cycle_layout := is_journey_focus_presentation() and compact_layout
+	var journey_scale := SurveyStyle.journey_mobile_scale(viewport_size) if mobile_cycle_layout else 1.0
 	_ensure_focus_spacers()
 	_stack.size_flags_vertical = Control.SIZE_EXPAND_FILL if centered_focus_layout else Control.SIZE_FILL
 	_focus_top_spacer.visible = centered_focus_layout
@@ -150,7 +148,8 @@ func _rebuild_grid() -> void:
 		option_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		option_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		SurveyStyle.style_caption(option_label, SurveyStyle.TEXT_PRIMARY)
-		option_label.add_theme_font_size_override("font_size", (15 if _compact_layout else 18) if is_focus_presentation() else (12 if _compact_layout else 13))
+		var option_font_size := (15 if _compact_layout else 18) if is_focus_presentation() else (12 if _compact_layout else 13)
+		option_label.add_theme_font_size_override("font_size", _fit_label_font_size(option_label, option, _option_label_width(), option_font_size, MIN_OPTION_FONT_SIZE))
 		_grid.add_child(option_label)
 
 	for row_name in question.rows:
@@ -161,7 +160,8 @@ func _rebuild_grid() -> void:
 		row_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		SurveyStyle.style_body(row_label, SurveyStyle.TEXT_PRIMARY)
-		row_label.add_theme_font_size_override("font_size", (18 if _compact_layout else 22) if is_focus_presentation() else (14 if _compact_layout else 16))
+		var row_font_size := (18 if _compact_layout else 22) if is_focus_presentation() else (14 if _compact_layout else 16)
+		row_label.add_theme_font_size_override("font_size", _fit_label_font_size(row_label, row_name, _row_label_width(), row_font_size, MIN_ROW_FONT_SIZE))
 		_grid.add_child(row_label)
 
 		for option in question.options:
@@ -212,6 +212,7 @@ func _rebuild_mobile_list() -> void:
 	_primary_control = null
 	if question == null:
 		return
+	var journey_scale := SurveyStyle.journey_mobile_scale(get_viewport().get_visible_rect().size)
 	for row_name in question.rows:
 		var row_panel := PanelContainer.new()
 		row_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -227,7 +228,8 @@ func _rebuild_mobile_list() -> void:
 		row_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		row_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		SurveyStyle.style_body(row_label, SurveyStyle.TEXT_PRIMARY)
-		row_label.add_theme_font_size_override("font_size", 17 if _compact_layout else 19)
+		var mobile_row_font_size := int(round((18 if _compact_layout else 20) * journey_scale))
+		row_label.add_theme_font_size_override("font_size", _fit_label_font_size(row_label, row_name, maxf(size.x - 40.0, 160.0), mobile_row_font_size, MIN_ROW_FONT_SIZE))
 		row_stack.add_child(row_label)
 
 		var selector_row := HBoxContainer.new()
@@ -237,7 +239,7 @@ func _rebuild_mobile_list() -> void:
 
 		var prev_button := Button.new()
 		prev_button.text = "<"
-		prev_button.custom_minimum_size = Vector2(52.0, 44.0)
+		prev_button.custom_minimum_size = Vector2(58.0 * journey_scale, 48.0 * journey_scale)
 		SurveyStyle.apply_secondary_button(prev_button)
 		prev_button.pressed.connect(_on_mobile_matrix_cycle.bind(row_name, -1))
 		prev_button.mouse_entered.connect(_on_matrix_cell_mouse_entered)
@@ -255,12 +257,12 @@ func _rebuild_mobile_list() -> void:
 		value_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		value_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		value_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		SurveyStyle.style_heading(value_label, 18, SurveyStyle.TEXT_PRIMARY)
+		SurveyStyle.style_heading(value_label, int(round((19 if _compact_layout else 22) * journey_scale)), SurveyStyle.TEXT_PRIMARY)
 		value_panel.add_child(value_label)
 
 		var next_button := Button.new()
 		next_button.text = ">"
-		next_button.custom_minimum_size = Vector2(52.0, 44.0)
+		next_button.custom_minimum_size = Vector2(58.0 * journey_scale, 48.0 * journey_scale)
 		SurveyStyle.apply_secondary_button(next_button)
 		next_button.pressed.connect(_on_mobile_matrix_cycle.bind(row_name, 1))
 		next_button.mouse_entered.connect(_on_matrix_cell_mouse_entered)
@@ -277,12 +279,13 @@ func _rebuild_mobile_list() -> void:
 func _apply_grid_metrics() -> void:
 	var focus_layout := is_focus_presentation()
 	var journey_focus_layout := is_journey_focus_presentation()
-	_grid.add_theme_constant_override("h_separation", (8 if _compact_layout else 10) if journey_focus_layout else ((12 if _compact_layout else 16) if focus_layout else (8 if _compact_layout else 10)))
-	_grid.add_theme_constant_override("v_separation", (8 if _compact_layout else 10) if journey_focus_layout else ((10 if _compact_layout else 14) if focus_layout else (6 if _compact_layout else 8)))
-	_mobile_list.add_theme_constant_override("separation", 10 if _compact_layout else 12)
-	SurveyStyle.style_heading(_title_label, (22 if _compact_layout else 28) if journey_focus_layout else ((30 if _compact_layout else 38) if focus_layout else (19 if _compact_layout else 21)))
+	var journey_scale := SurveyStyle.journey_mobile_scale(get_viewport().get_visible_rect().size) if journey_focus_layout and _compact_layout else 1.0
+	_grid.add_theme_constant_override("h_separation", int(round((((8 if _compact_layout else 10) * journey_scale) if journey_focus_layout else ((12 if _compact_layout else 16) if focus_layout else (8 if _compact_layout else 10))))))
+	_grid.add_theme_constant_override("v_separation", int(round((((8 if _compact_layout else 10) * journey_scale) if journey_focus_layout else ((10 if _compact_layout else 14) if focus_layout else (6 if _compact_layout else 8))))))
+	_mobile_list.add_theme_constant_override("separation", int(round((((11 if _compact_layout else 13) * journey_scale) if journey_focus_layout else (10 if _compact_layout else 12)))))
+	SurveyStyle.style_heading(_title_label, int(round((((22 if _compact_layout else 28) * journey_scale) if journey_focus_layout else ((30 if _compact_layout else 38) if focus_layout else (19 if _compact_layout else 21))))))
 	SurveyStyle.style_body(_description_label)
-	_description_label.add_theme_font_size_override("font_size", (14 if _compact_layout else 16) if journey_focus_layout else ((18 if _compact_layout else 22) if focus_layout else 15))
+	_description_label.add_theme_font_size_override("font_size", int(round((((15 if _compact_layout else 17) * journey_scale) if journey_focus_layout else ((18 if _compact_layout else 22) if focus_layout else 15)))))
 
 func _sync_grid_scroll_height() -> void:
 	if not is_node_ready():
@@ -304,21 +307,21 @@ func _sync_grid_scroll_height() -> void:
 func _row_label_width() -> float:
 	if is_focus_presentation():
 		if is_journey_focus_presentation():
-			return 160.0 if _compact_layout else 220.0
+			return (172.0 * SurveyStyle.journey_mobile_scale(get_viewport().get_visible_rect().size)) if _compact_layout else 220.0
 		return 180.0 if _compact_layout else 260.0
 	return COMPACT_ROW_LABEL_MIN_WIDTH if _compact_layout else ROW_LABEL_MIN_WIDTH
 
 func _option_label_width() -> float:
 	if is_focus_presentation():
 		if is_journey_focus_presentation():
-			return 76.0 if _compact_layout else 100.0
+			return (82.0 * SurveyStyle.journey_mobile_scale(get_viewport().get_visible_rect().size)) if _compact_layout else 100.0
 		return 90.0 if _compact_layout else 116.0
 	return COMPACT_OPTION_LABEL_MIN_WIDTH if _compact_layout else OPTION_LABEL_MIN_WIDTH
 
 func _cell_size() -> float:
 	if is_focus_presentation():
 		if is_journey_focus_presentation():
-			return 48.0 if _compact_layout else 58.0
+			return (52.0 * SurveyStyle.journey_mobile_scale(get_viewport().get_visible_rect().size)) if _compact_layout else 58.0
 		return 54.0 if _compact_layout else 64.0
 	return COMPACT_CELL_SIZE if _compact_layout else CELL_SIZE
 
@@ -404,6 +407,32 @@ func _on_mobile_matrix_cycle(row_name: String, direction: int) -> void:
 
 func _cell_key(row_name: String, option: String) -> String:
 	return "%s||%s" % [row_name, option]
+
+func _fit_label_font_size(label: Label, text: String, width: float, base_font_size: int, min_font_size: int) -> int:
+	var resolved_text := text.strip_edges()
+	if resolved_text.is_empty():
+		return base_font_size
+	var font: Font = label.get_theme_font("font")
+	if font == null:
+		return base_font_size
+	var target_width := maxf(width - 10.0, 24.0)
+	var longest_word := _longest_label_word(resolved_text)
+	if longest_word.is_empty():
+		return base_font_size
+	for font_size in range(base_font_size, min_font_size - 1, -1):
+		var measured_width := font.get_string_size(longest_word, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+		if measured_width <= target_width:
+			return font_size
+	return min_font_size
+
+func _longest_label_word(text: String) -> String:
+	var longest_word := ""
+	var normalized := text.replace("\n", " ").replace("\t", " ")
+	for word in normalized.split(" ", false):
+		var candidate := word.strip_edges()
+		if candidate.length() > longest_word.length():
+			longest_word = candidate
+	return longest_word
 
 
 

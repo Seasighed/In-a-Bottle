@@ -15,14 +15,10 @@ var _configured_multiline := false
 var _signals_connected := false
 
 func _ready() -> void:
-	size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	add_theme_constant_override("separation", 8)
 	if not _ensure_controls():
 		return
 	SurveyStyle.style_line_edit(_line_edit)
 	SurveyStyle.style_text_edit(_text_edit)
-	_text_edit.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
-	_text_edit.custom_minimum_size = Vector2(0, 132)
 	_connect_signals_once()
 	_apply_configured_state()
 	refresh_responsive_layout(get_viewport().get_visible_rect().size)
@@ -54,13 +50,14 @@ func refresh_responsive_layout(viewport_size: Vector2) -> void:
 	if not _ensure_controls():
 		return
 	var compact_layout: bool = viewport_size.x <= 640.0
+	var journey_scale: float = SurveyStyle.journey_mobile_scale(viewport_size)
 	if _focus_presentation:
 		if _journey_focus_presentation:
 			add_theme_constant_override("separation", 12 if compact_layout else 14)
-			_line_edit.custom_minimum_size = Vector2(0.0, 56.0 if compact_layout else 64.0)
-			_text_edit.custom_minimum_size = Vector2(0.0, 152.0 if compact_layout else 192.0)
-			_line_edit.add_theme_font_size_override("font_size", 17 if compact_layout else 19)
-			_text_edit.add_theme_font_size_override("font_size", 16 if compact_layout else 18)
+			_line_edit.custom_minimum_size = Vector2(0.0, (62.0 if compact_layout else 70.0) * journey_scale)
+			_text_edit.custom_minimum_size = Vector2(0.0, (176.0 if compact_layout else 216.0) * journey_scale)
+			_line_edit.add_theme_font_size_override("font_size", int(round((18 if compact_layout else 20) * journey_scale)))
+			_text_edit.add_theme_font_size_override("font_size", int(round((17 if compact_layout else 19) * journey_scale)))
 			return
 		add_theme_constant_override("separation", 14 if compact_layout else 18)
 		_line_edit.custom_minimum_size = Vector2(0.0, 74.0 if compact_layout else 88.0)

@@ -5,10 +5,12 @@ const DEFAULT_QUESTION_VIEW_SCENE: PackedScene = preload("res://Scenes/QuestionV
 const SCALE_CHIPS_VIEW_SCENE: PackedScene = preload("res://Scenes/QuestionViews/ScaleChipQuestionView.tscn")
 const RANKED_CHOICE_VIEW_SCENE: PackedScene = preload("res://Scenes/QuestionViews/RankedChoiceQuestionView.tscn")
 const MATRIX_QUESTION_VIEW_SCENE: PackedScene = preload("res://Scenes/QuestionViews/MatrixQuestionView.tscn")
+const QUESTION_VIEW_REGISTRY = preload("res://Scripts/UI/QuestionViewRegistry.gd")
 const TRACE_LOG_PATH := "user://survey_journey_trace.log"
 
 signal answer_changed(question_id: String, value: Variant)
 signal question_selected(question_id: String)
+signal help_requested(question_id: String)
 signal layout_stabilized
 
 var _views_by_question_id: Dictionary = {}
@@ -19,6 +21,7 @@ var _active_view: SurveyQuestionView
 var _viewport_size := Vector2.ZERO
 var _layout_refresh_in_progress := false
 var _answer_layout_refresh_queued := false
+var _question_debug_ids_enabled := false
 
 func _ready() -> void:
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -91,8 +94,18 @@ func sync_answers(answers: Dictionary) -> void:
 			_answers_by_question_id[question_id] = _duplicate_answer_value(answers.get(question_id))
 		var view := _views_by_question_id.get(question_id) as SurveyQuestionView
 		if view != null:
+			view.set_question_debug_ids_enabled(_question_debug_ids_enabled)
 			view.configure(question, _answers_by_question_id.get(question_id, question.default_value))
 			view.set_selected(question_id == _active_question_id)
+
+func set_question_debug_ids_enabled(enabled: bool) -> void:
+	if _question_debug_ids_enabled == enabled:
+		return
+	_question_debug_ids_enabled = enabled
+	for value in _views_by_question_id.values():
+		var view := value as SurveyQuestionView
+		if view != null and is_instance_valid(view):
+			view.set_question_debug_ids_enabled(enabled)
 
 func refresh_stage_layout(viewport_size: Vector2) -> void:
 	if _layout_refresh_in_progress:
@@ -139,7 +152,7 @@ func _refresh_after_show() -> void:
 func _resolved_stage_width(scroll: ScrollContainer, viewport_width: float) -> float:
 	var stage_width := 0.0
 	var phone_layout := viewport_width <= 480.0
-	var max_stage_width := maxf(viewport_width - (24.0 if phone_layout else 96.0), 320.0)
+	var max_stage_width := maxf(viewport_width - (4.0 if phone_layout else 96.0), 320.0)
 	if scroll != null:
 		if scroll.size.x > 0.0:
 			stage_width = scroll.size.x
@@ -176,28 +189,13 @@ func _refresh_after_answer_change() -> void:
 func _on_view_question_selected(question_id: String) -> void:
 	question_selected.emit(question_id)
 
+func _on_view_help_requested(question_id: String) -> void:
+	help_requested.emit(question_id)
+
 func _instantiate_question_view(question: SurveyQuestion) -> SurveyQuestionView:
-	if question.custom_view_scene != null:
-		var custom_node := question.custom_view_scene.instantiate()
-		var custom_view := custom_node as SurveyQuestionView
-		if custom_view != null:
-			return custom_view
-	match question.type:
-		SurveyQuestion.TYPE_NPS:
-			var nps_node := SCALE_CHIPS_VIEW_SCENE.instantiate()
-			var nps_view := nps_node as SurveyQuestionView
-			if nps_view != null:
-				return nps_view
-		SurveyQuestion.TYPE_RANKED_CHOICE:
-			var ranked_node := RANKED_CHOICE_VIEW_SCENE.instantiate()
-			var ranked_view := ranked_node as SurveyQuestionView
-			if ranked_view != null:
-				return ranked_view
-		SurveyQuestion.TYPE_MATRIX:
-			var matrix_node := MATRIX_QUESTION_VIEW_SCENE.instantiate()
-			var matrix_view := matrix_node as SurveyQuestionView
-			if matrix_view != null:
-				return matrix_view
+	var resolved_view := QUESTION_VIEW_REGISTRY.instantiate_for_question(question)
+	if resolved_view != null:
+		return resolved_view
 	var fallback_node := DEFAULT_QUESTION_VIEW_SCENE.instantiate()
 	var fallback_view := fallback_node as SurveyQuestionView
 	if fallback_view != null:
@@ -219,8 +217,10 @@ func _ensure_view(question_id: String) -> SurveyQuestionView:
 		return null
 	view.visible = false
 	view.set_presentation_mode(SurveyQuestionView.PRESENTATION_JOURNEY_FOCUS)
+	view.set_question_debug_ids_enabled(_question_debug_ids_enabled)
 	view.answer_changed.connect(_on_view_answer_changed)
 	view.question_selected.connect(_on_view_question_selected)
+	view.help_requested.connect(_on_view_help_requested)
 	view.configure(question, _answers_by_question_id.get(question_id, question.default_value))
 	view.set_selected(false)
 	_views_by_question_id[question_id] = view

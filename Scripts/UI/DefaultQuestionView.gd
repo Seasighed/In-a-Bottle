@@ -16,16 +16,11 @@ var _focus_top_spacer: Control
 var _focus_bottom_spacer: Control
 
 func _ready() -> void:
-	size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_card.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_ensure_focus_spacers()
+	configure_question_chrome(_card, _stack, _title_label, _field_host)
 	SurveyStyle.style_heading(_title_label, 20)
 	SurveyStyle.style_body(_description_label)
 	SurveyStyle.style_caption(_meta_label)
-	_title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_description_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_meta_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_card.gui_input.connect(_on_card_gui_input)
 	refresh_responsive_layout(get_viewport().get_visible_rect().size)
 	super()
@@ -43,6 +38,7 @@ func _apply_question() -> void:
 		bits.append("Required")
 	bits.append(_type_label(question.type))
 	_meta_label.text = " | ".join(bits)
+	_refresh_question_chrome()
 
 	_clear_children(_field_host)
 	_primary_control = null
@@ -97,22 +93,24 @@ func refresh_responsive_layout(viewport_size: Vector2) -> void:
 	var focus_layout := is_focus_presentation()
 	var centered_focus_layout := uses_centered_focus_layout()
 	var journey_focus_layout := is_journey_focus_presentation()
+	var journey_scale: float = SurveyStyle.journey_mobile_scale(viewport_size)
 	_ensure_focus_spacers()
 	_card.size_flags_vertical = Control.SIZE_EXPAND_FILL if centered_focus_layout else Control.SIZE_FILL
 	_stack.size_flags_vertical = Control.SIZE_EXPAND_FILL if centered_focus_layout else Control.SIZE_FILL
 	_field_host.size_flags_vertical = Control.SIZE_FILL
 	_focus_top_spacer.visible = centered_focus_layout
 	_focus_bottom_spacer.visible = centered_focus_layout
-	_stack.add_theme_constant_override("separation", (12 if compact_layout else 16) if journey_focus_layout else ((16 if compact_layout else 20) if focus_layout else (8 if compact_layout else 10)))
-	_field_host.add_theme_constant_override("separation", (10 if compact_layout else 12) if journey_focus_layout else ((14 if compact_layout else 18) if focus_layout else (8 if compact_layout else 10)))
-	SurveyStyle.style_heading(_title_label, (22 if compact_layout else 28) if journey_focus_layout else ((30 if compact_layout else 38) if focus_layout else (18 if compact_layout else 20)))
+	_stack.add_theme_constant_override("separation", int(round(((12 if compact_layout else 16) * journey_scale) if journey_focus_layout else ((16 if compact_layout else 20) if focus_layout else (8 if compact_layout else 10)))))
+	_field_host.add_theme_constant_override("separation", int(round(((10 if compact_layout else 12) * journey_scale) if journey_focus_layout else ((14 if compact_layout else 18) if focus_layout else (8 if compact_layout else 10)))))
+	SurveyStyle.style_heading(_title_label, int(round(((22 if compact_layout else 28) * journey_scale) if journey_focus_layout else ((30 if compact_layout else 38) if focus_layout else (18 if compact_layout else 20)))))
 	SurveyStyle.style_body(_description_label)
-	_description_label.add_theme_font_size_override("font_size", (14 if compact_layout else 16) if journey_focus_layout else ((18 if compact_layout else 22) if focus_layout else 15))
+	_description_label.add_theme_font_size_override("font_size", int(round(((15 if compact_layout else 17) * journey_scale) if journey_focus_layout else ((18 if compact_layout else 22) if focus_layout else 15))))
 	SurveyStyle.style_caption(_meta_label)
 	_meta_label.visible = not focus_layout and not _meta_label.text.is_empty()
 	_apply_field_host_presentation(viewport_size, focus_layout)
 	_apply_selection_state()
 	_refresh_layout_metrics()
+	_refresh_question_chrome()
 
 func _ensure_focus_spacers() -> void:
 	if _focus_top_spacer == null:
@@ -149,10 +147,11 @@ func _apply_field_host_presentation(viewport_size: Vector2, focus_layout: bool) 
 func _apply_line_edit_presentation(field: LineEdit, viewport_size: Vector2, focus_layout: bool) -> void:
 	if field == null:
 		return
+	var journey_scale: float = SurveyStyle.journey_mobile_scale(viewport_size)
 	if focus_layout:
 		if is_journey_focus_presentation():
-			field.custom_minimum_size = Vector2(0.0, 54.0 if viewport_size.x <= 640.0 else 62.0)
-			field.add_theme_font_size_override("font_size", 17 if viewport_size.x <= 640.0 else 19)
+			field.custom_minimum_size = Vector2(0.0, (60.0 if viewport_size.x <= 640.0 else 68.0) * journey_scale)
+			field.add_theme_font_size_override("font_size", int(round((18 if viewport_size.x <= 640.0 else 20) * journey_scale)))
 			return
 		field.custom_minimum_size = Vector2(0.0, 72.0 if viewport_size.x <= 640.0 else 88.0)
 		field.add_theme_font_size_override("font_size", 22 if viewport_size.x <= 640.0 else 26)
@@ -163,10 +162,11 @@ func _apply_line_edit_presentation(field: LineEdit, viewport_size: Vector2, focu
 func _apply_option_button_presentation(button: OptionButton, viewport_size: Vector2, focus_layout: bool) -> void:
 	if button == null:
 		return
+	var journey_scale: float = SurveyStyle.journey_mobile_scale(viewport_size)
 	if focus_layout:
 		if is_journey_focus_presentation():
-			button.custom_minimum_size = Vector2(0.0, 52.0 if viewport_size.x <= 640.0 else 60.0)
-			button.add_theme_font_size_override("font_size", 17 if viewport_size.x <= 640.0 else 19)
+			button.custom_minimum_size = Vector2(0.0, (58.0 if viewport_size.x <= 640.0 else 66.0) * journey_scale)
+			button.add_theme_font_size_override("font_size", int(round((18 if viewport_size.x <= 640.0 else 20) * journey_scale)))
 			return
 		button.custom_minimum_size = Vector2(0.0, 72.0 if viewport_size.x <= 640.0 else 88.0)
 		button.add_theme_font_size_override("font_size", 21 if viewport_size.x <= 640.0 else 24)
@@ -178,7 +178,8 @@ func _apply_box_field_presentation(container: VBoxContainer, viewport_size: Vect
 	if container == null:
 		return
 	var journey_focus_layout := is_journey_focus_presentation()
-	container.add_theme_constant_override("separation", (10 if viewport_size.x <= 640.0 else 12) if journey_focus_layout else ((14 if viewport_size.x <= 640.0 else 18) if focus_layout else 8))
+	var journey_scale: float = SurveyStyle.journey_mobile_scale(viewport_size)
+	container.add_theme_constant_override("separation", int(round(((10 if viewport_size.x <= 640.0 else 12) * journey_scale) if journey_focus_layout else ((14 if viewport_size.x <= 640.0 else 18) if focus_layout else 8))))
 	for child in container.get_children():
 		if child is MultipleChoiceOptionRow:
 			(child as MultipleChoiceOptionRow).set_focus_presentation(focus_layout)
@@ -190,19 +191,19 @@ func _apply_box_field_presentation(container: VBoxContainer, viewport_size: Vect
 			continue
 		if child is HSlider:
 			var slider := child as HSlider
-			slider.custom_minimum_size = Vector2(0.0, 36.0 if journey_focus_layout else (44.0 if focus_layout else 0.0))
+			slider.custom_minimum_size = Vector2(0.0, (42.0 * journey_scale) if journey_focus_layout else (44.0 if focus_layout else 0.0))
 			continue
 		if child is Label:
 			var label := child as Label
-			label.add_theme_font_size_override("font_size", (14 if viewport_size.x <= 640.0 else 16) if journey_focus_layout else ((18 if viewport_size.x <= 640.0 else 22) if focus_layout else 13))
+			label.add_theme_font_size_override("font_size", int(round(((15 if viewport_size.x <= 640.0 else 17) * journey_scale) if journey_focus_layout else ((18 if viewport_size.x <= 640.0 else 22) if focus_layout else 13))))
 			continue
 		if child is HBoxContainer:
 			var box := child as HBoxContainer
-			box.add_theme_constant_override("separation", 10 if journey_focus_layout else (12 if focus_layout else 8))
+			box.add_theme_constant_override("separation", int(round((10 * journey_scale) if journey_focus_layout else (12 if focus_layout else 8))))
 			for nested_child in box.get_children():
 				var nested_label := nested_child as Label
 				if nested_label != null:
-					nested_label.add_theme_font_size_override("font_size", (14 if viewport_size.x <= 640.0 else 16) if journey_focus_layout else ((17 if viewport_size.x <= 640.0 else 20) if focus_layout else 13))
+					nested_label.add_theme_font_size_override("font_size", int(round(((15 if viewport_size.x <= 640.0 else 17) * journey_scale) if journey_focus_layout else ((17 if viewport_size.x <= 640.0 else 20) if focus_layout else 13))))
 
 func _build_typed_answer_field(value: String, placeholder: String, multiline: bool, handler: Callable) -> void:
 	var field := TYPED_ANSWER_FIELD_SCENE.instantiate() as TypedAnswerField

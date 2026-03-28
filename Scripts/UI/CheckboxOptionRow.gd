@@ -13,10 +13,7 @@ var _focus_presentation := false
 var _journey_focus_presentation := false
 
 func _ready() -> void:
-	size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	SurveyStyle.style_check_box(_check_box)
-	_check_box.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_check_box.toggled.connect(_on_check_box_toggled)
 	_update_layout()
 	_update_style()
@@ -70,9 +67,10 @@ func _update_style() -> void:
 	SurveyStyle.apply_panel(self, fill, border, 14, 2 if _check_box.button_pressed else 1)
 
 func _update_layout() -> void:
+	var journey_scale: float = SurveyStyle.journey_mobile_scale(get_viewport().get_visible_rect().size)
 	if _focus_presentation and _journey_focus_presentation:
-		custom_minimum_size = Vector2(0.0, 52.0)
-		_check_box.custom_minimum_size = Vector2(0.0, 44.0)
+		custom_minimum_size = Vector2(0.0, 58.0 * journey_scale)
+		_check_box.custom_minimum_size = Vector2(0.0, 50.0 * journey_scale)
 	elif _focus_presentation:
 		custom_minimum_size = Vector2(0.0, 68.0)
 		_check_box.custom_minimum_size = Vector2(0.0, 60.0)
@@ -80,7 +78,7 @@ func _update_layout() -> void:
 		custom_minimum_size = Vector2(0.0, 0.0)
 		_check_box.custom_minimum_size = Vector2(0.0, 0.0)
 	if _focus_presentation:
-		_check_box.add_theme_font_size_override("font_size", 17 if _journey_focus_presentation else 20)
+		_check_box.add_theme_font_size_override("font_size", int(round((18 if _journey_focus_presentation else 20) * (journey_scale if _journey_focus_presentation else 1.0))))
 	else:
 		_check_box.remove_theme_font_size_override("font_size")
 

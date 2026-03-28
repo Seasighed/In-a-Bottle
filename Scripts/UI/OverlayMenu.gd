@@ -2,6 +2,7 @@ class_name OverlayMenu
 extends CanvasLayer
 
 const SURVEY_UI_FEEDBACK = preload("res://Scripts/UI/SurveyUiFeedback.gd")
+const SURVEY_PREVIEW_CONFIG = preload("res://Scripts/UI/SurveyPreviewConfig.gd")
 
 signal resume_requested
 signal go_to_start_requested
@@ -17,11 +18,15 @@ signal export_requested
 signal theme_mode_requested(use_dark_mode: bool)
 signal sfx_volume_requested(volume: float)
 signal fill_test_answers_requested
+signal preview_mode_requested(mode: String)
+signal preview_resolution_requested(resolution_id: String)
+signal question_debug_ids_requested(enabled: bool)
 
 @onready var _dimmer: ColorRect = $Dimmer
 @onready var _bounds: MarginContainer = $Bounds
 @onready var _panel: PanelContainer = $Bounds/Center/Panel
 @onready var _panel_scroll: ScrollContainer = $Bounds/Center/Panel/PanelScroll
+@onready var _stack: VBoxContainer = $Bounds/Center/Panel/PanelScroll/Stack
 @onready var _heading_label: Label = $Bounds/Center/Panel/PanelScroll/Stack/HeadingRow/HeadingLabel
 @onready var _close_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/HeadingRow/CloseButton
 @onready var _position_label: Label = $Bounds/Center/Panel/PanelScroll/Stack/PositionLabel
@@ -50,10 +55,20 @@ var _current_section_index := 0
 var _current_sfx_volume := SurveyUiFeedback.DEFAULT_SFX_VOLUME
 var _compact_layout := false
 var _menu_options: Dictionary = {}
+var _preview_heading_label: Label
+var _preview_mode_row: HBoxContainer
+var _preview_mode_label: Label
+var _preview_mode_picker: OptionButton
+var _preview_resolution_row: HBoxContainer
+var _preview_resolution_label: Label
+var _preview_resolution_picker: OptionButton
+var _question_chrome_toggle_button: Button
+var _syncing_preview_controls := false
 
 func _ready() -> void:
 	layer = 50
 	visible = false
+	_ensure_preview_controls()
 	_close_button.text = "X"
 	refresh_theme()
 	refresh_layout(get_viewport().get_visible_rect().size)
@@ -70,8 +85,18 @@ func _ready() -> void:
 	_theme_toggle_button.toggled.connect(_on_theme_toggle_toggled)
 	_sfx_volume_slider.value_changed.connect(_on_sfx_volume_slider_value_changed)
 	_fill_test_answers_button.pressed.connect(_on_fill_test_answers_pressed)
+	if _preview_mode_picker != null:
+		_preview_mode_picker.item_selected.connect(_on_preview_mode_picker_item_selected)
+		_wire_option_button_feedback(_preview_mode_picker)
+	if _preview_resolution_picker != null:
+		_preview_resolution_picker.item_selected.connect(_on_preview_resolution_picker_item_selected)
+		_wire_option_button_feedback(_preview_resolution_picker)
+	if _question_chrome_toggle_button != null:
+		_question_chrome_toggle_button.toggled.connect(_on_question_chrome_toggle_toggled)
 
-	for button in [_close_button, _restart_button, _search_button, _onboarding_button, _template_picker_button, _settings_button, _summary_button, _export_button, _theme_toggle_button, _fill_test_answers_button]:
+	for button in [_close_button, _restart_button, _search_button, _onboarding_button, _template_picker_button, _settings_button, _summary_button, _export_button, _theme_toggle_button, _fill_test_answers_button, _question_chrome_toggle_button]:
+		if button == null:
+			continue
 		_wire_feedback(button)
 
 func refresh_theme() -> void:
@@ -83,6 +108,15 @@ func refresh_theme() -> void:
 	SurveyStyle.style_heading(_sfx_heading_label, 18)
 	SurveyStyle.style_body(_sfx_volume_label)
 	SurveyStyle.style_caption(_sfx_value_label, SurveyStyle.SOFT_WHITE)
+	if _preview_heading_label != null:
+		_preview_heading_label.text = _option_text("preview_heading_text", "Testing Preview")
+		SurveyStyle.style_heading(_preview_heading_label, 18)
+	if _preview_mode_label != null:
+		_preview_mode_label.text = _option_text("preview_mode_label", "Responsive Mode")
+		SurveyStyle.style_body(_preview_mode_label)
+	if _preview_resolution_label != null:
+		_preview_resolution_label.text = _option_text("preview_resolution_label", "Window Preset")
+		SurveyStyle.style_body(_preview_resolution_label)
 	SurveyStyle.style_heading(_section_heading, 18)
 	_restart_button.text = _option_text("restart_label", "Clear All Answers")
 	_search_button.text = _option_text("search_label", "Search Questions")
@@ -101,11 +135,20 @@ func refresh_theme() -> void:
 	SurveyStyle.apply_secondary_button(_settings_button)
 	SurveyStyle.apply_secondary_button(_summary_button)
 	SurveyStyle.apply_primary_button(_export_button)
+	if _preview_mode_picker != null:
+		SurveyStyle.style_option_button(_preview_mode_picker)
+	if _preview_resolution_picker != null:
+		SurveyStyle.style_option_button(_preview_resolution_picker)
 	for button in [_restart_button, _search_button, _onboarding_button, _template_picker_button, _settings_button, _summary_button, _export_button, _theme_toggle_button, _fill_test_answers_button]:
 		_clear_compact_button_treatment(button)
 	_theme_toggle_button.set_pressed_no_signal(SurveyStyle.is_dark_mode())
 	_refresh_theme_toggle_button()
 	SurveyStyle.apply_secondary_button(_fill_test_answers_button)
+	if _question_chrome_toggle_button != null:
+		SurveyStyle.apply_secondary_button(_question_chrome_toggle_button)
+		_clear_compact_button_treatment(_question_chrome_toggle_button)
+		_refresh_question_chrome_toggle_button()
+	_refresh_preview_controls()
 	_refresh_sfx_volume_display()
 	_apply_menu_option_state()
 	_apply_layout_button_treatment()
@@ -132,6 +175,10 @@ func refresh_layout(viewport_size: Vector2) -> void:
 	_navigation_actions.columns = 1 if _compact_layout else 2
 	_apply_menu_option_state()
 	_apply_layout_button_treatment()
+	if _preview_mode_row != null:
+		_preview_mode_row.alignment = BoxContainer.ALIGNMENT_BEGIN
+	if _preview_resolution_row != null:
+		_preview_resolution_row.alignment = BoxContainer.ALIGNMENT_BEGIN
 	if _survey != null:
 		_refresh_sections()
 
@@ -185,6 +232,7 @@ func _apply_menu_option_state() -> void:
 	var show_fill_test_answers: bool = _option_bool("show_fill_test_answers", true)
 	var show_section_tools: bool = _option_bool("show_section_tools", true)
 	var show_position: bool = _option_bool("show_position", true)
+	var show_preview_controls: bool = _option_bool("show_preview_controls", false)
 	_position_label.visible = show_position
 	_restart_button.visible = show_restart
 	_search_button.visible = show_search
@@ -200,6 +248,14 @@ func _apply_menu_option_state() -> void:
 	_section_heading.visible = show_section_tools
 	_section_scroll.visible = show_section_tools
 	_navigation_actions.visible = show_onboarding or show_template_picker or show_settings or show_summary or show_export
+	if _preview_heading_label != null:
+		_preview_heading_label.visible = show_preview_controls
+	if _preview_mode_row != null:
+		_preview_mode_row.visible = show_preview_controls
+	if _preview_resolution_row != null:
+		_preview_resolution_row.visible = show_preview_controls
+	if _question_chrome_toggle_button != null:
+		_question_chrome_toggle_button.visible = show_preview_controls
 
 func _refresh_sections() -> void:
 	_clear_section_list()
@@ -276,8 +332,15 @@ func _refresh_sfx_volume_display() -> void:
 func _apply_layout_button_treatment() -> void:
 	if not is_node_ready() or not _compact_layout:
 		return
-	for button in [_restart_button, _search_button, _onboarding_button, _template_picker_button, _settings_button, _summary_button, _export_button, _theme_toggle_button, _fill_test_answers_button]:
+	for button in [_restart_button, _search_button, _onboarding_button, _template_picker_button, _settings_button, _summary_button, _export_button, _theme_toggle_button, _fill_test_answers_button, _question_chrome_toggle_button]:
+		if button == null:
+			continue
 		_apply_compact_button_treatment(button)
+	for picker in [_preview_mode_picker, _preview_resolution_picker]:
+		if picker == null:
+			continue
+		picker.custom_minimum_size = Vector2(0.0, 34.0)
+		picker.add_theme_font_size_override("font_size", 14)
 
 func _clear_compact_button_treatment(button: Button) -> void:
 	button.custom_minimum_size = Vector2.ZERO
@@ -307,6 +370,9 @@ func _reset_scroll_position() -> void:
 func _wire_feedback(button: BaseButton) -> void:
 	button.mouse_entered.connect(_on_button_hovered)
 	button.pressed.connect(_on_button_pressed_feedback)
+
+func _wire_option_button_feedback(button: OptionButton) -> void:
+	button.mouse_entered.connect(_on_button_hovered)
 
 func _total_answered_count() -> int:
 	if _survey == null:
@@ -384,3 +450,139 @@ func _on_fill_test_answers_pressed() -> void:
 
 func _on_section_pressed(section_index: int) -> void:
 	jump_to_section_requested.emit(section_index)
+
+func _ensure_preview_controls() -> void:
+	if _stack == null:
+		return
+	_preview_heading_label = _stack.get_node_or_null("PreviewHeadingLabel") as Label
+	if _preview_heading_label == null:
+		_preview_heading_label = Label.new()
+		_preview_heading_label.name = "PreviewHeadingLabel"
+		_stack.add_child(_preview_heading_label)
+		_stack.move_child(_preview_heading_label, _preview_insert_index())
+
+	_preview_mode_row = _stack.get_node_or_null("PreviewModeRow") as HBoxContainer
+	if _preview_mode_row == null:
+		_preview_mode_row = HBoxContainer.new()
+		_preview_mode_row.name = "PreviewModeRow"
+		_preview_mode_row.add_theme_constant_override("separation", 10)
+		_stack.add_child(_preview_mode_row)
+		_stack.move_child(_preview_mode_row, _preview_insert_index())
+	_preview_mode_label = _preview_mode_row.get_node_or_null("PreviewModeLabel") as Label
+	if _preview_mode_label == null:
+		_preview_mode_label = Label.new()
+		_preview_mode_label.name = "PreviewModeLabel"
+		_preview_mode_row.add_child(_preview_mode_label)
+	_preview_mode_picker = _preview_mode_row.get_node_or_null("PreviewModePicker") as OptionButton
+	if _preview_mode_picker == null:
+		_preview_mode_picker = OptionButton.new()
+		_preview_mode_picker.name = "PreviewModePicker"
+		_preview_mode_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_preview_mode_row.add_child(_preview_mode_picker)
+
+	_preview_resolution_row = _stack.get_node_or_null("PreviewResolutionRow") as HBoxContainer
+	if _preview_resolution_row == null:
+		_preview_resolution_row = HBoxContainer.new()
+		_preview_resolution_row.name = "PreviewResolutionRow"
+		_preview_resolution_row.add_theme_constant_override("separation", 10)
+		_stack.add_child(_preview_resolution_row)
+		_stack.move_child(_preview_resolution_row, _preview_insert_index())
+	_preview_resolution_label = _preview_resolution_row.get_node_or_null("PreviewResolutionLabel") as Label
+	if _preview_resolution_label == null:
+		_preview_resolution_label = Label.new()
+		_preview_resolution_label.name = "PreviewResolutionLabel"
+		_preview_resolution_row.add_child(_preview_resolution_label)
+	_preview_resolution_picker = _preview_resolution_row.get_node_or_null("PreviewResolutionPicker") as OptionButton
+	if _preview_resolution_picker == null:
+		_preview_resolution_picker = OptionButton.new()
+		_preview_resolution_picker.name = "PreviewResolutionPicker"
+		_preview_resolution_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_preview_resolution_row.add_child(_preview_resolution_picker)
+
+	_question_chrome_toggle_button = _stack.get_node_or_null("QuestionChromeToggleButton") as Button
+	if _question_chrome_toggle_button == null:
+		_question_chrome_toggle_button = Button.new()
+		_question_chrome_toggle_button.name = "QuestionChromeToggleButton"
+		_question_chrome_toggle_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_question_chrome_toggle_button.toggle_mode = true
+		_stack.add_child(_question_chrome_toggle_button)
+		_stack.move_child(_question_chrome_toggle_button, _preview_insert_index())
+
+func _preview_insert_index() -> int:
+	if _fill_test_answers_button != null:
+		var fill_index := _stack.get_children().find(_fill_test_answers_button)
+		if fill_index != -1:
+			return fill_index
+	return _stack.get_child_count()
+
+func _refresh_preview_controls() -> void:
+	if _preview_mode_picker == null or _preview_resolution_picker == null:
+		return
+	_syncing_preview_controls = true
+	_populate_preview_picker(_preview_mode_picker, _preview_mode_options(), str(_menu_options.get("preview_mode", SURVEY_PREVIEW_CONFIG.MODE_AUTO)))
+	_populate_preview_picker(_preview_resolution_picker, _preview_resolution_options(), str(_menu_options.get("preview_resolution", "")))
+	_preview_resolution_picker.disabled = _preview_resolution_picker.get_item_count() == 0
+	if _question_chrome_toggle_button != null:
+		_question_chrome_toggle_button.set_pressed_no_signal(_option_bool("question_debug_ids", false))
+		_refresh_question_chrome_toggle_button()
+	_syncing_preview_controls = false
+
+func _preview_mode_options() -> Array:
+	var configured: Variant = _menu_options.get("preview_mode_options", [])
+	if configured is Array and not (configured as Array).is_empty():
+		return configured as Array
+	return SURVEY_PREVIEW_CONFIG.preview_mode_options()
+
+func _preview_resolution_options() -> Array:
+	var configured: Variant = _menu_options.get("preview_resolution_options", [])
+	if configured is Array:
+		return configured as Array
+	return []
+
+func _populate_preview_picker(picker: OptionButton, options: Array, selected_value: String) -> void:
+	picker.clear()
+	var selected_index := -1
+	for index in range(options.size()):
+		var option_variant: Variant = options[index]
+		if not (option_variant is Dictionary):
+			continue
+		var option := option_variant as Dictionary
+		var label := str(option.get("label", option.get("value", option.get("id", "")))).strip_edges()
+		var value := str(option.get("value", option.get("id", ""))).strip_edges()
+		if label.is_empty():
+			continue
+		picker.add_item(label)
+		var item_index := picker.get_item_count() - 1
+		picker.set_item_metadata(item_index, value)
+		if value == selected_value:
+			selected_index = item_index
+	if picker.get_item_count() == 0:
+		return
+	if selected_index == -1:
+		selected_index = 0
+	picker.select(selected_index)
+
+func _refresh_question_chrome_toggle_button() -> void:
+	if _question_chrome_toggle_button == null:
+		return
+	_question_chrome_toggle_button.text = "Question Type Labels: IDs" if _question_chrome_toggle_button.button_pressed else "Question Type Labels: Types"
+
+func _on_preview_mode_picker_item_selected(index: int) -> void:
+	if _syncing_preview_controls or _preview_mode_picker == null:
+		return
+	var value := str(_preview_mode_picker.get_item_metadata(index)).strip_edges()
+	if value.is_empty():
+		return
+	preview_mode_requested.emit(value)
+
+func _on_preview_resolution_picker_item_selected(index: int) -> void:
+	if _syncing_preview_controls or _preview_resolution_picker == null:
+		return
+	var value := str(_preview_resolution_picker.get_item_metadata(index)).strip_edges()
+	preview_resolution_requested.emit(value)
+
+func _on_question_chrome_toggle_toggled(button_pressed: bool) -> void:
+	_refresh_question_chrome_toggle_button()
+	if _syncing_preview_controls:
+		return
+	question_debug_ids_requested.emit(button_pressed)

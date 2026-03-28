@@ -121,6 +121,28 @@ theme_override_constants/h_separation = 14
 theme_override_constants/v_separation = 14
 columns = 2
 
+[node name="SurveySelectionManageGrid" type="GridContainer" parent="Margin/MainPanel/Stack/SurveySelectionView" unique_id=273694309]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 10
+columns = 3
+
+[node name="SurveySelectionImportButton" type="Button" parent="Margin/MainPanel/Stack/SurveySelectionView/SurveySelectionManageGrid" unique_id=1504053382]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Import Template"
+
+[node name="SurveySelectionExportButton" type="Button" parent="Margin/MainPanel/Stack/SurveySelectionView/SurveySelectionManageGrid" unique_id=580962078]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Export Answers"
+
+[node name="SurveySelectionClearButton" type="Button" parent="Margin/MainPanel/Stack/SurveySelectionView/SurveySelectionManageGrid" unique_id=1947880834]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Clear Answers"
+
 [node name="SurveySelectionActionRow" type="HBoxContainer" parent="Margin/MainPanel/Stack/SurveySelectionView" unique_id=40599212]
 layout_mode = 2
 theme_override_constants/separation = 10
@@ -289,6 +311,41 @@ size_flags_horizontal = 3
 [node name="FocusNextButton" type="Button" parent="Margin/MainPanel/Stack/FocusView/FocusNavRow" unique_id=872546265]
 layout_mode = 2
 text = "Next"
+
+[node name="ReviewView" type="VBoxContainer" parent="Margin/MainPanel/Stack" unique_id=585607508]
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 14
+
+[node name="ReviewTopRow" type="HBoxContainer" parent="Margin/MainPanel/Stack/ReviewView" unique_id=277424102]
+layout_mode = 2
+
+[node name="ReviewBackButton" type="Button" parent="Margin/MainPanel/Stack/ReviewView/ReviewTopRow" unique_id=2003952441]
+layout_mode = 2
+text = "Back"
+
+[node name="ReviewTopSpacer" type="Control" parent="Margin/MainPanel/Stack/ReviewView/ReviewTopRow" unique_id=710565905]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ReviewHeadingLabel" type="Label" parent="Margin/MainPanel/Stack/ReviewView" unique_id=441980359]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="ReviewSubtitleLabel" type="Label" parent="Margin/MainPanel/Stack/ReviewView" unique_id=1257112816]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="ReviewScroll" type="ScrollContainer" parent="Margin/MainPanel/Stack/ReviewView" unique_id=1519644563]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="ReviewList" type="VBoxContainer" parent="Margin/MainPanel/Stack/ReviewView/ReviewScroll" unique_id=1902046306]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 14
 
 [node name="ThanksView" type="VBoxContainer" parent="Margin/MainPanel/Stack" unique_id=2133750700]
 visible = false

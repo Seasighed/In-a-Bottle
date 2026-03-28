@@ -52,12 +52,12 @@ func resolved_emoji() -> String:
 		return emoji
 	match icon_name:
 		"profile":
-			return "\uD83E\uDDD1"
+			return "🧑"
 		"review":
-			return "\uD83E\uDDED"
+			return "🧭"
 		"closeout":
-			return "\uD83C\uDFC1"
-	return "\uD83D\uDCC1"
+			return "🏁"
+	return "📁"
 
 func display_title(index: int = -1) -> String:
 	var visible_title: String = title.strip_edges()

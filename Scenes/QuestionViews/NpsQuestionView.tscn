@@ -1,22 +1,19 @@
-[gd_scene format=3 uid="uid://ccbg503yovrpr"]
+[gd_scene load_steps=2 format=3]
 
-[ext_resource type="Script" uid="uid://tyd62p3rcp23" path="res://Scripts/UI/ScaleChipQuestionView.gd" id="1"]
+[ext_resource type="Script" path="res://Scripts/UI/ScaleChipQuestionView.gd" id="1"]
 
-[node name="ScaleChipQuestionView" type="Control" unique_id=1259090896]
-layout_mode = 3
-anchors_preset = 0
+[node name="NpsQuestionView" type="Control"]
 size_flags_horizontal = 3
 size_flags_vertical = 3
 script = ExtResource("1")
 
-[node name="Panel" type="PanelContainer" parent="." unique_id=1969084263]
+[node name="Panel" type="PanelContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-size_flags_horizontal = 3
 mouse_filter = 1
 
 [node name="QuestionAccentRail" type="VSeparator" parent="Panel"]
@@ -29,11 +26,11 @@ offset_top = 12.0
 offset_right = 4.0
 offset_bottom = -12.0
 
-[node name="Stack" type="VBoxContainer" parent="Panel" unique_id=1170301905]
+[node name="Stack" type="VBoxContainer" parent="Panel"]
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="TitleLabel" type="Label" parent="Panel/Stack" unique_id=1709516045]
+[node name="TitleLabel" type="Label" parent="Panel/Stack"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 21
 mouse_filter = 2
@@ -60,59 +57,59 @@ vertical_alignment = 1
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="DescriptionLabel" type="Label" parent="Panel/Stack" unique_id=1203857633]
+[node name="DescriptionLabel" type="Label" parent="Panel/Stack"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 15
 mouse_filter = 2
-text = "Tap a score to answer quickly."
+text = "Chip-based scale on desktop, slider in compact mobile flow."
 autowrap_mode = 3
 
 [node name="QuestionContentSeparator" type="HSeparator" parent="Panel/Stack"]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="SliderBox" type="VBoxContainer" parent="Panel/Stack" unique_id=199828761]
+[node name="SliderBox" type="VBoxContainer" parent="Panel/Stack"]
 visible = false
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="SliderValueRow" type="HBoxContainer" parent="Panel/Stack/SliderBox" unique_id=1022226720]
+[node name="SliderValueRow" type="HBoxContainer" parent="Panel/Stack/SliderBox"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="SliderValueLabel" type="Label" parent="Panel/Stack/SliderBox/SliderValueRow" unique_id=1707895740]
+[node name="SliderValueLabel" type="Label" parent="Panel/Stack/SliderBox/SliderValueRow"]
 layout_mode = 2
 text = "Selected: 8"
 
-[node name="SliderValueSpacer" type="Control" parent="Panel/Stack/SliderBox/SliderValueRow" unique_id=1579997664]
+[node name="SliderValueSpacer" type="Control" parent="Panel/Stack/SliderBox/SliderValueRow"]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="SliderClearButton" type="Button" parent="Panel/Stack/SliderBox/SliderValueRow" unique_id=488827823]
+[node name="SliderClearButton" type="Button" parent="Panel/Stack/SliderBox/SliderValueRow"]
 layout_mode = 2
 text = "Clear"
 
-[node name="ScoreSlider" type="HSlider" parent="Panel/Stack/SliderBox" unique_id=403377023]
+[node name="ScoreSlider" type="HSlider" parent="Panel/Stack/SliderBox"]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="SliderCaptionRow" type="HBoxContainer" parent="Panel/Stack/SliderBox" unique_id=35177947]
+[node name="SliderCaptionRow" type="HBoxContainer" parent="Panel/Stack/SliderBox"]
 layout_mode = 2
 
-[node name="SliderMinLabel" type="Label" parent="Panel/Stack/SliderBox/SliderCaptionRow" unique_id=586429188]
+[node name="SliderMinLabel" type="Label" parent="Panel/Stack/SliderBox/SliderCaptionRow"]
 layout_mode = 2
 text = "0"
 
-[node name="SliderCaptionSpacer" type="Control" parent="Panel/Stack/SliderBox/SliderCaptionRow" unique_id=996632644]
+[node name="SliderCaptionSpacer" type="Control" parent="Panel/Stack/SliderBox/SliderCaptionRow"]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="SliderMaxLabel" type="Label" parent="Panel/Stack/SliderBox/SliderCaptionRow" unique_id=214657028]
+[node name="SliderMaxLabel" type="Label" parent="Panel/Stack/SliderBox/SliderCaptionRow"]
 layout_mode = 2
 text = "10"
 horizontal_alignment = 2
 
-[node name="Flow" type="HFlowContainer" parent="Panel/Stack" unique_id=1494401475]
+[node name="Flow" type="HFlowContainer" parent="Panel/Stack"]
 layout_mode = 2
 theme_override_constants/h_separation = 10
 theme_override_constants/v_separation = 10

@@ -5,5 +5,6 @@
 [node name="MultipleChoiceOptionRow" type="Button"]
 size_flags_horizontal = 3
 toggle_mode = true
+autowrap_mode = 3
 text = "Option"
 script = ExtResource("1")

@@ -12,9 +12,6 @@ var _focus_presentation := false
 var _journey_focus_presentation := false
 
 func _ready() -> void:
-	size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	toggle_mode = true
-	autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	toggled.connect(_on_toggled)
 	_update_style()
 
@@ -71,12 +68,13 @@ func _on_toggled(pressed: bool) -> void:
 
 func _update_style() -> void:
 	SurveyStyle.apply_answer_button(self, button_pressed)
+	var journey_scale: float = SurveyStyle.journey_mobile_scale(get_viewport().get_visible_rect().size)
 	if _focus_presentation and _journey_focus_presentation:
-		custom_minimum_size = Vector2(0.0, 52.0)
+		custom_minimum_size = Vector2(0.0, 58.0 * journey_scale)
 	else:
 		custom_minimum_size = Vector2(0.0, 68.0 if _focus_presentation else 44.0)
 	if _focus_presentation:
-		add_theme_font_size_override("font_size", 17 if _journey_focus_presentation else 20)
+		add_theme_font_size_override("font_size", int(round((18 if _journey_focus_presentation else 20) * (journey_scale if _journey_focus_presentation else 1.0))))
 	else:
 		remove_theme_font_size_override("font_size")
 

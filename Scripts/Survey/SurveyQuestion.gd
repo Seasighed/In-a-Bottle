@@ -46,11 +46,13 @@ var rating_reverse: bool
 var rating_weight: float
 var rating_label: String
 var rating_option_scores: Dictionary
+var help_markdown: String
 
 func _init(config: Dictionary = {}) -> void:
 	id = str(config.get("id", ""))
 	prompt = str(config.get("prompt", config.get("title", "Untitled question")))
 	description = str(config.get("description", config.get("help_text", "")))
+	help_markdown = str(config.get("help_markdown", config.get("details_markdown", config.get("markdown", config.get("question_help_markdown", "")))))
 	type = _normalize_type(str(config.get("type", TYPE_SHORT_TEXT)))
 	required = bool(config.get("required", false))
 	placeholder = str(config.get("placeholder", ""))
@@ -82,24 +84,24 @@ func resolved_emoji() -> String:
 		return emoji
 	match type:
 		TYPE_SHORT_TEXT, TYPE_LONG_TEXT:
-			return "\u270D\uFE0F"
+			return "✍️"
 		TYPE_EMAIL:
-			return "\u2709\uFE0F"
+			return "✉️"
 		TYPE_DATE:
-			return "\uD83D\uDCC5"
+			return "📅"
 		TYPE_NUMBER:
-			return "\uD83D\uDD22"
+			return "🔢"
 		TYPE_SINGLE_CHOICE, TYPE_DROPDOWN, TYPE_BOOLEAN:
-			return "\uD83D\uDD18"
+			return "🔘"
 		TYPE_MULTI_CHOICE:
-			return "\u2611\uFE0F"
+			return "☑️"
 		TYPE_SCALE, TYPE_NPS:
-			return "\uD83D\uDCCA"
+			return "📊"
 		TYPE_RANKED_CHOICE:
-			return "\uD83C\uDFC1"
+			return "🏁"
 		TYPE_MATRIX:
-			return "\uD83E\uDDED"
-	return "\u2753"
+			return "🧭"
+	return "❓"
 
 func display_prompt() -> String:
 	var visible_prompt: String = prompt.strip_edges()
@@ -117,6 +119,48 @@ func rating_display_label(index: int = -1) -> String:
 	if index >= 0:
 		return "Question %d" % [index + 1]
 	return prompt.strip_edges()
+
+func display_type_label() -> String:
+	match type:
+		TYPE_SHORT_TEXT:
+			return "Typed Answer"
+		TYPE_LONG_TEXT:
+			return "Long Answer"
+		TYPE_SINGLE_CHOICE:
+			return "Single Choice"
+		TYPE_MULTI_CHOICE:
+			return "Multi Choice"
+		TYPE_BOOLEAN:
+			return "Yes / No"
+		TYPE_SCALE:
+			return "Scale"
+		TYPE_RANKED_CHOICE:
+			return "Ranked Choice"
+		TYPE_DROPDOWN:
+			return "Dropdown"
+		TYPE_EMAIL:
+			return "Email"
+		TYPE_NUMBER:
+			return "Number"
+		TYPE_DATE:
+			return "Date"
+		TYPE_NPS:
+			return "0-10 Score"
+		TYPE_MATRIX:
+			return "Matrix"
+	return "Question"
+
+func accent_label(show_debug_id: bool = false) -> String:
+	if show_debug_id and not id.strip_edges().is_empty():
+		return id.strip_edges()
+	return display_type_label()
+
+func help_markdown_text() -> String:
+	if not help_markdown.strip_edges().is_empty():
+		return help_markdown
+	if not description.strip_edges().is_empty():
+		return description
+	return "No additional notes were provided for this question."
 
 func is_answer_complete(value: Variant) -> bool:
 	return not is_answer_empty(value)
