@@ -27,6 +27,11 @@ var prompt: String
 var description: String
 var type: StringName
 var required: bool
+var modifier_key: String
+var modifier_settings: Dictionary
+var reward_count: int
+var reward_count_configured: bool
+var reward_sprite: String
 var placeholder: String
 var options: PackedStringArray
 var rows: PackedStringArray
@@ -47,6 +52,7 @@ var rating_weight: float
 var rating_label: String
 var rating_option_scores: Dictionary
 var help_markdown: String
+var asks_identifying_info: bool
 
 func _init(config: Dictionary = {}) -> void:
 	id = str(config.get("id", ""))
@@ -55,6 +61,42 @@ func _init(config: Dictionary = {}) -> void:
 	help_markdown = str(config.get("help_markdown", config.get("details_markdown", config.get("markdown", config.get("question_help_markdown", "")))))
 	type = _normalize_type(str(config.get("type", TYPE_SHORT_TEXT)))
 	required = bool(config.get("required", false))
+	modifier_key = _resolved_modifier_key(config)
+	modifier_settings = _resolved_modifier_settings(config, modifier_key)
+	reward_count_configured = _has_any_key(config, [
+		"reward_count",
+		"reward_xp",
+		"xp_reward",
+		"xp_award",
+		"reward_amount"
+	])
+	reward_count = max(0, int(
+		config.get(
+			"reward_count",
+			config.get(
+				"reward_xp",
+				config.get(
+					"xp_reward",
+					config.get(
+						"xp_award",
+						config.get("reward_amount", 0)
+					)
+				)
+			)
+		)
+	))
+	reward_sprite = str(
+		config.get(
+			"reward_sprite",
+			config.get(
+				"reward_icon",
+				config.get(
+					"reward_texture",
+					config.get("reward_sprite_path", "")
+				)
+			)
+		)
+	).strip_edges()
 	placeholder = str(config.get("placeholder", ""))
 	options = PackedStringArray(config.get("options", config.get("choices", PackedStringArray())))
 	rows = PackedStringArray(config.get("rows", config.get("statements", PackedStringArray())))
@@ -78,6 +120,18 @@ func _init(config: Dictionary = {}) -> void:
 	rating_weight = maxf(float(rating_config.get("weight", config.get("rating_weight", 1.0))), 0.0)
 	rating_label = str(rating_config.get("label", config.get("rating_label", ""))).strip_edges()
 	rating_option_scores = _normalize_option_scores(rating_config.get("option_scores", config.get("rating_option_scores", {})))
+	asks_identifying_info = bool(
+		config.get(
+			"asks_identifying_info",
+			config.get(
+				"is_identifying",
+				config.get(
+					"identifying",
+					config.get("id_question", false)
+				)
+			)
+		)
+	)
 
 func resolved_emoji() -> String:
 	if not emoji.is_empty():
@@ -154,6 +208,17 @@ func accent_label(show_debug_id: bool = false) -> String:
 	if show_debug_id and not id.strip_edges().is_empty():
 		return id.strip_edges()
 	return display_type_label()
+
+func requirement_label() -> String:
+	return "Required" if required else "Optional"
+
+func resolved_reward_count(fallback_count: int = 0) -> int:
+	if reward_count_configured:
+		return max(0, reward_count)
+	return max(0, fallback_count)
+
+func has_modifier() -> bool:
+	return not modifier_key.is_empty()
 
 func help_markdown_text() -> String:
 	if not help_markdown.strip_edges().is_empty():
@@ -432,6 +497,31 @@ func _dictionary_from_variant(value: Variant) -> Dictionary:
 	if value is Dictionary:
 		return (value as Dictionary).duplicate(true)
 	return {}
+
+func _has_any_key(source: Dictionary, keys: Array[String]) -> bool:
+	for key in keys:
+		if source.has(key):
+			return true
+	return false
+
+func _resolved_modifier_key(config: Dictionary) -> String:
+	var raw_modifier: Variant = config.get("modifier", config.get("question_modifier", config.get("entertainment_modifier", "")))
+	if raw_modifier is Dictionary:
+		var modifier_dict: Dictionary = raw_modifier as Dictionary
+		return str(modifier_dict.get("key", modifier_dict.get("id", modifier_dict.get("name", "")))).to_lower().strip_edges()
+	return str(raw_modifier).to_lower().strip_edges()
+
+func _resolved_modifier_settings(config: Dictionary, resolved_key: String) -> Dictionary:
+	var raw_modifier: Variant = config.get("modifier", config.get("question_modifier", config.get("entertainment_modifier", "")))
+	if raw_modifier is Dictionary:
+		var modifier_dict: Dictionary = (raw_modifier as Dictionary).duplicate(true)
+		for key in ["key", "id", "name"]:
+			modifier_dict.erase(key)
+		return modifier_dict
+	var explicit_settings: Dictionary = _dictionary_from_variant(config.get("modifier_settings", {}))
+	if explicit_settings.is_empty() or resolved_key.is_empty():
+		return explicit_settings
+	return explicit_settings
 
 func _normalize_option_scores(value: Variant) -> Dictionary:
 	var source: Dictionary = _dictionary_from_variant(value)

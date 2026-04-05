@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  GODOT_VERSION: 4.6-stable
+  GODOT_VERSION_DIR: 4.6.stable
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Godot Editor
+        run: |
+          set -euxo pipefail
+          mkdir -p "$RUNNER_TEMP/godot"
+          curl -L --fail \
+            "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip" \
+            -o "$RUNNER_TEMP/godot/godot.zip"
+          unzip -q "$RUNNER_TEMP/godot/godot.zip" -d "$RUNNER_TEMP/godot"
+          GODOT_BIN="$(find "$RUNNER_TEMP/godot" -maxdepth 2 -type f -name 'Godot_v*_linux.x86_64' | head -n 1)"
+          test -n "$GODOT_BIN"
+          chmod +x "$GODOT_BIN"
+          echo "GODOT_BIN=$GODOT_BIN" >> "$GITHUB_ENV"
+
+      - name: Install Export Templates
+        run: |
+          set -euxo pipefail
+          curl -L --fail \
+            "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_export_templates.tpz" \
+            -o "$RUNNER_TEMP/godot/export_templates.tpz"
+          unzip -q "$RUNNER_TEMP/godot/export_templates.tpz" -d "$RUNNER_TEMP/godot/templates"
+          mkdir -p "$HOME/.local/share/godot/export_templates/${GODOT_VERSION_DIR}"
+          cp -R "$RUNNER_TEMP/godot/templates/templates/." "$HOME/.local/share/godot/export_templates/${GODOT_VERSION_DIR}/"
+
+      - name: Import Project
+        run: |
+          set -euxo pipefail
+          "$GODOT_BIN" --headless --path . --quit-after 1
+
+      - name: Check Project
+        run: |
+          set -euxo pipefail
+          "$GODOT_BIN" --headless --path . --check-only
+
+      - name: Run Custom CI Tests
+        run: |
+          set -euxo pipefail
+          timeout --preserve-status 180s "$GODOT_BIN" --headless --path . --script res://Scripts/Tests/CiTestBootstrap.gd
+
+      - name: Export Web Build
+        run: |
+          set -euxo pipefail
+          rm -rf build/web
+          mkdir -p build/web
+          "$GODOT_BIN" --headless --path . --export-release "Web" build/web/index.html
+
+      - name: Upload Web Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-build
+          path: build/web
+          if-no-files-found: error

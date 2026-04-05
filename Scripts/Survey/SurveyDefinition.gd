@@ -6,6 +6,13 @@ var title: String
 var subtitle: String
 var description: String
 var onboarding_subject: String
+var template_version: int
+var schema_hash: String
+var priority: int
+var single_survey_mode: bool
+var asks_identifying_info: bool
+var lore_url: String
+var lore_url_label: String
 var audience_profiles: Array[Dictionary]
 var guided_presets: Array[Dictionary]
 var faq_items: Array[Dictionary]
@@ -17,6 +24,13 @@ func _init(config: Dictionary = {}) -> void:
 	subtitle = str(config.get("subtitle", config.get("description", "")))
 	description = str(config.get("description", subtitle))
 	onboarding_subject = str(config.get("onboarding_subject", title))
+	template_version = int(config.get("version", config.get("template_version", 1)))
+	schema_hash = str(config.get("schema_hash", "")).strip_edges()
+	priority = int(config.get("priority", 0))
+	single_survey_mode = bool(config.get("single_survey_mode", false))
+	asks_identifying_info = bool(config.get("asks_identifying_info", false))
+	lore_url = str(config.get("lore_url", config.get("lore_link", ""))).strip_edges()
+	lore_url_label = str(config.get("lore_url_label", config.get("lore_link_label", ""))).strip_edges()
 	audience_profiles = _normalize_audience_profiles(config.get("audience_profiles", config.get("player_types", [])))
 	guided_presets = _normalize_guided_presets(config.get("guided_presets", config.get("onboarding_presets", [])))
 	faq_items = _normalize_faq_items(config.get("faq_items", config.get("faqs", [])))
@@ -30,11 +44,29 @@ func _init(config: Dictionary = {}) -> void:
 		audience_profiles = _derive_audience_profiles_from_questions()
 	if guided_presets.is_empty():
 		guided_presets = _derive_guided_presets_from_profiles()
+	if not asks_identifying_info:
+		asks_identifying_info = identifying_question_count() > 0
 
 func total_questions() -> int:
 	var count := 0
 	for section in sections:
 		count += section.questions.size()
+	return count
+
+func identifying_question_count() -> int:
+	var count := 0
+	for section in sections:
+		for question in section.questions:
+			if question.asks_identifying_info:
+				count += 1
+	return count
+
+func identifying_answered_count(answers: Dictionary) -> int:
+	var count := 0
+	for section in sections:
+		for question in section.questions:
+			if question.asks_identifying_info and not question.is_answer_empty(answers.get(question.id, null)):
+				count += 1
 	return count
 
 func resolved_onboarding_subject() -> String:

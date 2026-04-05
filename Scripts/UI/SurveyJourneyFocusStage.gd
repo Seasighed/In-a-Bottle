@@ -11,6 +11,7 @@ const TRACE_LOG_PATH := "user://survey_journey_trace.log"
 signal answer_changed(question_id: String, value: Variant)
 signal question_selected(question_id: String)
 signal help_requested(question_id: String)
+signal modifier_fatigue_detected(question_id: String, modifier_key: String, message: String)
 signal layout_stabilized
 
 var _views_by_question_id: Dictionary = {}
@@ -22,6 +23,7 @@ var _viewport_size := Vector2.ZERO
 var _layout_refresh_in_progress := false
 var _answer_layout_refresh_queued := false
 var _question_debug_ids_enabled := false
+var _question_modifiers_enabled := true
 
 func _ready() -> void:
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -95,6 +97,7 @@ func sync_answers(answers: Dictionary) -> void:
 		var view := _views_by_question_id.get(question_id) as SurveyQuestionView
 		if view != null:
 			view.set_question_debug_ids_enabled(_question_debug_ids_enabled)
+			view.set_question_modifiers_enabled(_question_modifiers_enabled)
 			view.configure(question, _answers_by_question_id.get(question_id, question.default_value))
 			view.set_selected(question_id == _active_question_id)
 
@@ -106,6 +109,17 @@ func set_question_debug_ids_enabled(enabled: bool) -> void:
 		var view := value as SurveyQuestionView
 		if view != null and is_instance_valid(view):
 			view.set_question_debug_ids_enabled(enabled)
+
+func set_question_modifiers_enabled(enabled: bool) -> void:
+	if _question_modifiers_enabled == enabled:
+		return
+	_question_modifiers_enabled = enabled
+	for value in _views_by_question_id.values():
+		var view := value as SurveyQuestionView
+		if view != null and is_instance_valid(view):
+			view.set_question_modifiers_enabled(enabled)
+	if _active_view != null and is_instance_valid(_active_view):
+		refresh_stage_layout(_viewport_size if _viewport_size != Vector2.ZERO else get_viewport().get_visible_rect().size)
 
 func refresh_stage_layout(viewport_size: Vector2) -> void:
 	if _layout_refresh_in_progress:
@@ -192,6 +206,9 @@ func _on_view_question_selected(question_id: String) -> void:
 func _on_view_help_requested(question_id: String) -> void:
 	help_requested.emit(question_id)
 
+func _on_view_modifier_fatigue_detected(question_id: String, modifier_key: String, message: String) -> void:
+	modifier_fatigue_detected.emit(question_id, modifier_key, message)
+
 func _instantiate_question_view(question: SurveyQuestion) -> SurveyQuestionView:
 	var resolved_view := QUESTION_VIEW_REGISTRY.instantiate_for_question(question)
 	if resolved_view != null:
@@ -218,9 +235,11 @@ func _ensure_view(question_id: String) -> SurveyQuestionView:
 	view.visible = false
 	view.set_presentation_mode(SurveyQuestionView.PRESENTATION_JOURNEY_FOCUS)
 	view.set_question_debug_ids_enabled(_question_debug_ids_enabled)
+	view.set_question_modifiers_enabled(_question_modifiers_enabled)
 	view.answer_changed.connect(_on_view_answer_changed)
 	view.question_selected.connect(_on_view_question_selected)
 	view.help_requested.connect(_on_view_help_requested)
+	view.modifier_fatigue_detected.connect(_on_view_modifier_fatigue_detected)
 	view.configure(question, _answers_by_question_id.get(question_id, question.default_value))
 	view.set_selected(false)
 	_views_by_question_id[question_id] = view

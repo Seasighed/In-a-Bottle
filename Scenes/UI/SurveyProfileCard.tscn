@@ -1,0 +1,91 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://Scripts/UI/SurveyProfileCard.gd" id="1"]
+
+[node name="SurveyProfileCard" type="PanelContainer"]
+size_flags_horizontal = 3
+script = ExtResource("1")
+
+[node name="Stack" type="VBoxContainer" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 14
+
+[node name="HeadingRow" type="HBoxContainer" parent="Stack"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="HeadingLabel" type="Label" parent="Stack/HeadingRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Social Profile"
+
+[node name="TitleBadge" type="Label" parent="Stack/HeadingRow"]
+layout_mode = 2
+text = "Wanderer"
+
+[node name="SubtitleLabel" type="Label" parent="Stack"]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="ExpPanel" type="PanelContainer" parent="Stack"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ExpStack" type="VBoxContainer" parent="Stack/ExpPanel"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ExpTotalLabel" type="Label" parent="Stack/ExpPanel/ExpStack"]
+layout_mode = 2
+text = "0 XP"
+
+[node name="LevelLabel" type="Label" parent="Stack/ExpPanel/ExpStack"]
+layout_mode = 2
+text = "Level 1"
+
+[node name="BuffLabel" type="Label" parent="Stack/ExpPanel/ExpStack"]
+layout_mode = 2
+text = ""
+visible = false
+
+[node name="StatsHeadingLabel" type="Label" parent="Stack"]
+layout_mode = 2
+text = "Lifetime Stats"
+
+[node name="StatsGrid" type="GridContainer" parent="Stack"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 10
+columns = 2
+
+[node name="SurveyHeadingLabel" type="Label" parent="Stack"]
+layout_mode = 2
+text = "Current Survey"
+
+[node name="SurveyGrid" type="GridContainer" parent="Stack"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 10
+columns = 2
+
+[node name="TitlesHeadingLabel" type="Label" parent="Stack"]
+layout_mode = 2
+text = "Titles"
+
+[node name="TitlesFlow" type="HFlowContainer" parent="Stack"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 8
+
+[node name="AchievementsHeadingLabel" type="Label" parent="Stack"]
+layout_mode = 2
+text = "Unlock Inventory"
+
+[node name="AchievementsList" type="VBoxContainer" parent="Stack"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10

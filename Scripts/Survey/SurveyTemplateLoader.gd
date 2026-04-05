@@ -75,6 +75,9 @@ static func describe_template_file(path: String) -> Dictionary:
 	summary["source_label"] = source_label
 	summary["source_kind"] = "builtin" if path.begins_with("res://") else "imported"
 	summary["version"] = int(normalized_template.get("version", CURRENT_TEMPLATE_VERSION))
+	summary["schema_hash"] = str(normalized_template.get("schema_hash", "")).strip_edges()
+	summary["priority"] = int(normalized_template.get("priority", 0))
+	summary["single_survey_mode"] = bool(normalized_template.get("single_survey_mode", false))
 	return summary
 
 static func import_template_file(source_path: String) -> Dictionary:
@@ -140,11 +143,34 @@ static func _normalize_template_dict(raw_template: Dictionary, warnings: PackedS
 	normalized_template["subtitle"] = str(raw_template.get("subtitle", raw_template.get("tagline", raw_template.get("description", "")))).strip_edges()
 	normalized_template["description"] = str(raw_template.get("description", normalized_template.get("subtitle", ""))).strip_edges()
 	normalized_template["onboarding_subject"] = str(raw_template.get("onboarding_subject", normalized_template.get("title", ""))).strip_edges()
+	normalized_template["priority"] = int(raw_template.get("priority", 0))
+	normalized_template["single_survey_mode"] = bool(raw_template.get("single_survey_mode", raw_template.get("single_survey_start", false)))
 	normalized_template["audience_profiles"] = _array_from_variant(raw_template.get("audience_profiles", raw_template.get("player_types", [])))
 	normalized_template["guided_presets"] = _array_from_variant(raw_template.get("guided_presets", raw_template.get("onboarding_presets", [])))
 	normalized_template["faq_items"] = _array_from_variant(raw_template.get("faq_items", raw_template.get("faqs", [])))
 	normalized_template["sections"] = _normalize_sections(raw_template.get("sections", []), warnings)
+	normalized_template["asks_identifying_info"] = bool(
+		raw_template.get(
+			"asks_identifying_info",
+			raw_template.get("contains_identifying_info", _template_has_identifying_questions(normalized_template))
+		)
+	)
+	normalized_template["schema_hash"] = schema_hash_for_template_dict(normalized_template)
 	return normalized_template
+
+static func schema_hash_for_template_dict(template_dict: Dictionary) -> String:
+	if template_dict.is_empty():
+		return ""
+	var hash_source: Dictionary = template_dict.duplicate(true)
+	hash_source.erase("schema_hash")
+	var serialized: String = JSON.stringify(hash_source, "", true)
+	if serialized.is_empty():
+		return ""
+	var context := HashingContext.new()
+	if context.start(HashingContext.HASH_SHA256) != OK:
+		return ""
+	context.update(serialized.to_utf8_buffer())
+	return context.finish().hex_encode()
 
 static func _resolved_template_format(raw_template: Dictionary) -> String:
 	var format_text: String = str(raw_template.get("format", raw_template.get("template_format", TEMPLATE_FORMAT))).strip_edges()
@@ -254,7 +280,9 @@ static func _normalize_question(raw_question: Dictionary, section_id: String, qu
 		"id": question_id,
 		"prompt": prompt,
 		"description": model.description,
+		"help_markdown": model.help_markdown,
 		"type": str(model.type),
+		"asks_identifying_info": model.asks_identifying_info,
 		"required": model.required,
 		"placeholder": model.placeholder,
 		"options": model.options,
@@ -269,6 +297,14 @@ static func _normalize_question(raw_question: Dictionary, section_id: String, qu
 		"right_label": model.right_label,
 		"emoji": str(raw_question.get("emoji", raw_question.get("prompt_emoji", ""))).strip_edges()
 	}
+	if model.has_modifier():
+		normalized_question["modifier"] = model.modifier_key
+	if not model.modifier_settings.is_empty():
+		normalized_question["modifier_settings"] = model.modifier_settings.duplicate(true)
+	if model.reward_count_configured:
+		normalized_question["reward_count"] = model.reward_count
+	if not model.reward_sprite.is_empty():
+		normalized_question["reward_sprite"] = model.reward_sprite
 	if raw_question.has("default_value"):
 		normalized_question["default_value"] = raw_question.get("default_value")
 	var view_template: String = str(raw_question.get("view_template", raw_question.get("template", ""))).strip_edges()
@@ -313,6 +349,17 @@ static func _normalize_question_rating(raw_question: Dictionary, model: SurveyQu
 	if model.rating_enabled and not model.is_rating_question():
 		warnings.append("Question '%s' has rating metadata, but its type does not currently produce a score with the supplied config." % prompt)
 	return normalized_rating
+
+static func _template_has_identifying_questions(normalized_template: Dictionary) -> bool:
+	var sections: Array = _array_from_variant(normalized_template.get("sections", []))
+	for raw_section in sections:
+		var section: Dictionary = _dictionary_from_variant(raw_section)
+		var questions: Array = _array_from_variant(section.get("questions", []))
+		for raw_question in questions:
+			var question: Dictionary = _dictionary_from_variant(raw_question)
+			if bool(question.get("asks_identifying_info", false)):
+				return true
+	return false
 
 static func _validate_normalized_template(normalized_template: Dictionary) -> PackedStringArray:
 	var errors: PackedStringArray = PackedStringArray()
@@ -381,6 +428,14 @@ static func _ensure_template_directory(dir_path: String) -> void:
 		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(dir_path))
 
 static func _sort_template_summaries(left: Dictionary, right: Dictionary) -> bool:
+	var left_priority := int(left.get("priority", 0))
+	var right_priority := int(right.get("priority", 0))
+	if left_priority != right_priority:
+		return left_priority > right_priority
+	var left_single_survey_mode := bool(left.get("single_survey_mode", false))
+	var right_single_survey_mode := bool(right.get("single_survey_mode", false))
+	if left_single_survey_mode != right_single_survey_mode:
+		return left_single_survey_mode
 	var left_source: String = str(left.get("source_kind", ""))
 	var right_source: String = str(right.get("source_kind", ""))
 	if left_source != right_source:

@@ -59,6 +59,16 @@ jobs:
           set -euxo pipefail
           "$GODOT_BIN" --headless --path . --quit-after 1
 
+      - name: Check Project
+        run: |
+          set -euxo pipefail
+          "$GODOT_BIN" --headless --path . --check-only
+
+      - name: Run Custom CI Tests
+        run: |
+          set -euxo pipefail
+          timeout --preserve-status 180s "$GODOT_BIN" --headless --path . --script res://Scripts/Tests/CiTestBootstrap.gd
+
       - name: Export Web Build
         run: |
           set -euxo pipefail

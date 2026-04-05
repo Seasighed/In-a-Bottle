@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="SurveyQuestionXpConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Survey/SurveyQuestionXpConfig.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+short_text_xp = 6
+long_text_xp = 8
+single_choice_xp = 4
+multi_choice_xp = 6
+boolean_xp = 3
+scale_xp = 4
+ranked_choice_xp = 9
+dropdown_xp = 4
+email_xp = 5
+number_xp = 4
+date_xp = 4
+nps_xp = 4
+matrix_xp = 10

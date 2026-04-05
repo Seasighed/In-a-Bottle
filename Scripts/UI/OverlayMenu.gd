@@ -14,6 +14,7 @@ signal onboarding_requested
 signal template_picker_requested
 signal settings_requested
 signal summary_requested
+signal profile_requested
 signal export_requested
 signal theme_mode_requested(use_dark_mode: bool)
 signal sfx_volume_requested(volume: float)
@@ -37,6 +38,7 @@ signal question_debug_ids_requested(enabled: bool)
 @onready var _template_picker_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/NavigationActions/TemplatePickerButton
 @onready var _settings_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/NavigationActions/SettingsButton
 @onready var _summary_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/NavigationActions/SummaryButton
+@onready var _profile_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/NavigationActions/ProfileButton
 @onready var _export_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/NavigationActions/ExportButton
 @onready var _theme_toggle_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/ThemeToggleButton
 @onready var _sfx_heading_label: Label = $Bounds/Center/Panel/PanelScroll/Stack/SfxHeadingLabel
@@ -48,6 +50,7 @@ signal question_debug_ids_requested(enabled: bool)
 @onready var _section_heading: Label = $Bounds/Center/Panel/PanelScroll/Stack/SectionHeadingLabel
 @onready var _section_scroll: ScrollContainer = $Bounds/Center/Panel/PanelScroll/Stack/SectionScroll
 @onready var _section_list: VBoxContainer = $Bounds/Center/Panel/PanelScroll/Stack/SectionScroll/SectionList
+@onready var _section_clear_all_button: Button = $Bounds/Center/Panel/PanelScroll/Stack/SectionClearAllButton
 
 var _survey: SurveyDefinition
 var _answers: Dictionary = {}
@@ -81,10 +84,12 @@ func _ready() -> void:
 	_template_picker_button.pressed.connect(_on_template_picker_pressed)
 	_settings_button.pressed.connect(_on_settings_pressed)
 	_summary_button.pressed.connect(_on_summary_pressed)
+	_profile_button.pressed.connect(_on_profile_pressed)
 	_export_button.pressed.connect(_on_export_pressed)
 	_theme_toggle_button.toggled.connect(_on_theme_toggle_toggled)
 	_sfx_volume_slider.value_changed.connect(_on_sfx_volume_slider_value_changed)
 	_fill_test_answers_button.pressed.connect(_on_fill_test_answers_pressed)
+	_section_clear_all_button.pressed.connect(_on_restart_pressed)
 	if _preview_mode_picker != null:
 		_preview_mode_picker.item_selected.connect(_on_preview_mode_picker_item_selected)
 		_wire_option_button_feedback(_preview_mode_picker)
@@ -94,7 +99,7 @@ func _ready() -> void:
 	if _question_chrome_toggle_button != null:
 		_question_chrome_toggle_button.toggled.connect(_on_question_chrome_toggle_toggled)
 
-	for button in [_close_button, _restart_button, _search_button, _onboarding_button, _template_picker_button, _settings_button, _summary_button, _export_button, _theme_toggle_button, _fill_test_answers_button, _question_chrome_toggle_button]:
+	for button in [_close_button, _restart_button, _search_button, _onboarding_button, _template_picker_button, _settings_button, _summary_button, _profile_button, _export_button, _theme_toggle_button, _fill_test_answers_button, _section_clear_all_button, _question_chrome_toggle_button]:
 		if button == null:
 			continue
 		_wire_feedback(button)
@@ -124,22 +129,26 @@ func refresh_theme() -> void:
 	_template_picker_button.text = _option_text("template_picker_label", "Choose Survey Template")
 	_settings_button.text = _option_text("settings_label", "Open Settings")
 	_summary_button.text = _option_text("summary_label", "Opinion Summary")
+	_profile_button.text = _option_text("profile_label", "Social Profile")
 	_export_button.text = _option_text("export_label", "Open Export Menu")
 	_section_heading.text = _option_text("section_heading_text", "Jump To Or Clear A Section")
+	_section_clear_all_button.text = _option_text("restart_label", "Clear All Answers")
 	SurveyStyle.apply_secondary_button(_close_button)
 	_close_button.custom_minimum_size = Vector2(44, 44)
 	SurveyStyle.apply_danger_button(_restart_button)
+	SurveyStyle.apply_danger_button(_section_clear_all_button)
 	SurveyStyle.apply_secondary_button(_search_button)
 	SurveyStyle.apply_secondary_button(_onboarding_button)
 	SurveyStyle.apply_secondary_button(_template_picker_button)
 	SurveyStyle.apply_secondary_button(_settings_button)
 	SurveyStyle.apply_secondary_button(_summary_button)
+	SurveyStyle.apply_secondary_button(_profile_button)
 	SurveyStyle.apply_primary_button(_export_button)
 	if _preview_mode_picker != null:
 		SurveyStyle.style_option_button(_preview_mode_picker)
 	if _preview_resolution_picker != null:
 		SurveyStyle.style_option_button(_preview_resolution_picker)
-	for button in [_restart_button, _search_button, _onboarding_button, _template_picker_button, _settings_button, _summary_button, _export_button, _theme_toggle_button, _fill_test_answers_button]:
+	for button in [_restart_button, _search_button, _onboarding_button, _template_picker_button, _settings_button, _summary_button, _profile_button, _export_button, _theme_toggle_button, _fill_test_answers_button, _section_clear_all_button]:
 		_clear_compact_button_treatment(button)
 	_theme_toggle_button.set_pressed_no_signal(SurveyStyle.is_dark_mode())
 	_refresh_theme_toggle_button()
@@ -189,6 +198,7 @@ func open_menu(survey_definition: SurveyDefinition, current_section_index: int, 
 	_current_section_index = current_section_index
 	_current_sfx_volume = clampf(current_sfx_volume, 0.0, 1.0)
 	_menu_options = menu_options.duplicate(true)
+	_refresh_preview_controls()
 	_theme_toggle_button.set_pressed_no_signal(SurveyStyle.is_dark_mode())
 	_refresh_theme_toggle_button()
 	_sfx_volume_slider.set_value_no_signal(_current_sfx_volume)
@@ -226,6 +236,7 @@ func _apply_menu_option_state() -> void:
 	var show_template_picker: bool = _option_bool("show_template_picker", true)
 	var show_settings: bool = _option_bool("show_settings", true)
 	var show_summary: bool = _option_bool("show_summary", true)
+	var show_profile: bool = _option_bool("show_profile", true)
 	var show_export: bool = _option_bool("show_export", true)
 	var show_theme_toggle: bool = _option_bool("show_theme_toggle", true)
 	var show_sfx_controls: bool = _option_bool("show_sfx_controls", true)
@@ -240,6 +251,7 @@ func _apply_menu_option_state() -> void:
 	_template_picker_button.visible = show_template_picker
 	_settings_button.visible = show_settings
 	_summary_button.visible = show_summary
+	_profile_button.visible = show_profile
 	_export_button.visible = show_export
 	_theme_toggle_button.visible = show_theme_toggle
 	_sfx_heading_label.visible = show_sfx_controls
@@ -247,7 +259,8 @@ func _apply_menu_option_state() -> void:
 	_fill_test_answers_button.visible = show_fill_test_answers
 	_section_heading.visible = show_section_tools
 	_section_scroll.visible = show_section_tools
-	_navigation_actions.visible = show_onboarding or show_template_picker or show_settings or show_summary or show_export
+	_section_clear_all_button.visible = show_section_tools and show_restart
+	_navigation_actions.visible = show_onboarding or show_template_picker or show_settings or show_summary or show_profile or show_export
 	if _preview_heading_label != null:
 		_preview_heading_label.visible = show_preview_controls
 	if _preview_mode_row != null:
@@ -262,6 +275,7 @@ func _refresh_sections() -> void:
 	if _survey == null:
 		_position_label.text = _option_text("position_text", "")
 		_restart_button.disabled = true
+		_section_clear_all_button.disabled = true
 		return
 
 	var section_count: int = _survey.sections.size()
@@ -271,6 +285,7 @@ func _refresh_sections() -> void:
 	var custom_position_text: String = _option_text("position_text", "")
 	_position_label.text = custom_position_text if not custom_position_text.is_empty() else "Currently viewing section %d of %d. %d answered so far." % [visible_section_number, section_count, answered_total]
 	_restart_button.disabled = stored_total == 0
+	_section_clear_all_button.disabled = stored_total == 0
 	if not _option_bool("show_section_tools", true):
 		return
 
@@ -332,7 +347,7 @@ func _refresh_sfx_volume_display() -> void:
 func _apply_layout_button_treatment() -> void:
 	if not is_node_ready() or not _compact_layout:
 		return
-	for button in [_restart_button, _search_button, _onboarding_button, _template_picker_button, _settings_button, _summary_button, _export_button, _theme_toggle_button, _fill_test_answers_button, _question_chrome_toggle_button]:
+	for button in [_restart_button, _search_button, _onboarding_button, _template_picker_button, _settings_button, _summary_button, _profile_button, _export_button, _theme_toggle_button, _fill_test_answers_button, _section_clear_all_button, _question_chrome_toggle_button]:
 		if button == null:
 			continue
 		_apply_compact_button_treatment(button)
@@ -429,6 +444,9 @@ func _on_settings_pressed() -> void:
 
 func _on_summary_pressed() -> void:
 	summary_requested.emit()
+
+func _on_profile_pressed() -> void:
+	profile_requested.emit()
 
 func _on_export_pressed() -> void:
 	export_requested.emit()

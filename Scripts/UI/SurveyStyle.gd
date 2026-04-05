@@ -51,6 +51,9 @@ static func _apply_palette(palette) -> void:
 	TEXT_ON_ACCENT = palette.text_on_accent
 	TEXT_OUTLINE = palette.text_outline
 	DANGER = palette.danger
+	SUCCESS = palette.success
+	HIGHLIGHT_GOLD = palette.highlight_gold
+	SOFT_WHITE = palette.soft_white
 	OVERLAY_DIMMER = palette.overlay_dimmer
 
 static func panel(fill: Color, border: Color = Color(0, 0, 0, 0), radius: int = 18, border_width: int = 1) -> StyleBoxFlat:

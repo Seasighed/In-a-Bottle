@@ -15,6 +15,8 @@ var _export_player: AudioStreamPlayer
 var _gamble_player: AudioStreamPlayer
 var _menu_open_player: AudioStreamPlayer
 var _menu_close_player: AudioStreamPlayer
+var _xp_player: AudioStreamPlayer
+var _unlock_player: AudioStreamPlayer
 var _rng := RandomNumberGenerator.new()
 var _sfx_volume := DEFAULT_SFX_VOLUME
 var _hover_sfx_enabled := false
@@ -30,6 +32,8 @@ func _ready() -> void:
 	_gamble_player = _create_player(_build_tone_stream(PackedFloat32Array([1120.0]), PackedFloat32Array([0.024]), 0.11))
 	_menu_open_player = _create_player(_build_tone_stream(PackedFloat32Array([180.0, 240.0]), PackedFloat32Array([0.06, 0.08]), 0.18))
 	_menu_close_player = _create_player(_build_tone_stream(PackedFloat32Array([240.0, 170.0]), PackedFloat32Array([0.05, 0.09]), 0.18))
+	_xp_player = _create_player(_build_tone_stream(PackedFloat32Array([420.0, 560.0, 760.0]), PackedFloat32Array([0.03, 0.035, 0.045]), 0.15))
+	_unlock_player = _create_player(_build_tone_stream(PackedFloat32Array([520.0, 760.0, 1040.0]), PackedFloat32Array([0.045, 0.055, 0.085]), 0.18))
 	_apply_volume_to_players()
 
 static func play_hover() -> void:
@@ -71,6 +75,18 @@ static func play_export() -> void:
 	var hub: SurveyUiFeedback = _get_hub()
 	if hub != null:
 		hub._play_player(hub._export_player, 0.985, 1.025)
+
+static func play_xp_gain(intensity: float = 0.5) -> void:
+	var hub: SurveyUiFeedback = _get_hub()
+	if hub != null:
+		var resolved_intensity := clampf(intensity, 0.0, 1.0)
+		var pitch := lerpf(0.96, 1.28, resolved_intensity)
+		hub._play_player(hub._xp_player, pitch, pitch + 0.05)
+
+static func play_unlock() -> void:
+	var hub: SurveyUiFeedback = _get_hub()
+	if hub != null:
+		hub._play_player(hub._unlock_player, 0.98, 1.04)
 
 static func play_gamble_spin_tick(progress: float) -> void:
 	var hub: SurveyUiFeedback = _get_hub()
@@ -133,7 +149,7 @@ func _set_hover_sfx_enabled(enabled: bool) -> void:
 	_hover_sfx_enabled = enabled
 
 func _apply_volume_to_players() -> void:
-	for player in [_hover_player, _select_player, _answer_player, _answer_unselect_player, _export_player, _gamble_player, _menu_open_player, _menu_close_player]:
+	for player in [_hover_player, _select_player, _answer_player, _answer_unselect_player, _export_player, _gamble_player, _menu_open_player, _menu_close_player, _xp_player, _unlock_player]:
 		_apply_volume_to_player(player)
 
 func _apply_volume_to_player(player: AudioStreamPlayer) -> void:

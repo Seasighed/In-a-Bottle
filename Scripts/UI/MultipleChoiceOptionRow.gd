@@ -68,7 +68,7 @@ func _on_toggled(pressed: bool) -> void:
 
 func _update_style() -> void:
 	SurveyStyle.apply_answer_button(self, button_pressed)
-	var journey_scale: float = SurveyStyle.journey_mobile_scale(get_viewport().get_visible_rect().size)
+	var journey_scale: float = SurveyStyle.journey_mobile_scale(_resolved_viewport_size())
 	if _focus_presentation and _journey_focus_presentation:
 		custom_minimum_size = Vector2(0.0, 58.0 * journey_scale)
 	else:
@@ -77,4 +77,18 @@ func _update_style() -> void:
 		add_theme_font_size_override("font_size", int(round((18 if _journey_focus_presentation else 20) * (journey_scale if _journey_focus_presentation else 1.0))))
 	else:
 		remove_theme_font_size_override("font_size")
+
+func _resolved_viewport_size() -> Vector2:
+	var viewport := get_viewport()
+	if viewport != null:
+		return viewport.get_visible_rect().size
+	var fallback_size := Vector2(
+		maxf(size.x, custom_minimum_size.x),
+		maxf(size.y, custom_minimum_size.y)
+	)
+	if fallback_size.x <= 0.0:
+		fallback_size.x = 1280.0
+	if fallback_size.y <= 0.0:
+		fallback_size.y = 720.0
+	return fallback_size
 

@@ -3,6 +3,7 @@
   "title": "Minecraft Modder Pulse",
   "subtitle": "A survey for Minecraft mod developers about the state of their mod, the modding experience, and where the project goes next.",
   "onboarding_subject": "your Minecraft mod",
+  "asks_identifying_info": true,
   "audience_profiles": [
 	{
 	  "id": "hobbyist_modder",
@@ -38,6 +39,7 @@
 		  "prompt": "What is the name of your mod?",
 		  "description": "Use the public name or an internal codename.",
 		  "type": "short_text",
+		  "asks_identifying_info": true,
 		  "required": true,
 		  "placeholder": "Example: Clockwork Depths",
 		  "topic_tags": [

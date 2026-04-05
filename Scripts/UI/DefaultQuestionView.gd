@@ -22,7 +22,7 @@ func _ready() -> void:
 	SurveyStyle.style_body(_description_label)
 	SurveyStyle.style_caption(_meta_label)
 	_card.gui_input.connect(_on_card_gui_input)
-	refresh_responsive_layout(get_viewport().get_visible_rect().size)
+	refresh_responsive_layout(_resolved_viewport_size())
 	super()
 
 func _apply_question() -> void:
@@ -33,11 +33,7 @@ func _apply_question() -> void:
 	_description_label.text = question.description
 	_description_label.visible = not question.description.is_empty()
 
-	var bits: Array[String] = []
-	if question.required:
-		bits.append("Required")
-	bits.append(_type_label(question.type))
-	_meta_label.text = " | ".join(bits)
+	_meta_label.text = ""
 	_refresh_question_chrome()
 
 	_clear_children(_field_host)
@@ -68,7 +64,7 @@ func _apply_question() -> void:
 			_build_typed_answer_field(str(current_value if current_value != null else ""), question.placeholder, false, _on_short_text_changed)
 
 	_apply_selection_state()
-	refresh_responsive_layout(get_viewport().get_visible_rect().size)
+	refresh_responsive_layout(_resolved_viewport_size())
 	_refresh_layout_metrics()
 
 func _apply_selection_state() -> void:

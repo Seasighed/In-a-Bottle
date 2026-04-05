@@ -102,6 +102,11 @@ layout_mode = 2
 size_flags_horizontal = 3
 text = "Opinion Summary"
 
+[node name="ProfileButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/NavigationActions"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Social Profile"
+
 [node name="ExportButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack/NavigationActions"]
 layout_mode = 2
 size_flags_horizontal = 3
@@ -154,3 +159,8 @@ size_flags_vertical = 3
 [node name="SectionList" type="VBoxContainer" parent="Bounds/Center/Panel/PanelScroll/Stack/SectionScroll"]
 layout_mode = 2
 theme_override_constants/separation = 8
+
+[node name="SectionClearAllButton" type="Button" parent="Bounds/Center/Panel/PanelScroll/Stack"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Clear All Answers"

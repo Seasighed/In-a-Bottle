@@ -21,7 +21,7 @@ func _ready() -> void:
 	SurveyStyle.style_text_edit(_text_edit)
 	_connect_signals_once()
 	_apply_configured_state()
-	refresh_responsive_layout(get_viewport().get_visible_rect().size)
+	refresh_responsive_layout(_resolved_viewport_size())
 
 func configure(value: String, placeholder: String, multiline: bool = false) -> void:
 	_configured_value = value
@@ -38,13 +38,13 @@ func set_focus_presentation(enabled: bool) -> void:
 	if _focus_presentation == enabled:
 		return
 	_focus_presentation = enabled
-	refresh_responsive_layout(get_viewport().get_visible_rect().size)
+	refresh_responsive_layout(_resolved_viewport_size())
 
 func set_journey_focus_presentation(enabled: bool) -> void:
 	if _journey_focus_presentation == enabled:
 		return
 	_journey_focus_presentation = enabled
-	refresh_responsive_layout(get_viewport().get_visible_rect().size)
+	refresh_responsive_layout(_resolved_viewport_size())
 
 func refresh_responsive_layout(viewport_size: Vector2) -> void:
 	if not _ensure_controls():
@@ -107,3 +107,17 @@ func _apply_configured_state() -> void:
 	_text_edit.placeholder_text = _configured_placeholder if not _configured_placeholder.is_empty() else "Write as much detail as you need"
 	_text_edit.text = _configured_value
 	_is_configuring = false
+
+func _resolved_viewport_size() -> Vector2:
+	var viewport := get_viewport()
+	if viewport != null:
+		return viewport.get_visible_rect().size
+	var fallback_size := Vector2(
+		maxf(size.x, custom_minimum_size.x),
+		maxf(size.y, custom_minimum_size.y)
+	)
+	if fallback_size.x <= 0.0:
+		fallback_size.x = 1280.0
+	if fallback_size.y <= 0.0:
+		fallback_size.y = 720.0
+	return fallback_size

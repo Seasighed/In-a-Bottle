@@ -3,6 +3,7 @@
   "title": "Survey Studio",
   "subtitle": "A modular questionnaire shell with section navigation, reusable views, and export-ready data.",
   "onboarding_subject": "the survey shell",
+  "asks_identifying_info": true,
   "audience_profiles": [
     {
       "id": "participant",
@@ -38,6 +39,7 @@
           "prompt": "What name should appear in the response export?",
           "description": "Use a participant code if you want anonymous exports.",
           "type": "short_text",
+          "asks_identifying_info": true,
           "required": true,
           "placeholder": "Participant 014",
           "topic_tags": [
@@ -55,6 +57,7 @@
           "id": "email",
           "prompt": "What email address should we use for follow-up?",
           "type": "email",
+          "asks_identifying_info": true,
           "placeholder": "name@example.com",
           "topic_tags": [
             "follow up",

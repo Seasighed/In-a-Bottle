@@ -40,7 +40,7 @@ func _ready() -> void:
 	SurveyStyle.style_body(_description_label)
 	_panel.gui_input.connect(_on_panel_gui_input)
 	set_process_input(true)
-	refresh_responsive_layout(get_viewport().get_visible_rect().size)
+	refresh_responsive_layout(_resolved_viewport_size())
 	super()
 
 func _input(event: InputEvent) -> void:
@@ -66,7 +66,7 @@ func _apply_question() -> void:
 	_cancel_drag()
 	_rebuild_rank_list()
 	_apply_selection_state()
-	refresh_responsive_layout(get_viewport().get_visible_rect().size)
+	refresh_responsive_layout(_resolved_viewport_size())
 	_refresh_layout_metrics()
 	_refresh_question_chrome()
 
@@ -142,7 +142,7 @@ func _rebuild_rank_list() -> void:
 	if _row_panels.size() != _order.size():
 		_recreate_rank_rows()
 	_primary_control = null
-	var journey_scale := SurveyStyle.journey_mobile_scale(get_viewport().get_visible_rect().size) if is_journey_focus_presentation() and _compact_layout else 1.0
+	var journey_scale := SurveyStyle.journey_mobile_scale(_resolved_viewport_size()) if is_journey_focus_presentation() and _compact_layout else 1.0
 
 	var preview_index: int = _effective_drop_index()
 	for index in range(_order.size()):
@@ -291,7 +291,7 @@ func _apply_rank_row_style(row_panel: PanelContainer, is_dragged: bool, is_drop_
 		border = SurveyStyle.HIGHLIGHT_GOLD
 		border_width = 2
 	SurveyStyle.apply_panel(row_panel, fill, border, 18 if is_focus_presentation() else 16, border_width)
-	var journey_scale := SurveyStyle.journey_mobile_scale(get_viewport().get_visible_rect().size) if is_journey_focus_presentation() and _compact_layout else 1.0
+	var journey_scale := SurveyStyle.journey_mobile_scale(_resolved_viewport_size()) if is_journey_focus_presentation() and _compact_layout else 1.0
 	if _uses_stacked_mobile_actions():
 		row_panel.custom_minimum_size = Vector2(0.0, 112.0 * journey_scale)
 	else:
@@ -300,7 +300,7 @@ func _apply_rank_row_style(row_panel: PanelContainer, is_dragged: bool, is_drop_
 func _apply_responsive_metrics() -> void:
 	var focus_layout := is_focus_presentation()
 	var journey_focus_layout := is_journey_focus_presentation()
-	var journey_scale := SurveyStyle.journey_mobile_scale(get_viewport().get_visible_rect().size) if journey_focus_layout and _compact_layout else 1.0
+	var journey_scale := SurveyStyle.journey_mobile_scale(_resolved_viewport_size()) if journey_focus_layout and _compact_layout else 1.0
 	_stack.add_theme_constant_override("separation", int(round((((12 if _compact_layout else 16) * journey_scale) if journey_focus_layout else ((16 if _compact_layout else 20) if focus_layout else (8 if _compact_layout else 10))))))
 	_rank_list.add_theme_constant_override("separation", int(round((((9 if _compact_layout else 11) * journey_scale) if journey_focus_layout else ((12 if _compact_layout else 16) if focus_layout else (6 if _compact_layout else 8))))))
 	SurveyStyle.style_heading(_title_label, int(round((((22 if _compact_layout else 28) * journey_scale) if journey_focus_layout else ((30 if _compact_layout else 38) if focus_layout else (19 if _compact_layout else 21))))))
@@ -309,7 +309,7 @@ func _apply_responsive_metrics() -> void:
 
 func _style_rank_action_button(button: Button) -> void:
 	button.custom_minimum_size = Vector2(_action_button_width(), _action_button_height())
-	var journey_scale := SurveyStyle.journey_mobile_scale(get_viewport().get_visible_rect().size) if is_journey_focus_presentation() and _compact_layout else 1.0
+	var journey_scale := SurveyStyle.journey_mobile_scale(_resolved_viewport_size()) if is_journey_focus_presentation() and _compact_layout else 1.0
 	button.add_theme_font_size_override("font_size", int(round((((14 if _compact_layout else 15) * journey_scale) if is_journey_focus_presentation() else ((15 if _compact_layout else 17) if is_focus_presentation() else (13 if _compact_layout else 14))))))
 
 func _wire_rank_button_feedback(button: Button) -> void:
@@ -319,21 +319,21 @@ func _wire_rank_button_feedback(button: Button) -> void:
 func _badge_width() -> float:
 	if is_focus_presentation():
 		if is_journey_focus_presentation():
-			return (34.0 * SurveyStyle.journey_mobile_scale(get_viewport().get_visible_rect().size)) if _compact_layout else 34.0
+			return (34.0 * SurveyStyle.journey_mobile_scale(_resolved_viewport_size())) if _compact_layout else 34.0
 		return 34.0 if _compact_layout else 40.0
 	return COMPACT_ROW_BADGE_WIDTH if _compact_layout else ROW_BADGE_WIDTH
 
 func _action_button_width() -> float:
 	if is_focus_presentation():
 		if is_journey_focus_presentation():
-			return (58.0 * SurveyStyle.journey_mobile_scale(get_viewport().get_visible_rect().size)) if _compact_layout else 60.0
+			return (58.0 * SurveyStyle.journey_mobile_scale(_resolved_viewport_size())) if _compact_layout else 60.0
 		return 62.0 if _compact_layout else 70.0
 	return COMPACT_ACTION_BUTTON_WIDTH if _compact_layout else ACTION_BUTTON_WIDTH
 
 func _action_button_height() -> float:
 	if is_focus_presentation():
 		if is_journey_focus_presentation():
-			return (38.0 * SurveyStyle.journey_mobile_scale(get_viewport().get_visible_rect().size)) if _compact_layout else 38.0
+			return (38.0 * SurveyStyle.journey_mobile_scale(_resolved_viewport_size())) if _compact_layout else 38.0
 		return 40.0 if _compact_layout else 46.0
 	return COMPACT_ACTION_BUTTON_HEIGHT if _compact_layout else ACTION_BUTTON_HEIGHT
 

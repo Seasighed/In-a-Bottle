@@ -9,6 +9,7 @@ static func build() -> SurveyDefinition:
 		"id": "studio_feedback",
 		"title": "Survey Studio",
 		"subtitle": "A modular questionnaire shell with section navigation, reusable views, and export-ready data.",
+		"asks_identifying_info": true,
 		"sections": [
 			SurveySection.new({
 				"id": "participant_profile",
@@ -22,6 +23,7 @@ static func build() -> SurveyDefinition:
 						"prompt": "What name should appear in the response export?",
 						"description": "Use a participant code if you want anonymous exports.",
 						"type": SurveyQuestion.TYPE_SHORT_TEXT,
+						"asks_identifying_info": true,
 						"required": true,
 						"placeholder": "Participant 014"
 					}),

@@ -2,27 +2,32 @@ class_name SurveySaveBundle
 extends RefCounted
 
 const FORMAT_ID := "survey_session_bundle"
-const CURRENT_VERSION := 2
+const CURRENT_VERSION := 3
 
-static func build_payload(survey: SurveyDefinition, template_path: String, answers: Dictionary, preferences: Dictionary = {}, session_state: Dictionary = {}) -> Dictionary:
+static func build_payload(survey: SurveyDefinition, template_path: String, answers: Dictionary, preferences: Dictionary = {}, session_state: Dictionary = {}, scrub_identifying_info: bool = false) -> Dictionary:
 	var survey_payload: Dictionary = {
 		"id": survey.id if survey != null else "",
 		"title": survey.title if survey != null else "",
-		"template_path": template_path
+		"template_path": template_path,
+		"template_version": survey.template_version if survey != null else 0,
+		"schema_hash": survey.schema_hash if survey != null else "",
+		"asks_identifying_info": survey.asks_identifying_info if survey != null else false
 	}
 	var payload: Dictionary = {
 		"format": FORMAT_ID,
 		"version": CURRENT_VERSION,
 		"saved_at": Time.get_datetime_string_from_system(true),
 		"survey": survey_payload,
+		"question_catalog": _build_question_catalog(survey),
 		"preferences": _normalize_preferences(preferences),
 		"session_state": _normalize_session_state(session_state),
-		"answers": answers.duplicate(true)
+		"answers": _filtered_answers(survey, answers, scrub_identifying_info),
+		"scrub_identifying_info": scrub_identifying_info
 	}
 	return payload
 
-static func build_json_text(survey: SurveyDefinition, template_path: String, answers: Dictionary, preferences: Dictionary = {}, session_state: Dictionary = {}) -> String:
-	return JSON.stringify(build_payload(survey, template_path, answers, preferences, session_state), "\t")
+static func build_json_text(survey: SurveyDefinition, template_path: String, answers: Dictionary, preferences: Dictionary = {}, session_state: Dictionary = {}, scrub_identifying_info: bool = false) -> String:
+	return JSON.stringify(build_payload(survey, template_path, answers, preferences, session_state, scrub_identifying_info), "\t")
 
 static func parse_json_text(text: String) -> Dictionary:
 	var parsed: Variant = JSON.parse_string(text)
@@ -34,6 +39,18 @@ static func suggested_filename(survey_id: String) -> String:
 	var safe_id: String = _safe_segment(survey_id if not survey_id.is_empty() else "survey")
 	var stamp: String = Time.get_datetime_string_from_system().replace(":", "-").replace(" ", "_")
 	return "%s_progress_%s.json" % [safe_id, stamp]
+
+static func _filtered_answers(survey: SurveyDefinition, answers: Dictionary, scrub_identifying_info: bool) -> Dictionary:
+	if not scrub_identifying_info or survey == null:
+		return answers.duplicate(true)
+	var filtered: Dictionary = {}
+	for section in survey.sections:
+		for question in section.questions:
+			if question.asks_identifying_info:
+				continue
+			if answers.has(question.id):
+				filtered[question.id] = answers.get(question.id)
+	return filtered
 
 static func _normalize_payload(root: Dictionary) -> Dictionary:
 	var answers_value: Variant = root.get("answers", null)
@@ -64,6 +81,8 @@ static func _normalize_export_payload(root: Dictionary) -> Dictionary:
 				flattened_answers[question_id] = response.get("answer", null)
 	var legacy_payload: Dictionary = {
 		"survey_id": str(root.get("survey_id", "")),
+		"template_version": int(root.get("template_version", 0)),
+		"schema_hash": str(root.get("schema_hash", "")).strip_edges(),
 		"saved_at": str(root.get("exported_at", root.get("saved_at", ""))),
 		"answers": flattened_answers,
 		"preferences": {},
@@ -85,12 +104,53 @@ static func _canonicalize_payload(root: Dictionary) -> Dictionary:
 		"version": CURRENT_VERSION,
 		"survey_id": str(survey_payload.get("id", root.get("survey_id", ""))),
 		"template_path": str(survey_payload.get("template_path", root.get("template_path", ""))),
+		"template_version": int(survey_payload.get("template_version", root.get("template_version", 0))),
+		"schema_hash": str(survey_payload.get("schema_hash", root.get("schema_hash", ""))).strip_edges(),
 		"saved_at": str(root.get("saved_at", root.get("exported_at", ""))),
 		"preferences": _normalize_preferences(preferences_payload),
 		"session_state": _normalize_session_state(session_state_payload),
 		"answers": answers_payload.duplicate(true)
 	}
+	var question_catalog_value: Variant = root.get("question_catalog", [])
+	if question_catalog_value is Array:
+		canonical["question_catalog"] = (question_catalog_value as Array).duplicate(true)
 	return canonical
+
+static func _build_question_catalog(survey: SurveyDefinition) -> Array[Dictionary]:
+	var catalog: Array[Dictionary] = []
+	if survey == null:
+		return catalog
+	for section_index in range(survey.sections.size()):
+		var section: SurveySection = survey.sections[section_index]
+		var questions_payload: Array = []
+		var section_payload: Dictionary = {
+			"section_id": section.id,
+			"section_number": section_index + 1,
+			"title": section.title.strip_edges(),
+			"questions": questions_payload
+		}
+		for question_index in range(section.questions.size()):
+			var question: SurveyQuestion = section.questions[question_index]
+			var question_payload: Dictionary = {
+				"question_id": question.id,
+				"question_number": question_index + 1,
+				"display_number": "%d.%d" % [section_index + 1, question_index + 1],
+				"prompt": question.prompt.strip_edges(),
+				"question_type": str(question.type),
+				"required": question.required,
+				"asks_identifying_info": question.asks_identifying_info
+			}
+			if question.has_modifier():
+				question_payload["modifier"] = question.modifier_key
+			if not question.modifier_settings.is_empty():
+				question_payload["modifier_settings"] = question.modifier_settings.duplicate(true)
+			if question.reward_count_configured:
+				question_payload["reward_count"] = question.reward_count
+			if not question.reward_sprite.is_empty():
+				question_payload["reward_sprite"] = question.reward_sprite
+			questions_payload.append(question_payload)
+		catalog.append(section_payload)
+	return catalog
 
 static func _normalize_preferences(source: Dictionary) -> Dictionary:
 	var resolved_preferences: Dictionary = {}
@@ -160,6 +220,26 @@ static func _normalize_session_state(source: Dictionary) -> Dictionary:
 		var selected_question_id: String = str(source.get("selected_question_id", "")).strip_edges()
 		if not selected_question_id.is_empty():
 			resolved_state["selected_question_id"] = selected_question_id
+	for candidate in ["answer_change_xp_awards", "answer_change_awards"]:
+		if not source.has(candidate):
+			continue
+		var awards_value: Variant = source.get(candidate, {})
+		if not (awards_value is Dictionary):
+			break
+		var normalized_awards: Dictionary = {}
+		for question_id_variant in (awards_value as Dictionary).keys():
+			var question_id: String = str(question_id_variant).strip_edges()
+			if question_id.is_empty():
+				continue
+			normalized_awards[question_id] = max(0, int((awards_value as Dictionary).get(question_id_variant, 0)))
+		if not normalized_awards.is_empty():
+			resolved_state["answer_change_xp_awards"] = normalized_awards
+		break
+	for numeric_key in ["session_started_at_unix", "first_answer_at_unix", "last_answer_at_unix", "answer_change_count"]:
+		if source.has(numeric_key):
+			resolved_state[numeric_key] = max(0, int(source.get(numeric_key, 0)))
+	if source.has("restored_progress"):
+		resolved_state["restored_progress"] = bool(source.get("restored_progress", false))
 	return resolved_state
 
 static func _normalize_text_value(value: Variant) -> String:

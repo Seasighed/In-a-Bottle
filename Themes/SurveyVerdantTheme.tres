@@ -1,0 +1,45 @@
+[gd_resource type="Resource" script_class="SurveyThemeSet" format=3 uid="uid://bxdqifbs1yty8"]
+
+[ext_resource type="Script" uid="uid://c3f3ayfaei7fr" path="res://Scripts/UI/SurveyThemeSet.gd" id="1"]
+[ext_resource type="Script" uid="uid://bloedwu1n6vsb" path="res://Scripts/UI/SurveyThemePalette.gd" id="2"]
+
+[sub_resource type="Resource" id="2"]
+script = ExtResource("2")
+background = Color(0.0705882, 0.0941176, 0.0862745, 1)
+surface = Color(0.0941176, 0.12549, 0.113725, 1)
+surface_alt = Color(0.121569, 0.164706, 0.14902, 1)
+surface_muted = Color(0.14902, 0.203922, 0.180392, 1)
+border = Color(0.231373, 0.337255, 0.294118, 1)
+accent = Color(0.184314, 0.74902, 0.533333, 1)
+accent_alt = Color(0.517647, 0.890196, 0.721569, 1)
+text_primary = Color(0.894118, 0.968627, 0.937255, 1)
+text_muted = Color(0.65098, 0.780392, 0.737255, 1)
+text_dark = Color(0.0627451, 0.12549, 0.101961, 1)
+text_on_accent = Color(0.054902, 0.109804, 0.0862745, 1)
+text_outline = Color(0, 0, 0, 0.3)
+danger = Color(0.811765, 0.372549, 0.329412, 1)
+
+[sub_resource type="Resource" id="3"]
+script = ExtResource("2")
+mode_name = "Light"
+background = Color(0.952941, 0.984314, 0.968627, 1)
+surface = Color(1, 1, 1, 1)
+surface_alt = Color(0.933333, 0.980392, 0.952941, 1)
+surface_muted = Color(0.87451, 0.945098, 0.905882, 1)
+border = Color(0.717647, 0.847059, 0.780392, 1)
+accent = Color(0.113725, 0.603922, 0.419608, 1)
+accent_alt = Color(0.207843, 0.768627, 0.537255, 1)
+text_primary = Color(0.0901961, 0.203922, 0.156863, 1)
+text_muted = Color(0.32549, 0.45098, 0.396078, 1)
+text_dark = Color(0.0901961, 0.203922, 0.156863, 1)
+text_outline = Color(0, 0, 0, 0)
+danger = Color(0.721569, 0.309804, 0.270588, 1)
+overlay_dimmer = Color(0.0784314, 0.0980392, 0.121569, 0.24)
+
+[resource]
+script = ExtResource("1")
+theme_id = "verdant"
+display_name = "Verdant Glow"
+description = "Leafy greens with soft neon edges."
+dark_palette = SubResource("2")
+light_palette = SubResource("3")

@@ -17,15 +17,30 @@ signal navigate_requested(section_index: int, question_id: String)
 
 var _survey: SurveyDefinition
 var _answers: Dictionary = {}
+var _show_question_rows := true
+var _title_text := "Survey Map"
+var _subtitle_text := "Click any section or question to scroll the questionnaire."
+var _current_section_index := 0
+var _current_focus_question_id := ""
 
 func _ready() -> void:
 	visible = true
 	size_flags_vertical = Control.SIZE_EXPAND_FILL
 	custom_minimum_size = Vector2(290, 0)
 	refresh_theme()
-	_subtitle_label.text = "Click any section or question to scroll the questionnaire."
+	_apply_display_copy()
 	_current_section_label.text = "Section"
 	_current_question_label.text = "Question"
+
+func configure_display(title: String, subtitle: String, show_question_rows: bool = true) -> void:
+	_title_text = title.strip_edges() if not title.strip_edges().is_empty() else "Survey Map"
+	_subtitle_text = subtitle.strip_edges() if not subtitle.strip_edges().is_empty() else "Click any section or question to scroll the questionnaire."
+	_show_question_rows = show_question_rows
+	if not is_node_ready():
+		return
+	_apply_display_copy()
+	if _survey != null:
+		refresh(_answers, _current_section_index, _current_focus_question_id)
 
 func refresh_theme() -> void:
 	SurveyStyle.apply_panel(self, SurveyStyle.SURFACE, SurveyStyle.BORDER, 24, 1)
@@ -33,6 +48,12 @@ func refresh_theme() -> void:
 	SurveyStyle.style_body(_subtitle_label)
 	SurveyStyle.style_caption(_current_section_label, SurveyStyle.ACCENT_ALT)
 	SurveyStyle.style_caption(_current_question_label, SurveyStyle.TEXT_PRIMARY)
+
+func _apply_display_copy() -> void:
+	if _title_label != null:
+		_title_label.text = _title_text
+	if _subtitle_label != null:
+		_subtitle_label.text = _subtitle_text
 
 func bind_survey(survey_definition: SurveyDefinition) -> void:
 	_survey = survey_definition
@@ -43,6 +64,8 @@ func refresh(answers: Dictionary, current_section_index: int, focus_question_id:
 	if _survey == null or _section_list == null:
 		return
 	_answers = answers
+	_current_section_index = current_section_index
+	_current_focus_question_id = focus_question_id
 	_update_current_view_labels(current_section_index, focus_question_id)
 	_clear_container(_section_list)
 	for section_index in range(_survey.sections.size()):
@@ -57,6 +80,8 @@ func refresh(answers: Dictionary, current_section_index: int, focus_question_id:
 			active_question_index = _question_index_for_section(section, focus_question_id)
 		var section_row := _create_section_row(section, section_index, section_index == current_section_index, active_question_index)
 		section_stack.add_child(section_row)
+		if not _show_question_rows:
+			continue
 
 		var question_margin := MarginContainer.new()
 		question_margin.add_theme_constant_override("margin_left", 18)
@@ -83,13 +108,17 @@ func _update_current_view_labels(current_section_index: int, focus_question_id: 
 	var section: SurveySection = _survey.sections[resolved_section_index]
 	_current_section_label.text = section.display_title(resolved_section_index)
 	SurveyStyle.style_caption(_current_section_label, _status_color(_section_completion_state(section)))
+	if not _show_question_rows:
+		_current_question_label.text = "%d question(s) | %d answered" % [section.questions.size(), _answered_question_count(section)]
+		SurveyStyle.style_caption(_current_question_label, _status_color(_section_completion_state(section)))
+		return
 	var question_index: int = _question_index_for_section(section, focus_question_id)
 	if question_index < 0 or question_index >= section.questions.size():
 		_current_question_label.text = "Question"
 		SurveyStyle.style_caption(_current_question_label, SurveyStyle.TEXT_PRIMARY)
 		return
 	var question: SurveyQuestion = section.questions[question_index]
-	_current_question_label.text = "Question %d | %s" % [question_index + 1, _type_label(question.type)]
+	_current_question_label.text = "Question %d | %s | %s" % [question_index + 1, _type_label(question.type), question.requirement_label()]
 	SurveyStyle.style_caption(_current_question_label, _status_color(_question_completion_state(question)))
 
 func sync_scroll_progress(progress: float) -> void:
@@ -273,6 +302,15 @@ func _section_completion_state(section: SurveySection) -> StringName:
 	if saw_complete or saw_partial:
 		return SurveyQuestion.ANSWER_STATE_PARTIAL
 	return SurveyQuestion.ANSWER_STATE_UNANSWERED
+
+func _answered_question_count(section: SurveySection) -> int:
+	if section == null:
+		return 0
+	var answered_count := 0
+	for question in section.questions:
+		if not question.is_answer_empty(_answers.get(question.id, null)):
+			answered_count += 1
+	return answered_count
 
 func _status_color(state: StringName) -> Color:
 	match state:

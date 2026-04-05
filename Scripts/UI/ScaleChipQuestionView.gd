@@ -32,7 +32,7 @@ func _ready() -> void:
 	_score_slider.value_changed.connect(_on_score_slider_value_changed)
 	_score_slider.drag_ended.connect(_on_score_slider_drag_ended)
 	_slider_clear_button.pressed.connect(_on_slider_clear_pressed)
-	refresh_responsive_layout(get_viewport().get_visible_rect().size)
+	refresh_responsive_layout(_resolved_viewport_size())
 	super()
 
 func _apply_question() -> void:
@@ -60,7 +60,7 @@ func _apply_question() -> void:
 	_sync_selection(int(current_value) if current_value != null else -1)
 	_sync_slider_state()
 	_apply_selection_state()
-	refresh_responsive_layout(get_viewport().get_visible_rect().size)
+	refresh_responsive_layout(_resolved_viewport_size())
 	_refresh_layout_metrics()
 	_refresh_question_chrome()
 

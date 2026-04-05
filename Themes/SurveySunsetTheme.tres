@@ -1,0 +1,46 @@
+[gd_resource type="Resource" script_class="SurveyThemeSet" format=3 uid="uid://cmmtquf14cnkn"]
+
+[ext_resource type="Script" uid="uid://c3f3ayfaei7fr" path="res://Scripts/UI/SurveyThemeSet.gd" id="1"]
+[ext_resource type="Script" uid="uid://bloedwu1n6vsb" path="res://Scripts/UI/SurveyThemePalette.gd" id="2"]
+
+[sub_resource type="Resource" id="2"]
+script = ExtResource("2")
+background = Color(0.109804, 0.0784314, 0.0823529, 1)
+surface = Color(0.14902, 0.105882, 0.113725, 1)
+surface_alt = Color(0.188235, 0.129412, 0.141176, 1)
+surface_muted = Color(0.227451, 0.152941, 0.168627, 1)
+border = Color(0.360784, 0.231373, 0.25098, 1)
+accent = Color(1, 0.478431, 0.34902, 1)
+accent_alt = Color(1, 0.701961, 0.415686, 1)
+text_primary = Color(1, 0.905882, 0.862745, 1)
+text_muted = Color(0.843137, 0.705882, 0.647059, 1)
+text_dark = Color(0.164706, 0.0705882, 0.0588235, 1)
+text_on_accent = Color(0.164706, 0.0705882, 0.0588235, 1)
+text_outline = Color(0, 0, 0, 0.3)
+danger = Color(0.839216, 0.352941, 0.298039, 1)
+overlay_dimmer = Color(0, 0, 0, 0.64)
+
+[sub_resource type="Resource" id="3"]
+script = ExtResource("2")
+mode_name = "Light"
+background = Color(1, 0.956863, 0.92549, 1)
+surface = Color(1, 1, 1, 1)
+surface_alt = Color(1, 0.941176, 0.901961, 1)
+surface_muted = Color(1, 0.85098, 0.780392, 1)
+border = Color(0.941176, 0.717647, 0.611765, 1)
+accent = Color(0.905882, 0.4, 0.270588, 1)
+accent_alt = Color(1, 0.607843, 0.329412, 1)
+text_primary = Color(0.266667, 0.152941, 0.133333, 1)
+text_muted = Color(0.482353, 0.364706, 0.337255, 1)
+text_dark = Color(0.266667, 0.152941, 0.133333, 1)
+text_outline = Color(0, 0, 0, 0)
+danger = Color(0.768627, 0.278431, 0.215686, 1)
+overlay_dimmer = Color(0.0784314, 0.0980392, 0.121569, 0.26)
+
+[resource]
+script = ExtResource("1")
+theme_id = "sunset"
+display_name = "Sunset Jam"
+description = "Warm citrus lights and ember shadows."
+dark_palette = SubResource("2")
+light_palette = SubResource("3")

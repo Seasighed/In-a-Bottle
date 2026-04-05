@@ -21,27 +21,34 @@ static func export_csv(survey: SurveyDefinition, answers: Dictionary) -> String:
 		return ""
 	return filename
 
-static func build_json_text(survey: SurveyDefinition, answers: Dictionary) -> String:
+static func build_json_text(survey: SurveyDefinition, answers: Dictionary, scrub_identifying_info: bool = false) -> String:
 	var payload := {
 		"survey_id": survey.id,
 		"title": survey.title,
 		"subtitle": survey.subtitle,
+		"template_version": survey.template_version,
+		"schema_hash": survey.schema_hash,
 		"exported_at": Time.get_datetime_string_from_system(true),
-		"answers": _build_answers_payload(survey, answers)
+		"asks_identifying_info": survey.asks_identifying_info,
+		"scrub_identifying_info": scrub_identifying_info,
+		"answers": _build_answers_payload(survey, answers, scrub_identifying_info)
 	}
 	return JSON.stringify(payload, "\t")
 
-static func build_csv_text(survey: SurveyDefinition, answers: Dictionary) -> String:
+static func build_csv_text(survey: SurveyDefinition, answers: Dictionary, scrub_identifying_info: bool = false) -> String:
 	var lines: Array[String] = []
-	lines.append("section_id,section_title,question_id,question_prompt,question_type,answer")
+	lines.append("section_id,section_title,question_id,question_prompt,question_type,asks_identifying_info,answer")
 	for section in survey.sections:
 		for question in section.questions:
+			if scrub_identifying_info and question.asks_identifying_info:
+				continue
 			var row: Array[String] = [
 				_csv_escape(section.id),
 				_csv_escape(section.title),
 				_csv_escape(question.id),
 				_csv_escape(question.prompt),
 				_csv_escape(str(question.type)),
+				_csv_escape("true" if question.asks_identifying_info else "false"),
 				_csv_escape(_answer_to_text(answers.get(question.id)))
 			]
 			lines.append(",".join(row))
@@ -63,7 +70,7 @@ static func save_image_file(path: String, image: Image) -> bool:
 static func suggested_filename(survey_id: String, extension: String) -> String:
 	return "%s.%s" % [_timestamped_name(survey_id), extension.to_lower()]
 
-static func _build_answers_payload(survey: SurveyDefinition, answers: Dictionary) -> Array[Dictionary]:
+static func _build_answers_payload(survey: SurveyDefinition, answers: Dictionary, scrub_identifying_info: bool = false) -> Array[Dictionary]:
 	var payload: Array[Dictionary] = []
 	for section in survey.sections:
 		var section_payload := {
@@ -72,13 +79,29 @@ static func _build_answers_payload(survey: SurveyDefinition, answers: Dictionary
 			"responses": []
 		}
 		for question in section.questions:
+			if scrub_identifying_info and question.asks_identifying_info:
+				continue
 			var value: Variant = answers.get(question.id, null)
-			section_payload["responses"].append({
+			var response_payload: Dictionary = {
 				"question_id": question.id,
 				"prompt": question.prompt,
 				"type": str(question.type),
+				"asks_identifying_info": question.asks_identifying_info,
+				"required": question.required,
 				"answer": value
-			})
+			}
+			if question.has_modifier():
+				response_payload["modifier"] = question.modifier_key
+			if not question.modifier_settings.is_empty():
+				response_payload["modifier_settings"] = question.modifier_settings.duplicate(true)
+			if question.reward_count_configured:
+				response_payload["reward_count"] = question.reward_count
+			if not question.reward_sprite.is_empty():
+				response_payload["reward_sprite"] = question.reward_sprite
+			section_payload["responses"].append(response_payload)
+		var responses: Array = section_payload.get("responses", [])
+		if responses.is_empty():
+			continue
 		payload.append(section_payload)
 	return payload
 

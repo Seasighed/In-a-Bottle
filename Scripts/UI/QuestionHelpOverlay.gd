@@ -32,7 +32,7 @@ func open_help(question: SurveyQuestion, show_debug_ids: bool = false) -> void:
 	var type_label := question.display_type_label()
 	var debug_line := "ID: %s" % question.id if show_debug_ids and not question.id.is_empty() else ""
 	_heading_label.text = question.prompt.strip_edges() if not question.prompt.strip_edges().is_empty() else "Question Help"
-	_subtitle_label.text = "%s%s" % [type_label, " | %s" % debug_line if not debug_line.is_empty() else ""]
+	_subtitle_label.text = "%s | %s%s" % [type_label, question.requirement_label(), " | %s" % debug_line if not debug_line.is_empty() else ""]
 	_body_label.clear()
 	_body_label.append_text(SURVEY_MARKDOWN.to_bbcode(question.help_markdown_text()))
 	show()

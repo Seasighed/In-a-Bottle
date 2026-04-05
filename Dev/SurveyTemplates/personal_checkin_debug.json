@@ -1,0 +1,278 @@
+{
+	"id": "personal_checkin_debug",
+	"title": "Personal Check-In Debug Survey",
+	"subtitle": "A friendly playtest survey that covers every supported question type with easy personal prompts.",
+	"description": "Use this survey for mass playtesting. It touches every question type while staying simple to answer: mood, gratitude, routines, priorities, and recent energy.",
+	"onboarding_subject": "your recent emotional state and daily rhythm",
+	"asks_identifying_info": true,
+	"priority": 100,
+	"single_survey_mode": true,
+	"audience_profiles": [
+		{
+			"id": "participant",
+			"label": "Participant",
+			"description": "Answering honestly about how the last little while has felt."
+		},
+		{
+			"id": "reflective",
+			"label": "Reflective",
+			"description": "Comfortable with longer answers and ranking tradeoffs."
+		},
+		{
+			"id": "quick_checkin",
+			"label": "Quick Check-In",
+			"description": "Prefers a light, fast survey session."
+		}
+	],
+	"guided_presets": [
+		{
+			"id": "steady_week",
+			"label": "Steady Week",
+			"description": "For people who want to describe a calm or balanced recent stretch.",
+			"audience_id": "participant",
+			"topic_tags": ["balance", "routine", "gratitude"]
+		},
+		{
+			"id": "stress_check",
+			"label": "Stress Check",
+			"description": "For people who want to reflect on stress, energy, and support.",
+			"audience_id": "reflective",
+			"topic_tags": ["stress", "support", "energy"]
+		},
+		{
+			"id": "quick_pulse",
+			"label": "Quick Pulse",
+			"description": "For a faster pass that still touches the main features.",
+			"audience_id": "quick_checkin",
+			"topic_tags": ["mood", "habits", "priorities"]
+		}
+	],
+	"faq_items": [
+		{
+			"id": "why_personal",
+			"question": "Why are the prompts personal?",
+			"answer": "The questions are meant to be easy to answer quickly, while still exercising every UI path for playtesting."
+		},
+		{
+			"id": "what_is_being_tested",
+			"question": "What is this template for?",
+			"answer": "It is a built-in debug survey for layout checks, answer storage, exports, scoring, and Journey flow playtests."
+		}
+	],
+	"sections": [
+		{
+			"id": "recent_snapshot",
+			"title": "Recent Snapshot",
+			"description": "Quick identity, timing, and context questions that are easy to answer without much setup.",
+			"icon": "profile",
+			"header_template": "spotlight",
+			"questions": [
+				{
+					"id": "preferred_name",
+					"prompt": "What name or nickname should this response use?",
+					"description": "Use whatever feels comfortable for this playtest run.",
+					"type": "short_text",
+					"asks_identifying_info": true,
+					"required": true,
+					"placeholder": "Example: Sam",
+					"topic_tags": ["identity", "comfort"],
+					"keywords": ["name", "nickname", "response name"]
+				},
+				{
+					"id": "follow_up_email",
+					"prompt": "What email should we use if we want to follow up later?",
+					"description": "Optional if you would rather keep this fully anonymous.",
+					"type": "email",
+					"asks_identifying_info": true,
+					"placeholder": "name@example.com",
+					"topic_tags": ["follow up", "contact"],
+					"keywords": ["email", "contact", "follow-up"]
+				},
+				{
+					"id": "check_in_date",
+					"prompt": "What date are you answering this check-in?",
+					"type": "date",
+					"placeholder": "2026-04-01",
+					"topic_tags": ["timing", "session"],
+					"keywords": ["date", "today", "check-in"]
+				},
+				{
+					"id": "age_range",
+					"prompt": "Which age range fits you best right now?",
+					"type": "dropdown",
+					"required": true,
+					"options": [
+						"Under 18",
+						"18-24",
+						"25-34",
+						"35-44",
+						"45-54",
+						"55+"
+					],
+					"topic_tags": ["demographics", "life stage"],
+					"keywords": ["age", "range", "stage of life"]
+				},
+				{
+					"id": "restful_nights_last_week",
+					"prompt": "About how many nights in the last week felt genuinely restful?",
+					"type": "number",
+					"placeholder": "4",
+					"min_value": 0,
+					"max_value": 7,
+					"topic_tags": ["rest", "sleep"],
+					"keywords": ["sleep", "rest", "nights"],
+					"rating": {
+						"enabled": true,
+						"label": "Restful nights"
+					}
+				}
+			]
+		},
+		{
+			"id": "mood_and_energy",
+			"title": "Mood And Energy",
+			"description": "Questions about happiness, energy, support, and how the last little while has felt.",
+			"icon": "review",
+			"header_template": "spotlight",
+			"questions": [
+				{
+					"id": "recent_happiness",
+					"prompt": "How happy have you felt overall during the last week?",
+					"description": "Choose the score that feels most honest today.",
+					"type": "scale",
+					"required": true,
+					"min_value": 1,
+					"max_value": 5,
+					"left_label": "Very low",
+					"right_label": "Very high",
+					"view_template": "scale_chips",
+					"topic_tags": ["happiness", "mood"],
+					"keywords": ["happy", "recent mood", "overall feeling"]
+				},
+				{
+					"id": "week_recommendation",
+					"prompt": "If someone asked how your week was going, how positive would your answer be from 0 to 10?",
+					"description": "A simple 0-10 pulse check.",
+					"type": "nps",
+					"required": true,
+					"min_value": 0,
+					"max_value": 10,
+					"left_label": "Very rough",
+					"right_label": "Very positive",
+					"topic_tags": ["week quality", "mood"],
+					"keywords": ["week", "positive", "0 to 10"]
+				},
+				{
+					"id": "felt_supported",
+					"prompt": "Have you felt emotionally supported lately?",
+					"description": "A simple yes or no gut check.",
+					"type": "boolean",
+					"options": ["Yes", "No"],
+					"topic_tags": ["support", "connection"],
+					"keywords": ["supported", "help", "connection"],
+					"rating": {
+						"enabled": true,
+						"label": "Felt supported",
+						"option_scores": {
+							"true": 1.0,
+							"false": 0.0
+						}
+					}
+				},
+				{
+					"id": "recent_bright_spots",
+					"prompt": "Which of these have been bright spots for you recently?",
+					"description": "Choose as many as feel true.",
+					"type": "multi_choice",
+					"options": [
+						"Good sleep",
+						"Friends or family",
+						"Creative progress",
+						"Exercise or movement",
+						"Quiet time",
+						"Feeling useful"
+					],
+					"topic_tags": ["gratitude", "support", "energy"],
+					"keywords": ["bright spots", "good things", "gratitude"]
+				},
+				{
+					"id": "daily_emotional_map",
+					"prompt": "For each area below, choose what has felt closest to your recent experience.",
+					"description": "This matrix is meant to test partial and complete states cleanly.",
+					"type": "matrix",
+					"modifier": {
+						"key": "loot_box_matrix",
+						"accept_hint_text": "Tap to lock it in",
+						"fatigue_reroll_threshold": 4
+					},
+					"required": true,
+					"rows": [
+						"Energy level",
+						"Stress level",
+						"Sense of connection"
+					],
+					"options": [
+						"Very low",
+						"Low",
+						"Medium",
+						"High",
+						"Very high"
+					],
+					"view_template": "matrix",
+					"topic_tags": ["energy", "stress", "connection"],
+					"keywords": ["matrix", "recent feelings", "daily state"]
+				}
+			]
+		},
+		{
+			"id": "values_and_reflection",
+			"title": "Values And Reflection",
+			"description": "A few easy reflection prompts about priorities, gratitude, and what matters most right now.",
+			"icon": "summary",
+			"header_template": "spotlight",
+			"questions": [
+				{
+					"id": "main_focus_area",
+					"prompt": "Which area feels most important for you to protect right now?",
+					"type": "single_choice",
+					"required": true,
+					"options": [
+						"Rest",
+						"Relationships",
+						"Health",
+						"Creative work",
+						"Financial stability"
+					],
+					"topic_tags": ["priorities", "focus"],
+					"keywords": ["important", "protect", "main priority"]
+				},
+				{
+					"id": "activity_rank",
+					"prompt": "Rank these activities by how important they feel to your well-being right now.",
+					"description": "Put the most important activity first.",
+					"type": "ranked_choice",
+					"options": [
+						"Resting",
+						"Seeing people I care about",
+						"Exercising",
+						"Making or building something"
+					],
+					"view_template": "ranked_choice",
+					"topic_tags": ["priorities", "well-being"],
+					"keywords": ["rank", "importance", "activities"],
+					"help_markdown": "## Ranking tip\nDrag or move the options until the order feels right.\n\nThis prompt is here to test the full ranked-choice interaction using a subject that is easy to answer."
+				},
+				{
+					"id": "gratitude_notes",
+					"prompt": "What are one or two things you have felt grateful for recently?",
+					"description": "Even small answers are welcome.",
+					"type": "long_text",
+					"placeholder": "I have been grateful for...",
+					"topic_tags": ["gratitude", "reflection"],
+					"keywords": ["grateful", "thankful", "recent reflection"],
+					"help_markdown": "## Gentle prompt\nWrite as much or as little as you want.\n\nThis question helps test long-form typing, wrapping, and saved answer recovery with something easy and personal."
+				}
+			]
+		}
+	]
+}

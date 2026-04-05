@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://ca2rwyabyh2ba"]
 
 [ext_resource type="Script" uid="uid://dw6tl1cfkuoaq" path="res://Scripts/UI/SurveyJourneyApp.gd" id="1"]
+[ext_resource type="Texture2D" uid="uid://q44oeebbnbh8" path="res://Assets/UI/Icons/action-link.svg" id="2"]
 [ext_resource type="Script" uid="uid://bb62fbpvqrv54" path="res://Scripts/UI/SurveyJourneyFocusStage.gd" id="3"]
 
 [node name="SurveyJourneyApp" type="Control" unique_id=420830979]
@@ -79,6 +80,22 @@ text = "Take Survey"
 [node name="GetLoreButton" type="Button" parent="Margin/MainPanel/Stack/LandingView/LandingActions" unique_id=1763743073]
 layout_mode = 2
 text = "Get Lore"
+
+[node name="CharacterButton" type="Button" parent="Margin/MainPanel/Stack/LandingView/LandingActions" unique_id=928663411]
+layout_mode = 2
+text = "Character"
+
+[node name="LandingFeaturedSurveyLabel" type="Label" parent="Margin/MainPanel/Stack/LandingView" unique_id=366831502]
+visible = false
+layout_mode = 2
+text = "Featured survey: Survey"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="LandingBrowseSurveysButton" type="Button" parent="Margin/MainPanel/Stack/LandingView" unique_id=1883040712]
+visible = false
+layout_mode = 2
+text = "Browse Other Surveys"
 
 [node name="LandingSpacerBottom" type="Control" parent="Margin/MainPanel/Stack/LandingView" unique_id=1638044984]
 layout_mode = 2
@@ -184,15 +201,30 @@ autowrap_mode = 3
 layout_mode = 2
 autowrap_mode = 3
 
-[node name="LoreScroll" type="ScrollContainer" parent="Margin/MainPanel/Stack/LoreView" unique_id=822525827]
+[node name="LoreBody" type="CenterContainer" parent="Margin/MainPanel/Stack/LoreView" unique_id=441743301]
 layout_mode = 2
 size_flags_vertical = 3
-horizontal_scroll_mode = 0
 
-[node name="LoreList" type="VBoxContainer" parent="Margin/MainPanel/Stack/LoreView/LoreScroll" unique_id=1793493307]
+[node name="LoreEmptyPanel" type="PanelContainer" parent="Margin/MainPanel/Stack/LoreView/LoreBody" unique_id=2124168603]
+custom_minimum_size = Vector2(420, 0)
 layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 12
+
+[node name="LoreEmptyStack" type="VBoxContainer" parent="Margin/MainPanel/Stack/LoreView/LoreBody/LoreEmptyPanel" unique_id=92239020]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="LoreEmptyLabel" type="Label" parent="Margin/MainPanel/Stack/LoreView/LoreBody/LoreEmptyPanel/LoreEmptyStack" unique_id=477590674]
+layout_mode = 2
+text = "There is no lore at this time."
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="LoreLinkButton" type="Button" parent="Margin/MainPanel/Stack/LoreView/LoreBody/LoreEmptyPanel/LoreEmptyStack" unique_id=176513594]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 4
+tooltip_text = "Open associated lore URL"
+icon = ExtResource("2")
 
 [node name="LoreTakeSurveyButton" type="Button" parent="Margin/MainPanel/Stack/LoreView" unique_id=440107348]
 layout_mode = 2
@@ -307,6 +339,39 @@ text = "Previous"
 [node name="FocusNavSpacer" type="Control" parent="Margin/MainPanel/Stack/FocusView/FocusNavRow" unique_id=1461637028]
 layout_mode = 2
 size_flags_horizontal = 3
+
+[node name="FocusXpAnchor" type="CenterContainer" parent="Margin/MainPanel/Stack/FocusView/FocusNavRow/FocusNavSpacer" unique_id=1017101875]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="FocusXpStack" type="VBoxContainer" parent="Margin/MainPanel/Stack/FocusView/FocusNavRow/FocusNavSpacer/FocusXpAnchor" unique_id=2144820911]
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_constants/separation = 3
+
+[node name="FocusXpLevelLabel" type="Label" parent="Margin/MainPanel/Stack/FocusView/FocusNavRow/FocusNavSpacer/FocusXpAnchor/FocusXpStack" unique_id=1230403458]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Level 1"
+horizontal_alignment = 1
+
+[node name="FocusXpBar" type="PanelContainer" parent="Margin/MainPanel/Stack/FocusView/FocusNavRow/FocusNavSpacer/FocusXpAnchor/FocusXpStack" unique_id=1707526829]
+custom_minimum_size = Vector2(0, 12)
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="FocusXpSegmentRow" type="HBoxContainer" parent="Margin/MainPanel/Stack/FocusView/FocusNavRow/FocusNavSpacer/FocusXpAnchor/FocusXpStack/FocusXpBar" unique_id=1235679584]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_constants/separation = 3
 
 [node name="FocusNextButton" type="Button" parent="Margin/MainPanel/Stack/FocusView/FocusNavRow" unique_id=872546265]
 layout_mode = 2
@@ -430,36 +495,184 @@ theme_override_constants/h_separation = 12
 theme_override_constants/v_separation = 12
 columns = 2
 
-[node name="ExportSaveProgressButton" type="Button" parent="Margin/MainPanel/Stack/ExportView/ExportScroll/ExportContent/ExportActionGrid" unique_id=1316896836]
+[node name="ExportJsonButton" type="Button" parent="Margin/MainPanel/Stack/ExportView/ExportScroll/ExportContent/ExportActionGrid" unique_id=1316896836]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Save Progress JSON"
-
-[node name="ExportLoadProgressButton" type="Button" parent="Margin/MainPanel/Stack/ExportView/ExportScroll/ExportContent/ExportActionGrid" unique_id=682903013]
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Load Progress JSON"
+text = "Export JSON"
 
 [node name="ExportCopyJsonButton" type="Button" parent="Margin/MainPanel/Stack/ExportView/ExportScroll/ExportContent/ExportActionGrid" unique_id=1846578235]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Copy JSON"
 
-[node name="ExportSaveJsonButton" type="Button" parent="Margin/MainPanel/Stack/ExportView/ExportScroll/ExportContent/ExportActionGrid" unique_id=416739039]
+[node name="ExportCsvButton" type="Button" parent="Margin/MainPanel/Stack/ExportView/ExportScroll/ExportContent/ExportActionGrid" unique_id=212581342]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Save JSON"
+text = "Export CSV"
 
 [node name="ExportCopyCsvButton" type="Button" parent="Margin/MainPanel/Stack/ExportView/ExportScroll/ExportContent/ExportActionGrid" unique_id=1319769481]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Copy CSV"
 
-[node name="ExportSaveCsvButton" type="Button" parent="Margin/MainPanel/Stack/ExportView/ExportScroll/ExportContent/ExportActionGrid" unique_id=212581342]
+[node name="ExportUploadAnswersButton" type="Button" parent="Margin/MainPanel/Stack/ExportView/ExportScroll/ExportContent/ExportActionGrid" unique_id=682903013]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Save CSV"
+text = "Upload Answers"
 
 [node name="ExportSpacerBottom" type="Control" parent="Margin/MainPanel/Stack/ExportView/ExportScroll/ExportContent" unique_id=1636980176]
 layout_mode = 2
 size_flags_vertical = 3
+
+[node name="UploadView" type="VBoxContainer" parent="Margin/MainPanel/Stack" unique_id=987314215]
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 14
+
+[node name="UploadTopRow" type="HBoxContainer" parent="Margin/MainPanel/Stack/UploadView" unique_id=151743089]
+layout_mode = 2
+
+[node name="UploadBackButton" type="Button" parent="Margin/MainPanel/Stack/UploadView/UploadTopRow" unique_id=568744206]
+layout_mode = 2
+text = "Back"
+
+[node name="UploadTopSpacer" type="Control" parent="Margin/MainPanel/Stack/UploadView/UploadTopRow" unique_id=1238941027]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="UploadScroll" type="ScrollContainer" parent="Margin/MainPanel/Stack/UploadView" unique_id=869912743]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="UploadContent" type="VBoxContainer" parent="Margin/MainPanel/Stack/UploadView/UploadScroll" unique_id=198724366]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 14
+
+[node name="UploadHeadingLabel" type="Label" parent="Margin/MainPanel/Stack/UploadView/UploadScroll/UploadContent" unique_id=198743255]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="UploadSubtitleLabel" type="Label" parent="Margin/MainPanel/Stack/UploadView/UploadScroll/UploadContent" unique_id=697843278]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="UploadBodyLabel" type="Label" parent="Margin/MainPanel/Stack/UploadView/UploadScroll/UploadContent" unique_id=204974521]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="UploadNoticePanel" type="PanelContainer" parent="Margin/MainPanel/Stack/UploadView/UploadScroll/UploadContent" unique_id=62348701]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="UploadNoticeStack" type="VBoxContainer" parent="Margin/MainPanel/Stack/UploadView/UploadScroll/UploadContent/UploadNoticePanel" unique_id=876230921]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="UploadScrubCheckBox" type="CheckBox" parent="Margin/MainPanel/Stack/UploadView/UploadScroll/UploadContent/UploadNoticePanel/UploadNoticeStack" unique_id=1836271091]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Scrub identifying answers from this upload"
+
+[node name="UploadScrubSummaryLabel" type="Label" parent="Margin/MainPanel/Stack/UploadView/UploadScroll/UploadContent/UploadNoticePanel/UploadNoticeStack" unique_id=48651539]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="UploadConsentCheckBox" type="CheckBox" parent="Margin/MainPanel/Stack/UploadView/UploadScroll/UploadContent/UploadNoticePanel/UploadNoticeStack" unique_id=1357095528]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "I agree to send these survey answers."
+
+[node name="UploadDisclosureLabel" type="Label" parent="Margin/MainPanel/Stack/UploadView/UploadScroll/UploadContent/UploadNoticePanel/UploadNoticeStack" unique_id=311593164]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="UploadStatusLabel" type="Label" parent="Margin/MainPanel/Stack/UploadView/UploadScroll/UploadContent/UploadNoticePanel/UploadNoticeStack" unique_id=1624302614]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="UploadSubmitButton" type="Button" parent="Margin/MainPanel/Stack/UploadView/UploadScroll/UploadContent/UploadNoticePanel/UploadNoticeStack" unique_id=2121291400]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Upload Answers"
+
+[node name="UploadCopyResponseButton" type="Button" parent="Margin/MainPanel/Stack/UploadView/UploadScroll/UploadContent/UploadNoticePanel/UploadNoticeStack" unique_id=597790311]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Copy Server Response"
+
+[node name="UploadResponseTextEdit" type="TextEdit" parent="Margin/MainPanel/Stack/UploadView/UploadScroll/UploadContent/UploadNoticePanel/UploadNoticeStack" unique_id=1437488592]
+custom_minimum_size = Vector2(0, 180)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="UploadSpacerBottom" type="Control" parent="Margin/MainPanel/Stack/UploadView/UploadScroll/UploadContent" unique_id=1756499321]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="LoreLinkPromptOverlay" type="Control" parent="." unique_id=1930967446]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Dimmer" type="ColorRect" parent="LoreLinkPromptOverlay" unique_id=1878094582]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.64)
+
+[node name="Center" type="CenterContainer" parent="LoreLinkPromptOverlay" unique_id=359131891]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="LoreLinkPromptOverlay/Center" unique_id=1749519576]
+custom_minimum_size = Vector2(420, 0)
+layout_mode = 2
+
+[node name="Stack" type="VBoxContainer" parent="LoreLinkPromptOverlay/Center/Panel" unique_id=1939236242]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="TopRow" type="HBoxContainer" parent="LoreLinkPromptOverlay/Center/Panel/Stack" unique_id=1268966606]
+layout_mode = 2
+
+[node name="HeadingLabel" type="Label" parent="LoreLinkPromptOverlay/Center/Panel/Stack/TopRow" unique_id=918453093]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Open Lore URL"
+
+[node name="CloseButton" type="Button" parent="LoreLinkPromptOverlay/Center/Panel/Stack/TopRow" unique_id=1731234809]
+layout_mode = 2
+text = "X"
+
+[node name="BodyLabel" type="Label" parent="LoreLinkPromptOverlay/Center/Panel/Stack" unique_id=1149067913]
+layout_mode = 2
+text = "Open the associated URL in your browser, or copy it to the clipboard instead."
+autowrap_mode = 3
+
+[node name="ActionRow" type="HBoxContainer" parent="LoreLinkPromptOverlay/Center/Panel/Stack" unique_id=2036196774]
+layout_mode = 2
+theme_override_constants/separation = 10
+alignment = 2
+
+[node name="CopyButton" type="Button" parent="LoreLinkPromptOverlay/Center/Panel/Stack/ActionRow" unique_id=925996103]
+layout_mode = 2
+text = "Copy URL"
+
+[node name="OpenButton" type="Button" parent="LoreLinkPromptOverlay/Center/Panel/Stack/ActionRow" unique_id=1282818855]
+layout_mode = 2
+text = "Open URL"

@@ -3,6 +3,7 @@
   "title": "Starter Survey",
   "description": "Minimal authoring template for building a new questionnaire.",
   "onboarding_subject": "your game feedback questionnaire",
+  "asks_identifying_info": true,
   "audience_profiles": [
     {
       "id": "new_player",
@@ -31,6 +32,7 @@
           "id": "intro_text",
           "prompt": "What should we call this response?",
           "type": "text",
+          "asks_identifying_info": true,
           "required": true,
           "placeholder": "Participant 001",
           "topic_tags": [
@@ -47,6 +49,8 @@
           "id": "sentiment",
           "prompt": "How would you rate the overall experience?",
           "type": "rating",
+          "reward_count": 8,
+          "reward_sprite": "res://Assets/UI/Icons/state-complete.svg",
           "min_value": 1,
           "max_value": 5,
           "left_label": "Poor",

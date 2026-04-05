@@ -9,7 +9,7 @@ const MAX_EMAIL_LENGTH := 254
 const MAX_DATE_LENGTH := 32
 const MAX_OPTION_LENGTH := 160
 
-static func build_package(survey: SurveyDefinition, template_path: String, answers: Dictionary, summary_data: Dictionary = {}, install_id: String = "") -> Dictionary:
+static func build_package(survey: SurveyDefinition, template_path: String, answers: Dictionary, summary_data: Dictionary = {}, install_id: String = "", scrub_identifying_info: bool = false, session_metadata: Dictionary = {}) -> Dictionary:
 	if survey == null:
 		return {}
 
@@ -19,6 +19,8 @@ static func build_package(survey: SurveyDefinition, template_path: String, answe
 	var sections_with_responses_count := 0
 	var dropped_response_count := 0
 	var dropped_question_ids: Array[String] = []
+	var scrubbed_question_ids: Array[String] = []
+	var scrubbed_response_count := 0
 
 	for section_index in range(survey.sections.size()):
 		var section: SurveySection = survey.sections[section_index]
@@ -26,6 +28,10 @@ static func build_package(survey: SurveyDefinition, template_path: String, answe
 		for question_index in range(section.questions.size()):
 			var question: SurveyQuestion = section.questions[question_index]
 			var raw_value: Variant = answers.get(question.id, null)
+			if scrub_identifying_info and question.asks_identifying_info and not question.is_answer_empty(raw_value):
+				scrubbed_response_count += 1
+				scrubbed_question_ids.append(question.id)
+				continue
 			var normalized: Dictionary = _normalize_answer(question, raw_value)
 			if not bool(normalized.get("has_response", false)):
 				if not normalized.get("dropped_reason", "").is_empty():
@@ -43,10 +49,19 @@ static func build_package(survey: SurveyDefinition, template_path: String, answe
 				"display_number": "%d.%d" % [section_index + 1, question_index + 1],
 				"prompt": question.prompt.strip_edges(),
 				"question_type": str(question.type),
+				"asks_identifying_info": question.asks_identifying_info,
 				"required": question.required,
 				"response_state": normalized.get("response_state", "complete"),
 				"answer": normalized.get("value", null)
 			}
+			if question.has_modifier():
+				response_payload["modifier"] = question.modifier_key
+			if not question.modifier_settings.is_empty():
+				response_payload["modifier_settings"] = question.modifier_settings.duplicate(true)
+			if question.reward_count_configured:
+				response_payload["reward_count"] = question.reward_count
+			if not question.reward_sprite.is_empty():
+				response_payload["reward_sprite"] = question.reward_sprite
 			var score_percent: float = question.answer_score_percent(normalized.get("value", null))
 			if score_percent >= 0.0:
 				response_payload["score_percent"] = snappedf(score_percent, 0.1)
@@ -68,7 +83,8 @@ static func build_package(survey: SurveyDefinition, template_path: String, answe
 		"sections_with_responses_count": sections_with_responses_count,
 		"total_question_count": survey.total_questions(),
 		"total_section_count": survey.sections.size(),
-		"dropped_response_count": dropped_response_count
+		"dropped_response_count": dropped_response_count,
+		"scrubbed_identifying_response_count": scrubbed_response_count
 	}
 
 	var payload: Dictionary = {
@@ -79,19 +95,30 @@ static func build_package(survey: SurveyDefinition, template_path: String, answe
 			"id": survey.id,
 			"title": survey.title,
 			"subtitle": survey.subtitle,
-			"template_path": template_path
+			"template_path": template_path,
+			"template_version": survey.template_version,
+			"schema_hash": survey.schema_hash,
+			"asks_identifying_info": survey.asks_identifying_info
 		},
 		"client": {
 			"install_id": install_id,
 			"platform": OS.get_name(),
 			"is_debug_build": OS.is_debug_build()
 		},
+		"privacy": {
+			"scrub_identifying_info": scrub_identifying_info
+		},
 		"stats": stats,
 		"summary": _sanitize_summary(summary_data),
 		"responses": sections_payload
 	}
+	var quality_payload: Dictionary = _sanitize_session_metadata(session_metadata)
+	if not quality_payload.is_empty():
+		payload["quality"] = quality_payload
 	if not dropped_question_ids.is_empty():
 		payload["dropped_question_ids"] = dropped_question_ids
+	if not scrubbed_question_ids.is_empty():
+		payload["scrubbed_identifying_question_ids"] = scrubbed_question_ids
 
 	var json_text: String = JSON.stringify(payload, "\t")
 	var payload_hash: String = _sha256_text(json_text)
@@ -103,7 +130,8 @@ static func build_package(survey: SurveyDefinition, template_path: String, answe
 		"json": json_text,
 		"payload_hash": payload_hash,
 		"stats": stats,
-		"dropped_question_ids": dropped_question_ids
+		"dropped_question_ids": dropped_question_ids,
+		"scrubbed_question_ids": scrubbed_question_ids
 	}
 
 static func _sanitize_summary(summary_data: Dictionary) -> Dictionary:
@@ -130,6 +158,25 @@ static func _sanitize_summary(summary_data: Dictionary) -> Dictionary:
 		"overall_sentiment_label": str(summary_data.get("overall_sentiment_label", "")).strip_edges(),
 		"section_scores": section_scores
 	}
+
+static func _sanitize_session_metadata(session_metadata: Dictionary) -> Dictionary:
+	if session_metadata.is_empty():
+		return {}
+	var payload: Dictionary = {}
+	for key in ["session_duration_seconds", "answer_change_count", "distinct_answered_question_count", "completed_answered_question_count", "template_load_count_this_session"]:
+		if session_metadata.has(key):
+			payload[key] = max(0, int(session_metadata.get(key, 0)))
+	for optional_key in ["seconds_to_first_answer", "seconds_since_last_answer"]:
+		if not session_metadata.has(optional_key):
+			continue
+		var optional_value: int = int(session_metadata.get(optional_key, -1))
+		if optional_value >= 0:
+			payload[optional_key] = optional_value
+	if session_metadata.has("answers_per_minute"):
+		payload["answers_per_minute"] = snappedf(maxf(0.0, float(session_metadata.get("answers_per_minute", 0.0))), 0.1)
+	if session_metadata.has("restored_progress"):
+		payload["restored_progress"] = bool(session_metadata.get("restored_progress", false))
+	return payload
 
 static func _normalize_answer(question: SurveyQuestion, raw_value: Variant) -> Dictionary:
 	match question.type:
