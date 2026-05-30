@@ -1,0 +1,49 @@
+{
+  "project_id": "in-a-bottle",
+  "project_name": "In a Bottle",
+  "techtree_root": "X:\\Data\\Projects\\TechTree",
+  "capture_api": {
+    "base_url": "http://127.0.0.1:8765",
+    "token_env": "TECHTREE_CAPTURE_TOKEN",
+    "token_file": ".techtree/local.json"
+  },
+  "watch_paths": [],
+  "planka": {
+    "board_id": "",
+    "active_card_id": ""
+  },
+  "packages": {
+    "project-docs-guide": {
+      "docs_root": "In a Bottle-docs",
+      "policy": "backfill_before_finish",
+      "vendors": [
+        "codex",
+        "claude"
+      ]
+    },
+    "session-autopilot": {
+      "docs_root": "In a Bottle-docs",
+      "policy": "continuous_work_block",
+      "vendors": [
+        "codex",
+        "claude"
+      ]
+    }
+  },
+  "autopilot": {
+    "enabled": true,
+    "mode": "continuous_work_block",
+    "idle_minutes": 45,
+    "failure_policy": "queue_and_continue",
+    "evidence_sources": [
+      "agent_events",
+      "git_snapshots"
+    ],
+    "checkpoints": [
+      "task_started",
+      "plan_applied",
+      "tests_ran",
+      "task_finished"
+    ]
+  }
+}

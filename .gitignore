@@ -18,3 +18,12 @@ mono_crash.*.json
 # Local export and validation output
 build/
 .godot_appdata/
+
+# TechTree local capture state
+.techtree/local.json
+.techtree/outbox/
+.techtree/autopilot-session.json
+
+# Generated validation and export output
+ci-run-*.log
+localBuilds/
