@@ -1,0 +1,332 @@
+[gd_resource type="Resource" script_class="SeaShellSettingsPack" format=3 uid="uid://cgu6vcqh7241n"]
+
+[ext_resource type="Script" uid="uid://b4tg2ttgm15n1" path="res://addons/seashell_devtools/settings/SeaShellSettingsPack.gd" id="1"]
+[ext_resource type="Script" uid="uid://d0uxnjwhhoo0b" path="res://addons/seashell_devtools/settings/SeaShellSettingItem.gd" id="2"]
+
+[sub_resource type="Resource" id="SeaShellSettingItem_1"]
+script = ExtResource("2")
+ItemId = "SeaShell.Demo.Display.AccentColor"
+ValueType = "Color"
+DisplayName = "Accent Color"
+Description = "Updates the playground accent swatch and preview badge styling."
+GroupPath = "Sea Shell Demo/Display/Theme"
+Tags = PackedStringArray("Demo", "Display", "Color", "Appearance")
+Aliases = PackedStringArray("preview chrome", "theme accent", "accent swatch")
+DefaultValue = Color(0.18, 0.45, 0.32, 1)
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778726460
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="SeaShellSettingItem_2"]
+script = ExtResource("2")
+ItemId = "SeaShell.Demo.Display.FontScale"
+ValueType = "FontScale"
+DisplayName = "Font Scale"
+Description = "Rescales the preview title and body copy."
+GroupPath = "Sea Shell Demo/Display/Theme"
+Tags = PackedStringArray("Demo", "Display", "Typography")
+Aliases = PackedStringArray("type scale", "preview text size", "copy scale")
+DefaultValue = 1.0
+Options = PackedStringArray()
+MinValue = 0.8
+MaxValue = 1.6
+Step = 0.05
+DefinitionModifiedUnix = 1778726460
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="SeaShellSettingItem_3"]
+script = ExtResource("2")
+ItemId = "SeaShell.Demo.Display.Title"
+DisplayName = "Preview Title"
+Description = "Controls the main preview heading."
+GroupPath = "Sea Shell Demo/Display/Content"
+Tags = PackedStringArray("Demo", "Display", "Copy")
+Aliases = PackedStringArray("headline", "hero title", "preview heading")
+DefaultValue = "Settings Toolkit Playground"
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778726460
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="SeaShellSettingItem_4"]
+script = ExtResource("2")
+ItemId = "SeaShell.Demo.Display.Notes"
+ValueType = "MultilineText"
+DisplayName = "Preview Notes"
+Description = "Drives the multiline supporting copy in the preview surface."
+GroupPath = "Sea Shell Demo/Display/Content"
+Tags = PackedStringArray("Demo", "Display", "Copy", "Docs")
+Aliases = PackedStringArray("body copy", "preview notes", "supporting text")
+DefaultValue = "Search by alias, narrow by tags, and verify staged or restart-required states without leaving the scene."
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778726460
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="SeaShellSettingItem_5"]
+script = ExtResource("2")
+ItemId = "SeaShell.Demo.Display.ShowBadge"
+ValueType = "Bool"
+DisplayName = "Show Preview Badge"
+Description = "Toggles the preview badge at the top of the showcase card."
+GroupPath = "Sea Shell Demo/Display/Behavior"
+Tags = PackedStringArray("Demo", "Display", "Behavior")
+Aliases = PackedStringArray("show chip", "badge toggle", "show label")
+DefaultValue = true
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778726460
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="SeaShellSettingItem_6"]
+script = ExtResource("2")
+ItemId = "SeaShell.Demo.Display.LayoutMode"
+ValueType = "Choice"
+DisplayName = "Layout Mode"
+Description = "Shows how a choice setting can switch the preview mode summary."
+GroupPath = "Sea Shell Demo/Display/Behavior"
+Tags = PackedStringArray("Demo", "Display", "Layout")
+Aliases = PackedStringArray("layout preset", "density", "view mode")
+DefaultValue = "Balanced"
+Options = PackedStringArray("Focus", "Balanced", "Dense")
+DefinitionModifiedUnix = 1778726460
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="SeaShellSettingItem_7"]
+script = ExtResource("2")
+ItemId = "SeaShell.Demo.Display.HighlightMode"
+ValueType = "Segmented"
+DisplayName = "Highlight Mode"
+Description = "Uses the segmented control path for a compact visual choice."
+GroupPath = "Sea Shell Demo/Display/Behavior"
+Tags = PackedStringArray("Demo", "Display", "Layout")
+Aliases = PackedStringArray("highlight", "preview emphasis", "segmented state")
+DefaultValue = "Balanced"
+Options = PackedStringArray("Muted", "Balanced", "Bold")
+DefinitionModifiedUnix = 1778726460
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="SeaShellSettingItem_8"]
+script = ExtResource("2")
+ItemId = "SeaShell.Demo.Display.PreviewOpacity"
+ValueType = "Float"
+DisplayName = "Preview Opacity"
+Description = "Adjusts the showcase card alpha to prove float slider behavior."
+GroupPath = "Sea Shell Demo/Display/Behavior"
+Tags = PackedStringArray("Demo", "Display", "Layout")
+Aliases = PackedStringArray("alpha", "opacity", "preview fade")
+DefaultValue = 0.9
+Options = PackedStringArray()
+MinValue = 0.3
+Step = 0.05
+DefinitionModifiedUnix = 1778726460
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="SeaShellSettingItem_9"]
+script = ExtResource("2")
+ItemId = "SeaShell.Demo.Display.CardColumns"
+ValueType = "Integer"
+DisplayName = "Metric Grid Columns"
+Description = "Changes how many metric cards fit across the preview grid."
+GroupPath = "Sea Shell Demo/Display/Behavior"
+Tags = PackedStringArray("Demo", "Display", "Layout")
+Aliases = PackedStringArray("columns", "grid count", "metric columns")
+DefaultValue = 2
+Options = PackedStringArray()
+MinValue = 1.0
+MaxValue = 4.0
+Step = 1.0
+DefinitionModifiedUnix = 1778726460
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="SeaShellSettingItem_10"]
+script = ExtResource("2")
+ItemId = "SeaShell.Demo.Input.PrimaryBinding"
+ValueType = "Keybind"
+DisplayName = "Primary Binding"
+Description = "Shows the current demo hotkey in the preview surface."
+GroupPath = "Sea Shell Demo/Input"
+Tags = PackedStringArray("Demo", "Input", "Controls")
+Aliases = PackedStringArray("hotkey", "shortcut", "primary command")
+DefaultValue = "Ctrl+Shift+P"
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778726460
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="SeaShellSettingItem_11"]
+script = ExtResource("2")
+ItemId = "SeaShell.Demo.Input.PointerSensitivity"
+ValueType = "SensitivityCurve"
+DisplayName = "Pointer Sensitivity Curve"
+Description = "Exposes the text-based sensitivity curve editor path."
+GroupPath = "Sea Shell Demo/Input"
+Tags = PackedStringArray("Demo", "Input", "Controls")
+Aliases = PackedStringArray("aim curve", "pointer curve", "sensitivity")
+DefaultValue = "linear"
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778726460
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="SeaShellSettingItem_12"]
+script = ExtResource("2")
+ItemId = "SeaShell.Demo.Input.Language"
+ValueType = "Language"
+DisplayName = "Preview Language"
+Description = "Updates the preview locale summary."
+GroupPath = "Sea Shell Demo/Input"
+Tags = PackedStringArray("Demo", "Input", "Locale")
+Aliases = PackedStringArray("locale", "translation", "language selector")
+DefaultValue = "English"
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778726460
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="SeaShellSettingItem_13"]
+script = ExtResource("2")
+ItemId = "SeaShell.Demo.Input.WindowResolution"
+ValueType = "Resolution"
+DisplayName = "Preview Resolution"
+Description = "Uses the built-in resolution picker options."
+GroupPath = "Sea Shell Demo/Input"
+Tags = PackedStringArray("Demo", "Input", "Display")
+Aliases = PackedStringArray("window size", "target resolution", "resolution picker")
+DefaultValue = "1920x1080"
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778726460
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="SeaShellSettingItem_14"]
+script = ExtResource("2")
+ItemId = "SeaShell.Demo.Input.ResourceTemplate"
+ValueType = "Resource"
+DisplayName = "Resource Template"
+Description = "Shows a reusable resource path inside the preview summary."
+GroupPath = "Sea Shell Demo/Input"
+Tags = PackedStringArray("Demo", "Input", "Resources")
+Aliases = PackedStringArray("resource path", "template scene", "resource picker")
+DefaultValue = "res://addons/seashell_devtools/settings/ui/SeaShellSettingsPanel.tscn"
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778726460
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="SeaShellSettingItem_15"]
+script = ExtResource("2")
+ItemId = "SeaShell.Demo.Workflow.ExportRoot"
+ValueType = "Path"
+DisplayName = "Export Root"
+Description = "Stages a new export root before the preview acknowledges it as committed."
+GroupPath = "Sea Shell Demo/Workflow"
+Tags = PackedStringArray("Demo", "Workflow", "Profiles")
+Aliases = PackedStringArray("staged root", "profile export root", "output folder")
+DefaultValue = "user://sea_shell_settings_playground/exports"
+Options = PackedStringArray()
+ApplyPolicy = "StagedApply"
+DefinitionModifiedUnix = 1778726460
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="SeaShellSettingItem_16"]
+script = ExtResource("2")
+ItemId = "SeaShell.Demo.Workflow.RenderBackend"
+ValueType = "Enum"
+DisplayName = "Render Backend"
+Description = "Marks restart-required state when the backend changes."
+GroupPath = "Sea Shell Demo/Workflow"
+Tags = PackedStringArray("Demo", "Workflow", "Restart")
+Aliases = PackedStringArray("renderer", "backend", "restart pending")
+DefaultValue = "ForwardPlus"
+Options = PackedStringArray("ForwardPlus", "Mobile", "Compatibility")
+ApplyPolicy = "RestartRequired"
+DefinitionModifiedUnix = 1778726460
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="SeaShellSettingItem_17"]
+script = ExtResource("2")
+ItemId = "SeaShell.Demo.Workflow.QualityPreset"
+ValueType = "QualityMatrix"
+DisplayName = "Quality Preset"
+Description = "Uses the quality matrix control to summarize preview fidelity."
+GroupPath = "Sea Shell Demo/Workflow"
+Tags = PackedStringArray("Demo", "Workflow", "Quality")
+Aliases = PackedStringArray("quality matrix", "preset tier", "fidelity")
+DefaultValue = "High"
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778726460
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="SeaShellSettingItem_18"]
+script = ExtResource("2")
+ItemId = "SeaShell.Demo.Workflow.RunShowcasePulse"
+ValueType = "Action"
+DisplayName = "Run Showcase Pulse"
+Description = "Triggers a scene-local pulse counter without mutating stored values."
+GroupPath = "Sea Shell Demo/Workflow"
+Tags = PackedStringArray("Demo", "Workflow", "Action")
+Aliases = PackedStringArray("pulse preview", "demo action", "run pulse")
+DefaultValue = ""
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778726460
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="SeaShellSettingItem_19"]
+script = ExtResource("2")
+ItemId = "SeaShell.Demo.Data.VisibleColumns"
+ValueType = "List"
+DisplayName = "Visible Columns"
+Description = "Summarizes a CSV-backed list of visible toolkit sections."
+GroupPath = "Sea Shell Demo/Data"
+Tags = PackedStringArray("Demo", "Data", "Search")
+Aliases = PackedStringArray("table columns", "visible sections", "list editor")
+DefaultValue = PackedStringArray("Search", "Profiles", "Preview")
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778726460
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="SeaShellSettingItem_20"]
+script = ExtResource("2")
+ItemId = "SeaShell.Demo.Data.EnabledTags"
+ValueType = "TagPicker"
+DisplayName = "Enabled Tags"
+Description = "Uses the tag picker path for a searchable tag summary."
+GroupPath = "Sea Shell Demo/Data"
+Tags = PackedStringArray("Demo", "Data", "Search")
+Aliases = PackedStringArray("active tags", "tag picker", "filter tags")
+DefaultValue = PackedStringArray("Demo", "QA", "Docs")
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778726460
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="SeaShellSettingItem_21"]
+script = ExtResource("2")
+ItemId = "SeaShell.Demo.Status.ToolkitSnapshot"
+Kind = "Info"
+DisplayName = "Toolkit Snapshot"
+Description = "Readonly summary row for confirming the playground demo pack is active."
+GroupPath = "Sea Shell Demo/Status"
+Tags = PackedStringArray("Demo", "Status", "Info")
+Aliases = PackedStringArray("status", "info row", "snapshot")
+DefaultValue = "Demo pack active with all current value types, search filters, and live preview reactions."
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778726460
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="SeaShellSettingItem_22"]
+script = ExtResource("2")
+ItemId = "SeaShell.Demo.Polls.FutureEditorFeedback"
+Kind = "Poll"
+DisplayName = "Future Editor Feedback"
+Description = "Metadata-only poll row for future feedback schema work."
+GroupPath = "Sea Shell Demo/Research"
+Tags = PackedStringArray("Demo", "Feedback", "Poll")
+Aliases = PackedStringArray("future poll", "editor survey", "feedback schema")
+DefaultValue = "clarity:1-5; friction:text; request:text"
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778726460
+HookIds = PackedStringArray("SeaShell.Demo.Polls.FutureEditorFeedback.Opened", "SeaShell.Demo.Polls.FutureEditorFeedback.Submitted")
+
+[resource]
+script = ExtResource("1")
+PackId = "SeaShell.SettingsPlayground"
+DisplayName = "Sea Shell Settings Playground"
+Description = "Dedicated demo pack for the Settings Toolkit playground scene and search or filter verification."
+DocsDirectory = "user://sea_shell_settings_playground/items"
+Items = Array[Resource]([SubResource("SeaShellSettingItem_1"), SubResource("SeaShellSettingItem_2"), SubResource("SeaShellSettingItem_3"), SubResource("SeaShellSettingItem_4"), SubResource("SeaShellSettingItem_5"), SubResource("SeaShellSettingItem_6"), SubResource("SeaShellSettingItem_7"), SubResource("SeaShellSettingItem_8"), SubResource("SeaShellSettingItem_9"), SubResource("SeaShellSettingItem_10"), SubResource("SeaShellSettingItem_11"), SubResource("SeaShellSettingItem_12"), SubResource("SeaShellSettingItem_13"), SubResource("SeaShellSettingItem_14"), SubResource("SeaShellSettingItem_15"), SubResource("SeaShellSettingItem_16"), SubResource("SeaShellSettingItem_17"), SubResource("SeaShellSettingItem_18"), SubResource("SeaShellSettingItem_19"), SubResource("SeaShellSettingItem_20"), SubResource("SeaShellSettingItem_21"), SubResource("SeaShellSettingItem_22")])
+Groups = PackedStringArray("Sea Shell Demo", "Sea Shell Demo/Display", "Sea Shell Demo/Display/Theme", "Sea Shell Demo/Display/Content", "Sea Shell Demo/Display/Behavior", "Sea Shell Demo/Input", "Sea Shell Demo/Workflow", "Sea Shell Demo/Data", "Sea Shell Demo/Status", "Sea Shell Demo/Research")
+Tags = PackedStringArray("Action", "Appearance", "Color", "Controls", "Copy", "Data", "Demo", "Display", "Docs", "Feedback", "Info", "Input", "Layout", "Locale", "Poll", "Profiles", "Quality", "Resources", "Restart", "Search", "Status", "Typography", "Workflow")
+DefinitionModifiedUnix = 1778726460

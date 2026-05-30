@@ -1,0 +1,186 @@
+[gd_resource type="Resource" script_class="SeaShellSettingsPack" format=3]
+
+[ext_resource type="Script" path="res://addons/seashell_devtools/settings/SeaShellSettingsPack.gd" id="1"]
+[ext_resource type="Script" path="res://addons/seashell_devtools/settings/SeaShellSettingItem.gd" id="2"]
+
+[sub_resource type="Resource" id="PerformanceSetting_1"]
+script = ExtResource("2")
+ItemId = "SeaShell.Performance.Enabled"
+ValueType = "Bool"
+DisplayName = "Performance Sampling Enabled"
+Description = "Keeps Sea Shell runtime performance sampling active during playtests when the performance runtime subscription is enabled."
+GroupPath = "Sea Shell/Performance/Core"
+Tags = PackedStringArray("SeaShell", "Performance", "Runtime")
+Aliases = PackedStringArray("perf", "profiling", "sampling")
+DefaultValue = true
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778383194
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="PerformanceSetting_2"]
+script = ExtResource("2")
+ItemId = "SeaShell.Performance.OverlayEnabled"
+ValueType = "Bool"
+DisplayName = "Performance Overlay Enabled"
+Description = "Shows the in-game performance overlay when the performance runtime subscription is enabled."
+GroupPath = "Sea Shell/Performance/Core"
+Tags = PackedStringArray("SeaShell", "Performance", "Runtime", "Overlay")
+Aliases = PackedStringArray("perf overlay", "hud", "debug overlay")
+DefaultValue = false
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778383194
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="PerformanceSetting_3"]
+script = ExtResource("2")
+ItemId = "SeaShell.Performance.CaptureMode"
+ValueType = "Enum"
+DisplayName = "Performance Capture Mode"
+Description = "Chooses whether the service keeps a hybrid rolling buffer with spike windows or writes the full session frame stream."
+GroupPath = "Sea Shell/Performance/Capture"
+Tags = PackedStringArray("SeaShell", "Performance", "Capture")
+Aliases = PackedStringArray("capture mode", "trace mode", "session mode")
+DefaultValue = "HybridSpikeBuffer"
+Options = PackedStringArray("HybridSpikeBuffer", "FullSession")
+DefinitionModifiedUnix = 1778383194
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="PerformanceSetting_4"]
+script = ExtResource("2")
+ItemId = "SeaShell.Performance.AutoCaptureEnabled"
+ValueType = "Bool"
+DisplayName = "Auto Capture Enabled"
+Description = "Automatically saves capture windows when frame spikes cross the configured threshold."
+GroupPath = "Sea Shell/Performance/Capture"
+Tags = PackedStringArray("SeaShell", "Performance", "Capture", "Spikes")
+Aliases = PackedStringArray("spike capture", "auto save")
+DefaultValue = true
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778383194
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="PerformanceSetting_5"]
+script = ExtResource("2")
+ItemId = "SeaShell.Performance.SessionRoot"
+ValueType = "Path"
+DisplayName = "Performance Session Root"
+Description = "Root folder where Codex-readable performance session artifacts are written."
+GroupPath = "Sea Shell/Performance/Storage"
+Tags = PackedStringArray("SeaShell", "Performance", "Capture", "Storage")
+Aliases = PackedStringArray("session folder", "trace root", "artifact root")
+DefaultValue = "user://sea_shell_performance"
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778383194
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="PerformanceSetting_6"]
+script = ExtResource("2")
+ItemId = "SeaShell.Performance.PreRollSeconds"
+ValueType = "Float"
+DisplayName = "Pre-Roll Seconds"
+Description = "Amount of buffered frame history saved before a spike or manual capture trigger."
+GroupPath = "Sea Shell/Performance/Capture"
+Tags = PackedStringArray("SeaShell", "Performance", "Capture", "Timing")
+Aliases = PackedStringArray("buffer before", "pre roll")
+DefaultValue = 4.0
+Options = PackedStringArray()
+MinValue = 0.0
+MaxValue = 30.0
+Step = 0.25
+DefinitionModifiedUnix = 1778383194
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="PerformanceSetting_7"]
+script = ExtResource("2")
+ItemId = "SeaShell.Performance.PostRollSeconds"
+ValueType = "Float"
+DisplayName = "Post-Roll Seconds"
+Description = "Amount of time saved after a spike or manual capture trigger."
+GroupPath = "Sea Shell/Performance/Capture"
+Tags = PackedStringArray("SeaShell", "Performance", "Capture", "Timing")
+Aliases = PackedStringArray("buffer after", "post roll")
+DefaultValue = 2.0
+Options = PackedStringArray()
+MinValue = 0.0
+MaxValue = 30.0
+Step = 0.25
+DefinitionModifiedUnix = 1778383194
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="PerformanceSetting_8"]
+script = ExtResource("2")
+ItemId = "SeaShell.Performance.RollingBufferSeconds"
+ValueType = "Integer"
+DisplayName = "Rolling Buffer Seconds"
+Description = "How many recent seconds stay in the in-memory frame buffer before trimming."
+GroupPath = "Sea Shell/Performance/Capture"
+Tags = PackedStringArray("SeaShell", "Performance", "Capture", "Buffer")
+Aliases = PackedStringArray("buffer length", "history seconds")
+DefaultValue = 20
+Options = PackedStringArray()
+MinValue = 1.0
+MaxValue = 120.0
+Step = 1.0
+DefinitionModifiedUnix = 1778383194
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="PerformanceSetting_9"]
+script = ExtResource("2")
+ItemId = "SeaShell.Performance.SpikeThresholdMs"
+ValueType = "Float"
+DisplayName = "Spike Threshold (ms)"
+Description = "Frame time threshold that marks a frame as a spike candidate for automatic capture."
+GroupPath = "Sea Shell/Performance/Capture"
+Tags = PackedStringArray("SeaShell", "Performance", "Capture", "Spikes")
+Aliases = PackedStringArray("frame threshold", "hitch threshold")
+DefaultValue = 25.0
+Options = PackedStringArray()
+MinValue = 0.0
+MaxValue = 500.0
+Step = 1.0
+DefinitionModifiedUnix = 1778383194
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="PerformanceSetting_10"]
+script = ExtResource("2")
+ItemId = "SeaShell.Performance.SpikeCooldownMs"
+ValueType = "Integer"
+DisplayName = "Spike Cooldown (ms)"
+Description = "Minimum cooldown between automatic spike captures."
+GroupPath = "Sea Shell/Performance/Capture"
+Tags = PackedStringArray("SeaShell", "Performance", "Capture", "Spikes")
+Aliases = PackedStringArray("cooldown", "auto capture cooldown")
+DefaultValue = 3000
+Options = PackedStringArray()
+MinValue = 0.0
+MaxValue = 30000.0
+Step = 100.0
+DefinitionModifiedUnix = 1778383194
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="PerformanceSetting_11"]
+script = ExtResource("2")
+ItemId = "SeaShell.Performance.MaxAutoCapturesPerRun"
+ValueType = "Integer"
+DisplayName = "Max Auto Captures Per Run"
+Description = "Caps how many automatic spike windows are saved during one playtest run."
+GroupPath = "Sea Shell/Performance/Capture"
+Tags = PackedStringArray("SeaShell", "Performance", "Capture", "Spikes")
+Aliases = PackedStringArray("capture cap", "max spikes")
+DefaultValue = 10
+Options = PackedStringArray()
+MinValue = 0.0
+MaxValue = 100.0
+Step = 1.0
+DefinitionModifiedUnix = 1778383194
+HookIds = PackedStringArray()
+
+[resource]
+script = ExtResource("1")
+PackId = "SeaShell.Performance"
+DisplayName = "Sea Shell Performance Settings"
+Description = "Settings for the Sea Shell performance runtime, overlay, rolling frame capture, and session export."
+Items = Array[Resource]([SubResource("PerformanceSetting_1"), SubResource("PerformanceSetting_2"), SubResource("PerformanceSetting_3"), SubResource("PerformanceSetting_4"), SubResource("PerformanceSetting_5"), SubResource("PerformanceSetting_6"), SubResource("PerformanceSetting_7"), SubResource("PerformanceSetting_8"), SubResource("PerformanceSetting_9"), SubResource("PerformanceSetting_10"), SubResource("PerformanceSetting_11")])
+Groups = PackedStringArray("Sea Shell/Performance", "Sea Shell/Performance/Core", "Sea Shell/Performance/Capture", "Sea Shell/Performance/Storage")
+Tags = PackedStringArray("Buffer", "Capture", "Overlay", "Performance", "Runtime", "SeaShell", "Spikes", "Storage", "Timing")
+DefinitionModifiedUnix = 1778383194

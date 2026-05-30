@@ -37,7 +37,7 @@ theme_override_constants/separation = 10
 layout_mode = 2
 theme_override_font_sizes/font_size = 21
 mouse_filter = 2
-text = "📊 How likely are you to recommend this workflow?"
+text = "How likely are you to recommend this workflow?"
 autowrap_mode = 3
 
 [node name="QuestionTypeBar" type="HBoxContainer" parent="Panel/Stack"]

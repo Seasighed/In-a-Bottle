@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="SurveyFeatureFlags" format=3 uid="uid://b0qkweehwb1m4"]
+
+[ext_resource type="Script" uid="uid://dlibshddu72s2" path="res://Scripts/UI/SurveyFeatureFlags.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+enable_preview_controls = false

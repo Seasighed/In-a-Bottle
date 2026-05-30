@@ -1,0 +1,13 @@
+[gd_resource type="Resource" format=3 uid="uid://ckbho7pu7tovb"]
+
+[ext_resource type="Script" uid="uid://b6wr2t2dm2ite" path="res://addons/seashell_devtools/BuildProfile.gd" id="1_vuobt"]
+
+[resource]
+script = ExtResource("1_vuobt")
+DisplayName = "Default Web Build"
+TargetPlatform = "web"
+ExportPresetName = "Web"
+BuildMode = 1
+OutputDirectory = "localBuilds"
+ExecutableFileName = "index.html"
+OpenOutputFolderOnSuccess = true

@@ -1,6 +1,40 @@
 class_name SurveyStyle
 extends RefCounted
 
+const CHARGE_GLOW_SHADER_CODE := """
+shader_type canvas_item;
+
+uniform float charge : hint_range(0.0, 1.0) = 0.0;
+uniform vec4 color_a : source_color = vec4(0.84, 0.69, 0.33, 1.0);
+uniform vec4 color_b : source_color = vec4(0.22, 0.58, 1.0, 1.0);
+uniform vec2 rect_size = vec2(1.0, 1.0);
+
+void fragment() {
+	float edge_px = min(
+		min(UV.x * rect_size.x, UV.y * rect_size.y),
+		min((1.0 - UV.x) * rect_size.x, (1.0 - UV.y) * rect_size.y)
+	);
+	float min_dimension = max(min(rect_size.x, rect_size.y), 1.0);
+	float outline_width_px = clamp(min_dimension * 0.026, 4.0, 10.0);
+	float outline_softness_px = clamp(min_dimension * 0.008, 1.5, 2.5);
+	float halo_width_px = clamp(min_dimension * 0.015, 2.0, 5.0);
+	float outline = 1.0 - smoothstep(
+		outline_width_px - outline_softness_px,
+		outline_width_px + outline_softness_px,
+		edge_px
+	);
+	float halo = 1.0 - smoothstep(
+		outline_width_px + outline_softness_px,
+		outline_width_px + halo_width_px,
+		edge_px
+	);
+	float shimmer = 0.5 + 0.5 * sin(TIME * (3.2 + (charge * 3.6)) + (UV.x * 8.0) + (UV.y * 5.0));
+	vec3 gradient = mix(color_a.rgb, color_b.rgb, shimmer);
+	float alpha = (outline * (0.28 + (charge * 0.34))) + (halo * 0.08 * charge);
+	COLOR = vec4(gradient, clamp(alpha * charge, 0.0, 0.82));
+}
+"""
+
 static var BACKGROUND := Color("1e1e1e")
 static var SURFACE := Color("252526")
 static var SURFACE_ALT := Color("2d2d30")
@@ -105,12 +139,23 @@ static func apply_secondary_button(button: Button) -> void:
 	apply_text_outline(button, 2)
 	_ensure_control_minimum_height(button)
 
+static func answer_panel(fill: Color, border: Color = Color(0, 0, 0, 0), radius: int = 14, border_width: int = 1) -> StyleBoxFlat:
+	var style := panel(fill, border, radius, border_width)
+	style.content_margin_left = 14
+	style.content_margin_right = 14
+	style.content_margin_top = 10
+	style.content_margin_bottom = 10
+	return style
+
+static func apply_answer_panel(panel_node: PanelContainer, fill: Color, border: Color = Color(0, 0, 0, 0), radius: int = 14, border_width: int = 1) -> void:
+	panel_node.add_theme_stylebox_override("panel", answer_panel(fill, border, radius, border_width))
+
 static func apply_answer_button(button: Button, is_selected: bool) -> void:
 	if is_selected:
-		button.add_theme_stylebox_override("normal", panel(SURFACE_MUTED, HIGHLIGHT_GOLD, 14, 2))
-		button.add_theme_stylebox_override("focus", panel(SURFACE_MUTED, HIGHLIGHT_GOLD.lightened(0.06), 14, 2))
-		button.add_theme_stylebox_override("hover", panel(SURFACE_MUTED.lightened(0.03), HIGHLIGHT_GOLD.lightened(0.08), 14, 2))
-		button.add_theme_stylebox_override("pressed", panel(SURFACE, HIGHLIGHT_GOLD, 14, 2))
+		button.add_theme_stylebox_override("normal", answer_panel(SURFACE_MUTED, HIGHLIGHT_GOLD, 14, 2))
+		button.add_theme_stylebox_override("focus", answer_panel(SURFACE_MUTED, HIGHLIGHT_GOLD.lightened(0.06), 14, 2))
+		button.add_theme_stylebox_override("hover", answer_panel(SURFACE_MUTED.lightened(0.03), HIGHLIGHT_GOLD.lightened(0.08), 14, 2))
+		button.add_theme_stylebox_override("pressed", answer_panel(SURFACE, HIGHLIGHT_GOLD, 14, 2))
 		button.add_theme_color_override("font_color", TEXT_PRIMARY)
 		button.add_theme_color_override("font_focus_color", TEXT_PRIMARY)
 		button.add_theme_color_override("font_hover_color", TEXT_PRIMARY)
@@ -119,10 +164,10 @@ static func apply_answer_button(button: Button, is_selected: bool) -> void:
 		apply_text_outline(button, 2)
 		_ensure_control_minimum_height(button)
 		return
-	button.add_theme_stylebox_override("normal", panel(SURFACE_ALT, BORDER, 14, 2))
-	button.add_theme_stylebox_override("focus", panel(SURFACE_MUTED, ACCENT_ALT, 14, 2))
-	button.add_theme_stylebox_override("hover", panel(SURFACE_MUTED, BORDER.lightened(0.08), 14, 2))
-	button.add_theme_stylebox_override("pressed", panel(SURFACE, ACCENT_ALT, 14, 2))
+	button.add_theme_stylebox_override("normal", answer_panel(SURFACE_ALT, BORDER, 14, 2))
+	button.add_theme_stylebox_override("focus", answer_panel(SURFACE_MUTED, ACCENT_ALT, 14, 2))
+	button.add_theme_stylebox_override("hover", answer_panel(SURFACE_MUTED, BORDER.lightened(0.08), 14, 2))
+	button.add_theme_stylebox_override("pressed", answer_panel(SURFACE, ACCENT_ALT, 14, 2))
 	button.add_theme_color_override("font_color", TEXT_PRIMARY)
 	button.add_theme_color_override("font_focus_color", TEXT_PRIMARY)
 	button.add_theme_color_override("font_hover_color", TEXT_PRIMARY)
@@ -130,6 +175,49 @@ static func apply_answer_button(button: Button, is_selected: bool) -> void:
 	button.add_theme_color_override("font_disabled_color", TEXT_MUTED)
 	apply_text_outline(button, 2)
 	_ensure_control_minimum_height(button)
+
+static func ensure_charge_glow(control: Control) -> ColorRect:
+	if control == null:
+		return null
+	var glow := control.get_node_or_null("ChargeGlowOverlay") as ColorRect
+	if glow != null:
+		return glow
+	glow = ColorRect.new()
+	glow.name = "ChargeGlowOverlay"
+	glow.set_anchors_preset(Control.PRESET_FULL_RECT)
+	glow.anchor_right = 1.0
+	glow.anchor_bottom = 1.0
+	glow.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	glow.grow_vertical = Control.GROW_DIRECTION_BOTH
+	glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	glow.color = Color.WHITE
+	glow.material = _create_charge_glow_material()
+	control.add_child(glow)
+	control.move_child(glow, control.get_child_count() - 1)
+	return glow
+
+static func set_charge_glow(control: Control, charge_ratio: float, accent: Color = Color(0, 0, 0, 0), secondary: Color = Color(0, 0, 0, 0)) -> void:
+	var glow := ensure_charge_glow(control)
+	if glow == null:
+		return
+	var resolved_ratio := clampf(charge_ratio, 0.0, 1.0)
+	var control_size := _resolved_control_draw_size(control)
+	glow.visible = resolved_ratio > 0.01
+	if glow.material is ShaderMaterial:
+		var glow_material := glow.material as ShaderMaterial
+		var primary_color := accent if accent != Color(0, 0, 0, 0) else HIGHLIGHT_GOLD
+		var secondary_color := secondary if secondary != Color(0, 0, 0, 0) else ACCENT_ALT
+		glow_material.set_shader_parameter("charge", resolved_ratio)
+		glow_material.set_shader_parameter("color_a", primary_color)
+		glow_material.set_shader_parameter("color_b", secondary_color)
+		glow_material.set_shader_parameter("rect_size", control_size)
+
+static func clear_charge_glow(control: Control) -> void:
+	if control == null:
+		return
+	var glow := control.get_node_or_null("ChargeGlowOverlay") as ColorRect
+	if glow != null:
+		glow.visible = false
 
 static func apply_danger_button(button: Button) -> void:
 	button.add_theme_stylebox_override("normal", panel(DANGER, DANGER, 14, 0))
@@ -250,3 +338,26 @@ static func journey_mobile_scale(viewport_size: Vector2) -> float:
 	var width_scale: float = viewport_size.x / 320.0
 	var height_scale: float = viewport_size.y / 700.0
 	return clampf(minf(width_scale, height_scale), 1.0, 1.28)
+
+static func _create_charge_glow_material() -> ShaderMaterial:
+	var shader := Shader.new()
+	shader.code = CHARGE_GLOW_SHADER_CODE
+	var material := ShaderMaterial.new()
+	material.shader = shader
+	material.set_shader_parameter("charge", 0.0)
+	material.set_shader_parameter("color_a", HIGHLIGHT_GOLD)
+	material.set_shader_parameter("color_b", ACCENT_ALT)
+	material.set_shader_parameter("rect_size", Vector2.ONE)
+	return material
+
+static func _resolved_control_draw_size(control: Control) -> Vector2:
+	if control == null:
+		return Vector2.ONE
+	var resolved_size := control.size
+	if resolved_size.x <= 0.0 or resolved_size.y <= 0.0:
+		resolved_size = resolved_size.max(control.custom_minimum_size)
+	if resolved_size.x <= 0.0 or resolved_size.y <= 0.0:
+		resolved_size = resolved_size.max(control.get_combined_minimum_size())
+	resolved_size.x = maxf(resolved_size.x, 1.0)
+	resolved_size.y = maxf(resolved_size.y, 1.0)
+	return resolved_size

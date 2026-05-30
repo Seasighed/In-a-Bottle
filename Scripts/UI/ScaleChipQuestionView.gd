@@ -35,6 +35,10 @@ func _ready() -> void:
 	refresh_responsive_layout(_resolved_viewport_size())
 	super()
 
+func set_charge_ratio(ratio: float) -> void:
+	super.set_charge_ratio(ratio)
+	_refresh_charge_visuals()
+
 func _apply_question() -> void:
 	if question == null:
 		return
@@ -60,6 +64,7 @@ func _apply_question() -> void:
 	_sync_selection(int(current_value) if current_value != null else -1)
 	_sync_slider_state()
 	_apply_selection_state()
+	_refresh_charge_visuals()
 	refresh_responsive_layout(_resolved_viewport_size())
 	_refresh_layout_metrics()
 	_refresh_question_chrome()
@@ -67,15 +72,16 @@ func _apply_question() -> void:
 func _apply_selection_state() -> void:
 	if is_focus_presentation():
 		var panel_style := SurveyStyle.panel(SurveyStyle.SURFACE, Color(0, 0, 0, 0), 0, 0)
-		panel_style.content_margin_left = 24
-		panel_style.content_margin_right = 24
-		panel_style.content_margin_top = 24
-		panel_style.content_margin_bottom = 24
+		panel_style.content_margin_left = _focus_panel_horizontal_padding()
+		panel_style.content_margin_right = _focus_panel_horizontal_padding()
+		panel_style.content_margin_top = _focus_panel_vertical_padding()
+		panel_style.content_margin_bottom = _focus_panel_vertical_padding()
 		_panel.add_theme_stylebox_override("panel", panel_style)
 		return
 	var border_color := SurveyStyle.ACCENT if is_selected else SurveyStyle.ACCENT_ALT
 	var fill_color := SurveyStyle.SURFACE_MUTED if is_selected else SurveyStyle.SURFACE_ALT
 	SurveyStyle.apply_panel(_panel, fill_color, border_color, 22, 1)
+	_refresh_charge_visuals()
 
 func focus_primary_control() -> void:
 	if _uses_mobile_slider():
@@ -116,6 +122,7 @@ func refresh_responsive_layout(viewport_size: Vector2) -> void:
 		button.add_theme_font_size_override("font_size", int(round((((18 if _compact_layout else 20) * journey_scale) if journey_focus_layout else ((22 if _compact_layout else 26) if focus_layout else (15 if _compact_layout else 16))))))
 	_sync_slider_state()
 	_apply_selection_state()
+	_refresh_charge_visuals()
 	_refresh_layout_metrics()
 
 func _ensure_focus_spacers() -> void:
@@ -160,7 +167,12 @@ func _on_score_pressed(score: int) -> void:
 
 func _sync_selection(selected_value: int) -> void:
 	for button in _buttons:
-		SurveyStyle.apply_answer_button(button, int(button.text) == selected_value)
+		var selected := int(button.text) == selected_value
+		SurveyStyle.apply_answer_button(button, selected)
+		if is_journey_focus_presentation() and selected and _question_charge_ratio > 0.001:
+			SurveyStyle.set_charge_glow(button, _question_charge_ratio, SurveyStyle.question_type_color(question.type if question != null else StringName()), SurveyStyle.HIGHLIGHT_GOLD)
+		else:
+			SurveyStyle.clear_charge_glow(button)
 
 func _uses_mobile_slider() -> bool:
 	return is_journey_focus_presentation() and _compact_layout
@@ -183,8 +195,17 @@ func _sync_slider_state() -> void:
 	_slider_clear_button.visible = has_answer
 	_slider_min_label.text = _slider_edge_label(question.left_label, question.min_value)
 	_slider_max_label.text = _slider_edge_label(question.right_label, question.max_value)
+	_refresh_charge_visuals()
 	if previous_clear_visible != _slider_clear_button.visible:
 		call_deferred("_refresh_layout_metrics")
+
+func _refresh_charge_visuals() -> void:
+	var show_glow := is_journey_focus_presentation() and _question_charge_ratio > 0.001
+	if show_glow:
+		SurveyStyle.set_charge_glow(_slider_box, _question_charge_ratio, SurveyStyle.question_type_color(question.type if question != null else StringName()), SurveyStyle.HIGHLIGHT_GOLD)
+	else:
+		SurveyStyle.clear_charge_glow(_slider_box)
+	_sync_selection(int(current_value) if current_value != null else -1)
 
 func _slider_edge_label(label_text: String, fallback_value: int) -> String:
 	var trimmed := label_text.strip_edges()

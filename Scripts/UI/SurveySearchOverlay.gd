@@ -223,6 +223,18 @@ func _build_result_row(result: Dictionary) -> PanelContainer:
 	SurveyStyle.apply_panel(row, SurveyStyle.SURFACE_ALT, SurveyStyle.BORDER, 18, 1)
 	row.gui_input.connect(_on_result_gui_input.bind(int(result.get("section_index", 0)), str(result.get("question_id", "")), row))
 	row.mouse_entered.connect(_on_result_mouse_entered)
+	row.set_meta("feedback_context", {
+		"kind": "search_result",
+		"summary": "Search result: %s" % str(result.get("title", "")).strip_edges(),
+		"search_result": {
+			"section_index": int(result.get("section_index", 0)),
+			"section_title": str(result.get("section_label", "")).strip_edges(),
+			"question_id": str(result.get("question_id", "")).strip_edges(),
+			"title": str(result.get("title", "")).strip_edges(),
+			"type_label": str(result.get("type_label", "")).strip_edges(),
+			"preview": str(result.get("preview", "")).strip_edges()
+		}
+	})
 
 	var stack := VBoxContainer.new()
 	stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL

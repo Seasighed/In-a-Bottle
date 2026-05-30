@@ -25,6 +25,10 @@ func _ready() -> void:
 	refresh_responsive_layout(_resolved_viewport_size())
 	super()
 
+func set_charge_ratio(ratio: float) -> void:
+	super.set_charge_ratio(ratio)
+	_refresh_answer_charge_visuals()
+
 func _apply_question() -> void:
 	if question == null:
 		return
@@ -64,21 +68,23 @@ func _apply_question() -> void:
 			_build_typed_answer_field(str(current_value if current_value != null else ""), question.placeholder, false, _on_short_text_changed)
 
 	_apply_selection_state()
+	_refresh_answer_charge_visuals()
 	refresh_responsive_layout(_resolved_viewport_size())
 	_refresh_layout_metrics()
 
 func _apply_selection_state() -> void:
 	if is_focus_presentation():
 		var card_style := SurveyStyle.panel(SurveyStyle.SURFACE, Color(0, 0, 0, 0), 0, 0)
-		card_style.content_margin_left = 24
-		card_style.content_margin_right = 24
-		card_style.content_margin_top = 24
-		card_style.content_margin_bottom = 24
+		card_style.content_margin_left = _focus_panel_horizontal_padding()
+		card_style.content_margin_right = _focus_panel_horizontal_padding()
+		card_style.content_margin_top = _focus_panel_vertical_padding()
+		card_style.content_margin_bottom = _focus_panel_vertical_padding()
 		_card.add_theme_stylebox_override("panel", card_style)
 		return
 	var border_color := SurveyStyle.ACCENT_ALT if is_selected else SurveyStyle.BORDER
 	var fill_color := SurveyStyle.SURFACE_MUTED if is_selected else SurveyStyle.SURFACE
 	SurveyStyle.apply_panel(_card, fill_color, border_color, 20, 1)
+	_refresh_answer_charge_visuals()
 
 func focus_primary_control() -> void:
 	if _primary_control != null:
@@ -105,6 +111,7 @@ func refresh_responsive_layout(viewport_size: Vector2) -> void:
 	_meta_label.visible = not focus_layout and not _meta_label.text.is_empty()
 	_apply_field_host_presentation(viewport_size, focus_layout)
 	_apply_selection_state()
+	_refresh_answer_charge_visuals()
 	_refresh_layout_metrics()
 	_refresh_question_chrome()
 
@@ -201,14 +208,53 @@ func _apply_box_field_presentation(container: VBoxContainer, viewport_size: Vect
 				if nested_label != null:
 					nested_label.add_theme_font_size_override("font_size", int(round(((15 if viewport_size.x <= 640.0 else 17) * journey_scale) if journey_focus_layout else ((17 if viewport_size.x <= 640.0 else 20) if focus_layout else 13))))
 
+func _refresh_answer_charge_visuals() -> void:
+	if question == null:
+		return
+	var accent := SurveyStyle.question_type_color(question.type)
+	var show_glow := is_journey_focus_presentation() and _question_charge_ratio > 0.001
+	for child in _field_host.get_children():
+		if child is TypedAnswerField:
+			(child as TypedAnswerField).set_charge_ratio(_question_charge_ratio if show_glow else 0.0)
+			continue
+		if child is LineEdit:
+			if show_glow:
+				SurveyStyle.set_charge_glow(child as LineEdit, _question_charge_ratio, accent, SurveyStyle.HIGHLIGHT_GOLD)
+			else:
+				SurveyStyle.clear_charge_glow(child as LineEdit)
+			continue
+		if child is TextEdit:
+			if show_glow:
+				SurveyStyle.set_charge_glow(child as TextEdit, _question_charge_ratio, accent, SurveyStyle.HIGHLIGHT_GOLD)
+			else:
+				SurveyStyle.clear_charge_glow(child as TextEdit)
+			continue
+		if child is VBoxContainer:
+			var holder := child as VBoxContainer
+			var contains_slider := false
+			for nested_child in holder.get_children():
+				if nested_child is MultipleChoiceOptionRow:
+					(nested_child as MultipleChoiceOptionRow).set_charge_ratio(_question_charge_ratio if show_glow and (nested_child as MultipleChoiceOptionRow).is_option_pressed() else 0.0)
+				elif nested_child is CheckboxOptionRow:
+					(nested_child as CheckboxOptionRow).set_charge_ratio(_question_charge_ratio if show_glow and (nested_child as CheckboxOptionRow).is_checked() else 0.0)
+				elif nested_child is HSlider:
+					contains_slider = true
+			if contains_slider and show_glow:
+				SurveyStyle.set_charge_glow(holder, _question_charge_ratio, accent, SurveyStyle.HIGHLIGHT_GOLD)
+			else:
+				SurveyStyle.clear_charge_glow(holder)
+
 func _build_typed_answer_field(value: String, placeholder: String, multiline: bool, handler: Callable) -> void:
 	var field := TYPED_ANSWER_FIELD_SCENE.instantiate() as TypedAnswerField
 	if field == null:
 		return
 	_field_host.add_child(field)
-	field.configure(value, placeholder, multiline)
+	var input_kind: StringName = question.type if question != null else TypedAnswerField.INPUT_KIND_TEXT
+	field.configure(value, placeholder, multiline, input_kind)
 	field.value_changed.connect(handler)
 	register_selectable(field.get_primary_control())
+	for control in field.get_additional_selectable_controls():
+		register_selectable(control)
 	_primary_control = field.get_primary_control()
 
 func _build_single_choice_field() -> void:

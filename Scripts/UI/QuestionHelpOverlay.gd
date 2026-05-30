@@ -34,7 +34,12 @@ func open_help(question: SurveyQuestion, show_debug_ids: bool = false) -> void:
 	_heading_label.text = question.prompt.strip_edges() if not question.prompt.strip_edges().is_empty() else "Question Help"
 	_subtitle_label.text = "%s | %s%s" % [type_label, question.requirement_label(), " | %s" % debug_line if not debug_line.is_empty() else ""]
 	_body_label.clear()
-	_body_label.append_text(SURVEY_MARKDOWN.to_bbcode(question.help_markdown_text()))
+	var body_sections: Array[String] = []
+	var answer_summary: String = question.answer_help_summary().strip_edges()
+	if not answer_summary.is_empty():
+		body_sections.append("[b]How to answer[/b]\n%s" % answer_summary)
+	body_sections.append(question.help_markdown_text())
+	_body_label.append_text(SURVEY_MARKDOWN.to_bbcode("\n\n".join(body_sections)))
 	show()
 	call_deferred("_refresh_content_height")
 	call_deferred("_reset_scroll_position")

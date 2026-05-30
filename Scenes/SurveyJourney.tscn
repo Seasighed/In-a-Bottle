@@ -68,9 +68,10 @@ layout_mode = 2
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="LandingActions" type="HBoxContainer" parent="Margin/MainPanel/Stack/LandingView" unique_id=1718199848]
+[node name="LandingActions" type="HFlowContainer" parent="Margin/MainPanel/Stack/LandingView" unique_id=1718199848]
 layout_mode = 2
-theme_override_constants/separation = 14
+theme_override_constants/h_separation = 14
+theme_override_constants/v_separation = 10
 alignment = 1
 
 [node name="TakeSurveyButton" type="Button" parent="Margin/MainPanel/Stack/LandingView/LandingActions" unique_id=1056653159]
@@ -229,59 +230,6 @@ icon = ExtResource("2")
 [node name="LoreTakeSurveyButton" type="Button" parent="Margin/MainPanel/Stack/LoreView" unique_id=440107348]
 layout_mode = 2
 text = "Take This Survey"
-
-[node name="SectionSelectionView" type="VBoxContainer" parent="Margin/MainPanel/Stack" unique_id=1634172743]
-visible = false
-layout_mode = 2
-size_flags_vertical = 3
-theme_override_constants/separation = 14
-
-[node name="SectionSelectionTopRow" type="HBoxContainer" parent="Margin/MainPanel/Stack/SectionSelectionView" unique_id=2038113391]
-layout_mode = 2
-
-[node name="SectionSelectionBackButton" type="Button" parent="Margin/MainPanel/Stack/SectionSelectionView/SectionSelectionTopRow" unique_id=1798730472]
-layout_mode = 2
-text = "Back"
-
-[node name="SectionSelectionTopSpacer" type="Control" parent="Margin/MainPanel/Stack/SectionSelectionView/SectionSelectionTopRow" unique_id=2106028086]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="SectionSelectionHeadingLabel" type="Label" parent="Margin/MainPanel/Stack/SectionSelectionView" unique_id=1677777958]
-layout_mode = 2
-autowrap_mode = 3
-
-[node name="SectionSelectionSubtitleLabel" type="Label" parent="Margin/MainPanel/Stack/SectionSelectionView" unique_id=747332068]
-layout_mode = 2
-autowrap_mode = 3
-
-[node name="SectionSelectionSurveyLabel" type="Label" parent="Margin/MainPanel/Stack/SectionSelectionView" unique_id=1017577206]
-layout_mode = 2
-autowrap_mode = 3
-
-[node name="SectionSelectionScroll" type="ScrollContainer" parent="Margin/MainPanel/Stack/SectionSelectionView" unique_id=844279401]
-layout_mode = 2
-size_flags_vertical = 3
-horizontal_scroll_mode = 0
-
-[node name="SectionSelectionGrid" type="GridContainer" parent="Margin/MainPanel/Stack/SectionSelectionView/SectionSelectionScroll" unique_id=681875519]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/h_separation = 14
-theme_override_constants/v_separation = 14
-columns = 2
-
-[node name="SectionSelectionActionRow" type="HBoxContainer" parent="Margin/MainPanel/Stack/SectionSelectionView" unique_id=36146598]
-layout_mode = 2
-theme_override_constants/separation = 10
-
-[node name="SectionSelectionActionSpacer" type="Control" parent="Margin/MainPanel/Stack/SectionSelectionView/SectionSelectionActionRow" unique_id=1721642748]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="SectionSelectionNextButton" type="Button" parent="Margin/MainPanel/Stack/SectionSelectionView/SectionSelectionActionRow" unique_id=545005775]
-layout_mode = 2
-text = "Start Section"
 
 [node name="FocusView" type="VBoxContainer" parent="Margin/MainPanel/Stack" unique_id=826420181]
 visible = false

@@ -12,6 +12,7 @@ var _pressed := false
 var _is_configuring := false
 var _focus_presentation := false
 var _journey_focus_presentation := false
+var _charge_ratio := 0.0
 
 func _ready() -> void:
 	var check_box := _ensure_check_box()
@@ -62,6 +63,13 @@ func set_journey_focus_presentation(enabled: bool) -> void:
 	_update_layout()
 	_update_style()
 
+func set_charge_ratio(ratio: float) -> void:
+	var resolved_ratio := clampf(ratio, 0.0, 1.0)
+	if is_equal_approx(_charge_ratio, resolved_ratio):
+		return
+	_charge_ratio = resolved_ratio
+	_update_style()
+
 func _on_check_box_toggled(pressed: bool) -> void:
 	_pressed = pressed
 	_update_style()
@@ -81,7 +89,11 @@ func _update_style() -> void:
 		return
 	var fill: Color = SurveyStyle.SURFACE_MUTED if check_box.button_pressed else SurveyStyle.SURFACE_ALT
 	var border: Color = SurveyStyle.HIGHLIGHT_GOLD if check_box.button_pressed else SurveyStyle.BORDER
-	SurveyStyle.apply_panel(self, fill, border, 14, 2 if check_box.button_pressed else 1)
+	SurveyStyle.apply_answer_panel(self, fill, border, 14, 2 if check_box.button_pressed else 1)
+	if _journey_focus_presentation and check_box.button_pressed and _charge_ratio > 0.001:
+		SurveyStyle.set_charge_glow(self, _charge_ratio, SurveyStyle.HIGHLIGHT_GOLD, SurveyStyle.ACCENT_ALT)
+	else:
+		SurveyStyle.clear_charge_glow(self)
 
 func _update_layout() -> void:
 	var check_box := _ensure_check_box()
@@ -89,11 +101,11 @@ func _update_layout() -> void:
 		return
 	var journey_scale: float = SurveyStyle.journey_mobile_scale(_resolved_viewport_size())
 	if _focus_presentation and _journey_focus_presentation:
-		custom_minimum_size = Vector2(0.0, 58.0 * journey_scale)
-		check_box.custom_minimum_size = Vector2(0.0, 50.0 * journey_scale)
+		custom_minimum_size = Vector2(0.0, 52.0 * journey_scale)
+		check_box.custom_minimum_size = Vector2(0.0, 44.0 * journey_scale)
 	elif _focus_presentation:
-		custom_minimum_size = Vector2(0.0, 68.0)
-		check_box.custom_minimum_size = Vector2(0.0, 60.0)
+		custom_minimum_size = Vector2(0.0, 60.0)
+		check_box.custom_minimum_size = Vector2(0.0, 52.0)
 	else:
 		custom_minimum_size = Vector2(0.0, 0.0)
 		check_box.custom_minimum_size = Vector2(0.0, 0.0)

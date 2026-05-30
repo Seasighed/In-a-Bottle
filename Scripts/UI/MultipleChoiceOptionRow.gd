@@ -10,6 +10,7 @@ var _value: String = ""
 var _is_configuring := false
 var _focus_presentation := false
 var _journey_focus_presentation := false
+var _charge_ratio := 0.0
 
 func _ready() -> void:
 	toggled.connect(_on_toggled)
@@ -54,6 +55,13 @@ func set_journey_focus_presentation(enabled: bool) -> void:
 	_journey_focus_presentation = enabled
 	_update_style()
 
+func set_charge_ratio(ratio: float) -> void:
+	var resolved_ratio := clampf(ratio, 0.0, 1.0)
+	if is_equal_approx(_charge_ratio, resolved_ratio):
+		return
+	_charge_ratio = resolved_ratio
+	_update_style()
+
 func _on_toggled(pressed: bool) -> void:
 	_update_style()
 	if _is_configuring:
@@ -70,13 +78,17 @@ func _update_style() -> void:
 	SurveyStyle.apply_answer_button(self, button_pressed)
 	var journey_scale: float = SurveyStyle.journey_mobile_scale(_resolved_viewport_size())
 	if _focus_presentation and _journey_focus_presentation:
-		custom_minimum_size = Vector2(0.0, 58.0 * journey_scale)
+		custom_minimum_size = Vector2(0.0, 52.0 * journey_scale)
 	else:
-		custom_minimum_size = Vector2(0.0, 68.0 if _focus_presentation else 44.0)
+		custom_minimum_size = Vector2(0.0, 60.0 if _focus_presentation else 44.0)
 	if _focus_presentation:
 		add_theme_font_size_override("font_size", int(round((18 if _journey_focus_presentation else 20) * (journey_scale if _journey_focus_presentation else 1.0))))
 	else:
 		remove_theme_font_size_override("font_size")
+	if _journey_focus_presentation and button_pressed and _charge_ratio > 0.001:
+		SurveyStyle.set_charge_glow(self, _charge_ratio, SurveyStyle.HIGHLIGHT_GOLD, SurveyStyle.ACCENT_ALT)
+	else:
+		SurveyStyle.clear_charge_glow(self)
 
 func _resolved_viewport_size() -> Vector2:
 	var viewport := get_viewport()

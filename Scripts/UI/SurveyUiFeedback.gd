@@ -17,6 +17,13 @@ var _menu_open_player: AudioStreamPlayer
 var _menu_close_player: AudioStreamPlayer
 var _xp_player: AudioStreamPlayer
 var _unlock_player: AudioStreamPlayer
+var _charge_player: AudioStreamPlayer
+var _attack_player: AudioStreamPlayer
+var _boss_hit_player: AudioStreamPlayer
+var _boss_glance_player: AudioStreamPlayer
+var _boss_break_player: AudioStreamPlayer
+var _boss_victory_player: AudioStreamPlayer
+var _boss_partial_player: AudioStreamPlayer
 var _rng := RandomNumberGenerator.new()
 var _sfx_volume := DEFAULT_SFX_VOLUME
 var _hover_sfx_enabled := false
@@ -34,6 +41,13 @@ func _ready() -> void:
 	_menu_close_player = _create_player(_build_tone_stream(PackedFloat32Array([240.0, 170.0]), PackedFloat32Array([0.05, 0.09]), 0.18))
 	_xp_player = _create_player(_build_tone_stream(PackedFloat32Array([420.0, 560.0, 760.0]), PackedFloat32Array([0.03, 0.035, 0.045]), 0.15))
 	_unlock_player = _create_player(_build_tone_stream(PackedFloat32Array([520.0, 760.0, 1040.0]), PackedFloat32Array([0.045, 0.055, 0.085]), 0.18))
+	_charge_player = _create_player(_build_tone_stream(PackedFloat32Array([300.0, 520.0, 760.0]), PackedFloat32Array([0.02, 0.03, 0.05]), 0.16))
+	_attack_player = _create_player(_build_tone_stream(PackedFloat32Array([220.0, 320.0, 520.0]), PackedFloat32Array([0.025, 0.03, 0.06]), 0.18))
+	_boss_hit_player = _create_player(_build_tone_stream(PackedFloat32Array([160.0, 120.0, 90.0]), PackedFloat32Array([0.03, 0.04, 0.06]), 0.22))
+	_boss_glance_player = _create_player(_build_tone_stream(PackedFloat32Array([540.0, 680.0]), PackedFloat32Array([0.018, 0.022]), 0.1))
+	_boss_break_player = _create_player(_build_tone_stream(PackedFloat32Array([260.0, 180.0, 120.0]), PackedFloat32Array([0.04, 0.05, 0.08]), 0.2))
+	_boss_victory_player = _create_player(_build_tone_stream(PackedFloat32Array([360.0, 520.0, 720.0, 980.0]), PackedFloat32Array([0.04, 0.045, 0.055, 0.08]), 0.2))
+	_boss_partial_player = _create_player(_build_tone_stream(PackedFloat32Array([240.0, 320.0, 420.0]), PackedFloat32Array([0.03, 0.04, 0.06]), 0.13))
 	_apply_volume_to_players()
 
 static func play_hover() -> void:
@@ -66,6 +80,13 @@ static func play_answer_select() -> void:
 	if hub != null:
 		hub._play_player(hub._answer_player, 0.97, 1.05)
 
+static func play_answer_charge(intensity: float = 1.0) -> void:
+	var hub: SurveyUiFeedback = _get_hub()
+	if hub != null:
+		var resolved := clampf(intensity, 0.0, 1.0)
+		var pitch := lerpf(0.88, 1.14, resolved)
+		hub._play_player(hub._charge_player, pitch, pitch + 0.04)
+
 static func play_answer_unselect() -> void:
 	var hub: SurveyUiFeedback = _get_hub()
 	if hub != null:
@@ -87,6 +108,44 @@ static func play_unlock() -> void:
 	var hub: SurveyUiFeedback = _get_hub()
 	if hub != null:
 		hub._play_player(hub._unlock_player, 0.98, 1.04)
+
+static func play_attack_launch(strong: bool = false) -> void:
+	var hub: SurveyUiFeedback = _get_hub()
+	if hub != null:
+		hub._play_player(hub._attack_player, 0.92 if strong else 1.0, 0.98 if strong else 1.08)
+
+static func play_boss_hit(strong: bool = false) -> void:
+	var hub: SurveyUiFeedback = _get_hub()
+	if hub != null:
+		hub._play_player(hub._boss_hit_player, 0.92 if strong else 1.0, 0.98 if strong else 1.06)
+
+static func play_boss_glancing() -> void:
+	var hub: SurveyUiFeedback = _get_hub()
+	if hub != null:
+		hub._play_player(hub._boss_glance_player, 0.98, 1.08)
+
+static func play_boss_section_break() -> void:
+	var hub: SurveyUiFeedback = _get_hub()
+	if hub != null:
+		hub._play_player(hub._boss_break_player, 0.96, 1.02)
+
+static func play_boss_victory() -> void:
+	var hub: SurveyUiFeedback = _get_hub()
+	if hub != null:
+		hub._play_player(hub._boss_victory_player, 0.98, 1.02)
+
+static func play_boss_partial_result(tier: String = "") -> void:
+	var hub: SurveyUiFeedback = _get_hub()
+	if hub != null:
+		var pitch := 0.94
+		match tier:
+			"near_win":
+				pitch = 1.04
+			"solid_progress":
+				pitch = 1.0
+			_:
+				pitch = 0.94
+		hub._play_player(hub._boss_partial_player, pitch, pitch + 0.04)
 
 static func play_gamble_spin_tick(progress: float) -> void:
 	var hub: SurveyUiFeedback = _get_hub()
@@ -135,6 +194,16 @@ static func pulse(control: Control, scale_amount: float = 0.08, duration: float 
 	tween.tween_property(control, "scale", Vector2.ONE * (1.0 + scale_amount), duration * 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tween.tween_property(control, "scale", Vector2.ONE, duration * 0.55).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
+static func shake_control(control: Control, amplitude: float = 5.0, duration: float = 0.22) -> void:
+	if control == null or not is_instance_valid(control):
+		return
+	var origin := control.position
+	var tween := control.create_tween()
+	tween.tween_property(control, "position", origin + Vector2(amplitude, 0.0), duration * 0.16).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tween.tween_property(control, "position", origin + Vector2(-amplitude * 0.8, 0.0), duration * 0.18).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tween.tween_property(control, "position", origin + Vector2(amplitude * 0.45, 0.0), duration * 0.18).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tween.tween_property(control, "position", origin, duration * 0.24).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
 static func _get_hub() -> SurveyUiFeedback:
 	var tree: SceneTree = Engine.get_main_loop() as SceneTree
 	if tree == null:
@@ -149,7 +218,7 @@ func _set_hover_sfx_enabled(enabled: bool) -> void:
 	_hover_sfx_enabled = enabled
 
 func _apply_volume_to_players() -> void:
-	for player in [_hover_player, _select_player, _answer_player, _answer_unselect_player, _export_player, _gamble_player, _menu_open_player, _menu_close_player, _xp_player, _unlock_player]:
+	for player in [_hover_player, _select_player, _answer_player, _answer_unselect_player, _export_player, _gamble_player, _menu_open_player, _menu_close_player, _xp_player, _unlock_player, _charge_player, _attack_player, _boss_hit_player, _boss_glance_player, _boss_break_player, _boss_victory_player, _boss_partial_player]:
 		_apply_volume_to_player(player)
 
 func _apply_volume_to_player(player: AudioStreamPlayer) -> void:

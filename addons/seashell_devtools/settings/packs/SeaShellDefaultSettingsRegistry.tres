@@ -1,0 +1,123 @@
+[gd_resource type="Resource" load_steps=21 format=3]
+
+[ext_resource type="Script" path="res://addons/seashell_devtools/settings/SeaShellSettingsRegistry.gd" id="1"]
+[ext_resource type="PackedScene" path="res://addons/seashell_devtools/settings/ui/ToggleSettingControl.tscn" id="2"]
+[ext_resource type="PackedScene" path="res://addons/seashell_devtools/settings/ui/SliderSettingControl.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://addons/seashell_devtools/settings/ui/NumberSettingControl.tscn" id="4"]
+[ext_resource type="PackedScene" path="res://addons/seashell_devtools/settings/ui/DropdownSettingControl.tscn" id="5"]
+[ext_resource type="PackedScene" path="res://addons/seashell_devtools/settings/ui/SegmentedSettingControl.tscn" id="6"]
+[ext_resource type="PackedScene" path="res://addons/seashell_devtools/settings/ui/KeybindSettingControl.tscn" id="7"]
+[ext_resource type="PackedScene" path="res://addons/seashell_devtools/settings/ui/ActionSettingControl.tscn" id="8"]
+[ext_resource type="PackedScene" path="res://addons/seashell_devtools/settings/ui/TextSettingControl.tscn" id="9"]
+[ext_resource type="PackedScene" path="res://addons/seashell_devtools/settings/ui/MultilineTextSettingControl.tscn" id="10"]
+[ext_resource type="PackedScene" path="res://addons/seashell_devtools/settings/ui/ColorSettingControl.tscn" id="11"]
+[ext_resource type="PackedScene" path="res://addons/seashell_devtools/settings/ui/PathSettingControl.tscn" id="12"]
+[ext_resource type="PackedScene" path="res://addons/seashell_devtools/settings/ui/ResourceSettingControl.tscn" id="13"]
+[ext_resource type="PackedScene" path="res://addons/seashell_devtools/settings/ui/ResolutionSettingControl.tscn" id="14"]
+[ext_resource type="PackedScene" path="res://addons/seashell_devtools/settings/ui/QualityMatrixSettingControl.tscn" id="15"]
+[ext_resource type="PackedScene" path="res://addons/seashell_devtools/settings/ui/LanguageSettingControl.tscn" id="16"]
+[ext_resource type="PackedScene" path="res://addons/seashell_devtools/settings/ui/FontScaleSettingControl.tscn" id="17"]
+[ext_resource type="PackedScene" path="res://addons/seashell_devtools/settings/ui/SensitivityCurveSettingControl.tscn" id="18"]
+[ext_resource type="PackedScene" path="res://addons/seashell_devtools/settings/ui/ListSettingControl.tscn" id="19"]
+[ext_resource type="PackedScene" path="res://addons/seashell_devtools/settings/ui/TagPickerSettingControl.tscn" id="20"]
+
+[resource]
+script = ExtResource("1")
+RegistryId = "SeaShell.DefaultSettingsRegistry"
+ControlScenes = {
+"Action": ExtResource("8"),
+"Bool": ExtResource("2"),
+"Choice": ExtResource("5"),
+"Color": ExtResource("11"),
+"Enum": ExtResource("5"),
+"Float": ExtResource("3"),
+"Integer": ExtResource("4"),
+"Keybind": ExtResource("7"),
+"MultilineText": ExtResource("10"),
+"Path": ExtResource("12"),
+"Resolution": ExtResource("14"),
+"Resource": ExtResource("13"),
+"Segmented": ExtResource("6"),
+"QualityMatrix": ExtResource("15"),
+"Language": ExtResource("16"),
+"FontScale": ExtResource("17"),
+"SensitivityCurve": ExtResource("18"),
+"List": ExtResource("19"),
+"TagPicker": ExtResource("20"),
+"Text": ExtResource("9")
+}
+ValueTypeColors = {
+"Action": Color(0.6, 0.32, 0.15, 1),
+"Bool": Color(0.18, 0.45, 0.32, 1),
+"Choice": Color(0.2, 0.35, 0.58, 1),
+"Color": Color(0.55, 0.28, 0.5, 1),
+"Enum": Color(0.2, 0.35, 0.58, 1),
+"Float": Color(0.38, 0.31, 0.62, 1),
+"Integer": Color(0.38, 0.31, 0.62, 1),
+"Keybind": Color(0.52, 0.3, 0.18, 1),
+"MultilineText": Color(0.18, 0.43, 0.52, 1),
+"Path": Color(0.48, 0.39, 0.16, 1),
+"Resolution": Color(0.2, 0.35, 0.58, 1),
+"Resource": Color(0.5, 0.32, 0.55, 1),
+"Segmented": Color(0.2, 0.35, 0.58, 1),
+"QualityMatrix": Color(0.38, 0.31, 0.62, 1),
+"Language": Color(0.18, 0.43, 0.52, 1),
+"FontScale": Color(0.38, 0.31, 0.62, 1),
+"SensitivityCurve": Color(0.52, 0.3, 0.18, 1),
+"List": Color(0.25, 0.42, 0.56, 1),
+"TagPicker": Color(0.12, 0.38, 0.42, 1),
+"Text": Color(0.18, 0.43, 0.52, 1)
+}
+KindColors = {
+"Info": Color(0.23, 0.4, 0.5, 1),
+"Poll": Color(0.5, 0.32, 0.55, 1),
+"Setting": Color(0.2, 0.45, 0.32, 1)
+}
+TagColors = {
+"Build": Color(0.38, 0.31, 0.62, 1),
+"Appearance": Color(0.55, 0.28, 0.5, 1),
+"Color": Color(0.55, 0.28, 0.5, 1),
+"Debug": Color(0.6, 0.32, 0.15, 1),
+"Docs": Color(0.18, 0.43, 0.52, 1),
+"Feedback": Color(0.5, 0.32, 0.55, 1),
+"History": Color(0.48, 0.39, 0.16, 1),
+"Import": Color(0.2, 0.35, 0.58, 1),
+"Info": Color(0.23, 0.4, 0.5, 1),
+"Logs": Color(0.18, 0.43, 0.52, 1),
+"Markdown": Color(0.18, 0.43, 0.52, 1),
+"Obsidian": Color(0.5, 0.32, 0.55, 1),
+"Overlay": Color(0.2, 0.45, 0.32, 1),
+"Poll": Color(0.5, 0.32, 0.55, 1),
+"Profiles": Color(0.2, 0.35, 0.58, 1),
+"SeaShell": Color(0.12, 0.38, 0.42, 1),
+"Settings": Color(0.18, 0.45, 0.32, 1),
+"UI": Color(0.25, 0.42, 0.56, 1),
+"Workflow": Color(0.48, 0.39, 0.16, 1)
+}
+Icons = {
+"Info": "Info",
+"Poll": "Question",
+"Setting": "Edit"
+}
+Hints = {
+"Action": "Command button",
+"Bool": "Toggle",
+"Choice": "Dropdown choice",
+"Color": "Color picker",
+"Enum": "Dropdown enum",
+"Float": "Slider",
+"Integer": "Number stepper",
+"Keybind": "Input binding",
+"MultilineText": "Multiline text",
+"Path": "File or folder path",
+"Resolution": "Resolution picker",
+"Resource": "Godot resource path",
+"Segmented": "Segmented choice",
+"QualityMatrix": "Quality preset matrix",
+"Language": "Language selector",
+"FontScale": "Font scale",
+"SensitivityCurve": "Sensitivity curve",
+"List": "List editor",
+"TagPicker": "Tag picker",
+"Text": "Single-line text"
+}

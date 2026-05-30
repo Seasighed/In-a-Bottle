@@ -28,7 +28,7 @@ theme_override_constants/separation = 10
 [node name="TitleLabel" type="Label" parent="Card/Stack" unique_id=2072375311]
 layout_mode = 2
 theme_override_font_sizes/font_size = 20
-text = "✍️ Tell us more about your workflow."
+text = "Tell us more about your workflow."
 autowrap_mode = 3
 
 [node name="QuestionTypeBar" type="HBoxContainer" parent="Card/Stack" unique_id=940630948]

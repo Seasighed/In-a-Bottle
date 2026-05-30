@@ -48,6 +48,8 @@ func is_complete(answers: Dictionary) -> bool:
 	return true
 
 func resolved_emoji() -> String:
+	if OS.has_feature("web"):
+		return ""
 	if not emoji.is_empty():
 		return emoji
 	match icon_name:

@@ -22,6 +22,12 @@ signal fill_test_answers_requested
 signal preview_mode_requested(mode: String)
 signal preview_resolution_requested(resolution_id: String)
 signal question_debug_ids_requested(enabled: bool)
+signal playtest_feedback_capture_requested
+signal playtest_feedback_review_requested
+signal playtest_feedback_copy_requested
+signal playtest_feedback_share_requested
+signal playtest_feedback_download_requested
+signal playtest_feedback_clear_requested
 
 @onready var _dimmer: ColorRect = $Dimmer
 @onready var _bounds: MarginContainer = $Bounds
@@ -66,12 +72,22 @@ var _preview_resolution_row: HBoxContainer
 var _preview_resolution_label: Label
 var _preview_resolution_picker: OptionButton
 var _question_chrome_toggle_button: Button
+var _feedback_heading_label: Label
+var _feedback_status_label: Label
+var _feedback_actions: GridContainer
+var _feedback_capture_button: Button
+var _feedback_review_button: Button
+var _feedback_copy_button: Button
+var _feedback_share_button: Button
+var _feedback_download_button: Button
+var _feedback_clear_button: Button
 var _syncing_preview_controls := false
 
 func _ready() -> void:
 	layer = 50
 	visible = false
 	_ensure_preview_controls()
+	_ensure_feedback_controls()
 	_close_button.text = "X"
 	refresh_theme()
 	refresh_layout(get_viewport().get_visible_rect().size)
@@ -98,8 +114,20 @@ func _ready() -> void:
 		_wire_option_button_feedback(_preview_resolution_picker)
 	if _question_chrome_toggle_button != null:
 		_question_chrome_toggle_button.toggled.connect(_on_question_chrome_toggle_toggled)
+	if _feedback_review_button != null:
+		_feedback_review_button.pressed.connect(_on_feedback_review_pressed)
+	if _feedback_capture_button != null:
+		_feedback_capture_button.pressed.connect(_on_feedback_capture_pressed)
+	if _feedback_copy_button != null:
+		_feedback_copy_button.pressed.connect(_on_feedback_copy_pressed)
+	if _feedback_share_button != null:
+		_feedback_share_button.pressed.connect(_on_feedback_share_pressed)
+	if _feedback_download_button != null:
+		_feedback_download_button.pressed.connect(_on_feedback_download_pressed)
+	if _feedback_clear_button != null:
+		_feedback_clear_button.pressed.connect(_on_feedback_clear_pressed)
 
-	for button in [_close_button, _restart_button, _search_button, _onboarding_button, _template_picker_button, _settings_button, _summary_button, _profile_button, _export_button, _theme_toggle_button, _fill_test_answers_button, _section_clear_all_button, _question_chrome_toggle_button]:
+	for button in [_close_button, _restart_button, _search_button, _onboarding_button, _template_picker_button, _settings_button, _summary_button, _profile_button, _export_button, _theme_toggle_button, _fill_test_answers_button, _section_clear_all_button, _question_chrome_toggle_button, _feedback_capture_button, _feedback_review_button, _feedback_copy_button, _feedback_share_button, _feedback_download_button, _feedback_clear_button]:
 		if button == null:
 			continue
 		_wire_feedback(button)
@@ -108,6 +136,7 @@ func refresh_theme() -> void:
 	_dimmer.color = SurveyStyle.OVERLAY_DIMMER
 	SurveyStyle.apply_panel(_panel, SurveyStyle.SURFACE, SurveyStyle.BORDER, 26, 1)
 	_heading_label.text = _option_text("heading_text", "Questionnaire Menu")
+	_close_button.text = _option_text("close_label", "X")
 	SurveyStyle.style_heading(_heading_label, 22 if _compact_layout else 24)
 	SurveyStyle.style_body(_position_label)
 	SurveyStyle.style_heading(_sfx_heading_label, 18)
@@ -157,9 +186,28 @@ func refresh_theme() -> void:
 		SurveyStyle.apply_secondary_button(_question_chrome_toggle_button)
 		_clear_compact_button_treatment(_question_chrome_toggle_button)
 		_refresh_question_chrome_toggle_button()
+	if _feedback_heading_label != null:
+		_feedback_heading_label.text = _option_text("feedback_heading_text", "Playtest Feedback")
+		SurveyStyle.style_heading(_feedback_heading_label, 18)
+	if _feedback_status_label != null:
+		SurveyStyle.style_caption(_feedback_status_label, SurveyStyle.TEXT_PRIMARY)
+	_update_feedback_status_label()
+	for button in [_feedback_capture_button, _feedback_review_button, _feedback_copy_button, _feedback_share_button]:
+		if button != null:
+			SurveyStyle.apply_secondary_button(button)
+			_clear_compact_button_treatment(button)
+	for button in [_feedback_download_button]:
+		if button != null:
+			SurveyStyle.apply_primary_button(button)
+			_clear_compact_button_treatment(button)
+	for button in [_feedback_clear_button]:
+		if button != null:
+			SurveyStyle.apply_danger_button(button)
+			_clear_compact_button_treatment(button)
 	_refresh_preview_controls()
 	_refresh_sfx_volume_display()
 	_apply_menu_option_state()
+	_refresh_feedback_button_contexts()
 	_apply_layout_button_treatment()
 	if _survey != null:
 		_refresh_sections()
@@ -188,6 +236,8 @@ func refresh_layout(viewport_size: Vector2) -> void:
 		_preview_mode_row.alignment = BoxContainer.ALIGNMENT_BEGIN
 	if _preview_resolution_row != null:
 		_preview_resolution_row.alignment = BoxContainer.ALIGNMENT_BEGIN
+	if _feedback_actions != null:
+		_feedback_actions.columns = 1 if _compact_layout else 2
 	if _survey != null:
 		_refresh_sections()
 
@@ -198,6 +248,7 @@ func open_menu(survey_definition: SurveyDefinition, current_section_index: int, 
 	_current_section_index = current_section_index
 	_current_sfx_volume = clampf(current_sfx_volume, 0.0, 1.0)
 	_menu_options = menu_options.duplicate(true)
+	refresh_theme()
 	_refresh_preview_controls()
 	_theme_toggle_button.set_pressed_no_signal(SurveyStyle.is_dark_mode())
 	_refresh_theme_toggle_button()
@@ -227,6 +278,11 @@ func _option_text(key: String, default_value: String = "") -> String:
 		return default_value
 	return str(_menu_options.get(key, default_value)).strip_edges()
 
+func _option_int(key: String, default_value: int = 0) -> int:
+	if not _menu_options.has(key):
+		return default_value
+	return int(_menu_options.get(key, default_value))
+
 func _apply_menu_option_state() -> void:
 	if not is_node_ready():
 		return
@@ -242,8 +298,13 @@ func _apply_menu_option_state() -> void:
 	var show_sfx_controls: bool = _option_bool("show_sfx_controls", true)
 	var show_fill_test_answers: bool = _option_bool("show_fill_test_answers", true)
 	var show_section_tools: bool = _option_bool("show_section_tools", true)
+	var show_section_clear_actions: bool = _option_bool("show_section_clear_actions", show_restart)
 	var show_position: bool = _option_bool("show_position", true)
 	var show_preview_controls: bool = _option_bool("show_preview_controls", false)
+	var show_feedback_tools: bool = _option_bool("show_feedback_tools", false)
+	var show_feedback_share: bool = _option_bool("show_feedback_share", false)
+	var feedback_issue_count: int = _option_int("feedback_issue_count", 0)
+	var has_feedback_issues: bool = feedback_issue_count > 0
 	_position_label.visible = show_position
 	_restart_button.visible = show_restart
 	_search_button.visible = show_search
@@ -259,7 +320,7 @@ func _apply_menu_option_state() -> void:
 	_fill_test_answers_button.visible = show_fill_test_answers
 	_section_heading.visible = show_section_tools
 	_section_scroll.visible = show_section_tools
-	_section_clear_all_button.visible = show_section_tools and show_restart
+	_section_clear_all_button.visible = show_section_tools and show_restart and show_section_clear_actions
 	_navigation_actions.visible = show_onboarding or show_template_picker or show_settings or show_summary or show_profile or show_export
 	if _preview_heading_label != null:
 		_preview_heading_label.visible = show_preview_controls
@@ -269,6 +330,27 @@ func _apply_menu_option_state() -> void:
 		_preview_resolution_row.visible = show_preview_controls
 	if _question_chrome_toggle_button != null:
 		_question_chrome_toggle_button.visible = show_preview_controls
+	if _feedback_heading_label != null:
+		_feedback_heading_label.visible = show_feedback_tools
+	if _feedback_status_label != null:
+		_feedback_status_label.visible = show_feedback_tools
+	if _feedback_actions != null:
+		_feedback_actions.visible = show_feedback_tools
+	if _feedback_capture_button != null:
+		_feedback_capture_button.visible = show_feedback_tools
+		_feedback_capture_button.disabled = false
+	if _feedback_review_button != null:
+		_feedback_review_button.disabled = not has_feedback_issues
+	if _feedback_copy_button != null:
+		_feedback_copy_button.disabled = not has_feedback_issues
+	if _feedback_share_button != null:
+		_feedback_share_button.visible = show_feedback_tools and show_feedback_share
+		_feedback_share_button.disabled = not has_feedback_issues
+	if _feedback_download_button != null:
+		_feedback_download_button.disabled = not has_feedback_issues
+	if _feedback_clear_button != null:
+		_feedback_clear_button.disabled = not has_feedback_issues
+	_update_feedback_status_label()
 
 func _refresh_sections() -> void:
 	_clear_section_list()
@@ -281,6 +363,7 @@ func _refresh_sections() -> void:
 	var section_count: int = _survey.sections.size()
 	var answered_total: int = _total_answered_count()
 	var stored_total: int = _total_stored_response_count()
+	var show_section_clear_actions: bool = _option_bool("show_section_clear_actions", _option_bool("show_restart", true))
 	var visible_section_number: int = clampi(_current_section_index + 1, 1, max(section_count, 1))
 	var custom_position_text: String = _option_text("position_text", "")
 	_position_label.text = custom_position_text if not custom_position_text.is_empty() else "Currently viewing section %d of %d. %d answered so far." % [visible_section_number, section_count, answered_total]
@@ -309,20 +392,47 @@ func _refresh_sections() -> void:
 			_apply_compact_button_treatment(jump_button)
 		jump_button.pressed.connect(_on_section_pressed.bind(index))
 		_wire_feedback(jump_button)
+		jump_button.set_meta("feedback_context", {
+			"kind": "overlay_menu_action",
+			"summary": "Menu jump button: %s" % jump_button.text,
+			"menu_action": {
+				"menu": "overlay",
+				"action": "jump_to_section",
+				"label": jump_button.text
+			},
+			"survey_section": {
+				"section_index": index,
+				"section_title": section.display_title(index)
+			}
+		})
 		row.add_child(jump_button)
 
-		var clear_button: Button = Button.new()
-		clear_button.text = "Clear"
-		clear_button.disabled = stored_count == 0
-		SurveyStyle.apply_danger_button(clear_button)
-		if _compact_layout:
-			clear_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			_apply_compact_button_treatment(clear_button)
-		else:
-			clear_button.custom_minimum_size.x = 86.0
-		clear_button.pressed.connect(_on_clear_section_pressed.bind(index))
-		_wire_feedback(clear_button)
-		row.add_child(clear_button)
+		if show_section_clear_actions:
+			var clear_button: Button = Button.new()
+			clear_button.text = "Clear"
+			clear_button.disabled = stored_count == 0
+			SurveyStyle.apply_danger_button(clear_button)
+			if _compact_layout:
+				clear_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				_apply_compact_button_treatment(clear_button)
+			else:
+				clear_button.custom_minimum_size.x = 86.0
+			clear_button.pressed.connect(_on_clear_section_pressed.bind(index))
+			_wire_feedback(clear_button)
+			clear_button.set_meta("feedback_context", {
+				"kind": "overlay_menu_action",
+				"summary": "Menu clear button: %s" % section.display_title(index),
+				"menu_action": {
+					"menu": "overlay",
+					"action": "clear_section",
+					"label": "Clear %s" % section.display_title(index)
+				},
+				"survey_section": {
+					"section_index": index,
+					"section_title": section.display_title(index)
+				}
+			})
+			row.add_child(clear_button)
 
 		_section_list.add_child(row)
 
@@ -347,7 +457,7 @@ func _refresh_sfx_volume_display() -> void:
 func _apply_layout_button_treatment() -> void:
 	if not is_node_ready() or not _compact_layout:
 		return
-	for button in [_restart_button, _search_button, _onboarding_button, _template_picker_button, _settings_button, _summary_button, _profile_button, _export_button, _theme_toggle_button, _fill_test_answers_button, _section_clear_all_button, _question_chrome_toggle_button]:
+	for button in [_restart_button, _search_button, _onboarding_button, _template_picker_button, _settings_button, _summary_button, _profile_button, _export_button, _theme_toggle_button, _fill_test_answers_button, _section_clear_all_button, _question_chrome_toggle_button, _feedback_capture_button, _feedback_review_button, _feedback_copy_button, _feedback_share_button, _feedback_download_button, _feedback_clear_button]:
 		if button == null:
 			continue
 		_apply_compact_button_treatment(button)
@@ -526,7 +636,56 @@ func _ensure_preview_controls() -> void:
 		_stack.add_child(_question_chrome_toggle_button)
 		_stack.move_child(_question_chrome_toggle_button, _preview_insert_index())
 
+func _ensure_feedback_controls() -> void:
+	if _stack == null:
+		return
+	_feedback_heading_label = _stack.get_node_or_null("FeedbackHeadingLabel") as Label
+	if _feedback_heading_label == null:
+		_feedback_heading_label = Label.new()
+		_feedback_heading_label.name = "FeedbackHeadingLabel"
+		_stack.add_child(_feedback_heading_label)
+		_stack.move_child(_feedback_heading_label, _feedback_insert_index())
+	_feedback_status_label = _stack.get_node_or_null("FeedbackStatusLabel") as Label
+	if _feedback_status_label == null:
+		_feedback_status_label = Label.new()
+		_feedback_status_label.name = "FeedbackStatusLabel"
+		_feedback_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_stack.add_child(_feedback_status_label)
+		_stack.move_child(_feedback_status_label, _feedback_insert_index())
+	_feedback_actions = _stack.get_node_or_null("FeedbackActions") as GridContainer
+	if _feedback_actions == null:
+		_feedback_actions = GridContainer.new()
+		_feedback_actions.name = "FeedbackActions"
+		_feedback_actions.columns = 2
+		_feedback_actions.add_theme_constant_override("h_separation", 10)
+		_feedback_actions.add_theme_constant_override("v_separation", 10)
+		_stack.add_child(_feedback_actions)
+		_stack.move_child(_feedback_actions, _feedback_insert_index())
+	_feedback_capture_button = _ensure_feedback_button("FeedbackCaptureButton", "Start Issue Tagging")
+	_feedback_review_button = _ensure_feedback_button("FeedbackReviewButton", "Review Issues")
+	_feedback_copy_button = _ensure_feedback_button("FeedbackCopyButton", "Copy Text Report")
+	_feedback_share_button = _ensure_feedback_button("FeedbackShareButton", "Share Feedback ZIP")
+	_feedback_download_button = _ensure_feedback_button("FeedbackDownloadButton", "Download Feedback ZIP")
+	_feedback_clear_button = _ensure_feedback_button("FeedbackClearButton", "Clear All Issues")
+
+func _ensure_feedback_button(button_name: String, button_text: String) -> Button:
+	var button := _feedback_actions.get_node_or_null(button_name) as Button
+	if button == null:
+		button = Button.new()
+		button.name = button_name
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_feedback_actions.add_child(button)
+	button.text = button_text
+	return button
+
 func _preview_insert_index() -> int:
+	if _fill_test_answers_button != null:
+		var fill_index := _stack.get_children().find(_fill_test_answers_button)
+		if fill_index != -1:
+			return fill_index
+	return _stack.get_child_count()
+
+func _feedback_insert_index() -> int:
 	if _fill_test_answers_button != null:
 		var fill_index := _stack.get_children().find(_fill_test_answers_button)
 		if fill_index != -1:
@@ -585,6 +744,45 @@ func _refresh_question_chrome_toggle_button() -> void:
 		return
 	_question_chrome_toggle_button.text = "Question Type Labels: IDs" if _question_chrome_toggle_button.button_pressed else "Question Type Labels: Types"
 
+func _update_feedback_status_label() -> void:
+	if _feedback_status_label == null:
+		return
+	var issue_count: int = _option_int("feedback_issue_count", 0)
+	_feedback_status_label.text = "No playtest issues captured yet." if issue_count <= 0 else "%d playtest issue(s) captured this session." % issue_count
+
+func _refresh_feedback_button_contexts() -> void:
+	_set_button_feedback_context(_restart_button, "restart", _restart_button.text)
+	_set_button_feedback_context(_search_button, "search", _search_button.text)
+	_set_button_feedback_context(_onboarding_button, "open_onboarding", _onboarding_button.text)
+	_set_button_feedback_context(_template_picker_button, "open_template_picker", _template_picker_button.text)
+	_set_button_feedback_context(_settings_button, "open_settings", _settings_button.text)
+	_set_button_feedback_context(_summary_button, "open_summary", _summary_button.text)
+	_set_button_feedback_context(_profile_button, "open_profile", _profile_button.text)
+	_set_button_feedback_context(_export_button, "open_export", _export_button.text)
+	_set_button_feedback_context(_theme_toggle_button, "toggle_theme", _theme_toggle_button.text)
+	_set_button_feedback_context(_fill_test_answers_button, "fill_test_answers", _fill_test_answers_button.text)
+	_set_button_feedback_context(_section_clear_all_button, "clear_all_answers", _section_clear_all_button.text)
+	_set_button_feedback_context(_question_chrome_toggle_button, "toggle_question_ids", _question_chrome_toggle_button.text)
+	_set_button_feedback_context(_feedback_capture_button, "start_issue_tagging", _feedback_capture_button.text)
+	_set_button_feedback_context(_feedback_review_button, "review_issues", _feedback_review_button.text)
+	_set_button_feedback_context(_feedback_copy_button, "copy_feedback_text", _feedback_copy_button.text)
+	_set_button_feedback_context(_feedback_share_button, "share_feedback_zip", _feedback_share_button.text)
+	_set_button_feedback_context(_feedback_download_button, "download_feedback_zip", _feedback_download_button.text)
+	_set_button_feedback_context(_feedback_clear_button, "clear_feedback_issues", _feedback_clear_button.text)
+
+func _set_button_feedback_context(button: Button, action_name: String, label_text: String) -> void:
+	if button == null:
+		return
+	button.set_meta("feedback_context", {
+		"kind": "overlay_menu_action",
+		"summary": "Menu action: %s" % label_text,
+		"menu_action": {
+			"menu": "overlay",
+			"action": action_name,
+			"label": label_text
+		}
+	})
+
 func _on_preview_mode_picker_item_selected(index: int) -> void:
 	if _syncing_preview_controls or _preview_mode_picker == null:
 		return
@@ -604,3 +802,21 @@ func _on_question_chrome_toggle_toggled(button_pressed: bool) -> void:
 	if _syncing_preview_controls:
 		return
 	question_debug_ids_requested.emit(button_pressed)
+
+func _on_feedback_review_pressed() -> void:
+	playtest_feedback_review_requested.emit()
+
+func _on_feedback_capture_pressed() -> void:
+	playtest_feedback_capture_requested.emit()
+
+func _on_feedback_copy_pressed() -> void:
+	playtest_feedback_copy_requested.emit()
+
+func _on_feedback_share_pressed() -> void:
+	playtest_feedback_share_requested.emit()
+
+func _on_feedback_download_pressed() -> void:
+	playtest_feedback_download_requested.emit()
+
+func _on_feedback_clear_pressed() -> void:
+	playtest_feedback_clear_requested.emit()

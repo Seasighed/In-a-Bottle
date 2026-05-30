@@ -73,10 +73,10 @@ func _apply_question() -> void:
 func _apply_selection_state() -> void:
 	if is_focus_presentation():
 		var panel_style := SurveyStyle.panel(SurveyStyle.SURFACE, Color(0, 0, 0, 0), 0, 0)
-		panel_style.content_margin_left = 24
-		panel_style.content_margin_right = 24
-		panel_style.content_margin_top = 24
-		panel_style.content_margin_bottom = 24
+		panel_style.content_margin_left = _focus_panel_horizontal_padding()
+		panel_style.content_margin_right = _focus_panel_horizontal_padding()
+		panel_style.content_margin_top = _focus_panel_vertical_padding()
+		panel_style.content_margin_bottom = _focus_panel_vertical_padding()
 		_panel.add_theme_stylebox_override("panel", panel_style)
 		return
 	var border_color := SurveyStyle.ACCENT if is_selected else SurveyStyle.ACCENT_ALT

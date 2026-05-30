@@ -11,9 +11,16 @@ config_version=5
 [application]
 
 config/name="In a Bottle"
-run/main_scene="res://Scenes/Main.tscn"
+config/version="0.0.1"
+run/main_scene="res://Scenes/SurveyJourney.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
+
+[autoload]
+
+SeaShellUiLayers="*uid://7xb7q2cfmcj4"
+SeaShellSettings="*uid://dfy5bhb8uy3pu"
+SeaShellFeedback="*uid://blibbyrh3v2oo"
 
 [display]
 
@@ -26,6 +33,10 @@ window/stretch/aspect="expand"
 
 project/assembly_name="In a Bottle"
 
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/seashell_devtools/plugin.cfg")
+
 [physics]
 
 3d/physics_engine="Jolt Physics"
@@ -33,3 +44,11 @@ project/assembly_name="In a Bottle"
 [rendering]
 
 rendering_device/driver.windows="d3d12"
+
+[seashell_devtools]
+
+ui_layers/debug_overlay_enabled=true
+settings/pack_paths=PackedStringArray("res://addons/seashell_devtools/settings/packs/SeaShellDevToolsSettings.tres")
+settings/registry_path="res://addons/seashell_devtools/settings/packs/SeaShellDefaultSettingsRegistry.tres"
+settings/store_script_path=""
+settings/value_store_path="user://sea_shell_settings_values.json"

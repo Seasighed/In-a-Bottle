@@ -1,0 +1,168 @@
+[gd_resource type="Resource" script_class="SeaShellSettingsPack" format=3 uid="uid://d3u1c2pe1mmld"]
+
+[ext_resource type="Script" uid="uid://b4tg2ttgm15n1" path="res://addons/seashell_devtools/settings/SeaShellSettingsPack.gd" id="1"]
+[ext_resource type="Script" uid="uid://d0uxnjwhhoo0b" path="res://addons/seashell_devtools/settings/SeaShellSettingItem.gd" id="2"]
+
+[sub_resource type="Resource" id="SeaShellSettingItem_1"]
+script = ExtResource("2")
+ItemId = "SeaShell.UiLayers.DebugOverlay"
+ValueType = "Bool"
+DisplayName = "UI Layers Overlay"
+Description = "Shows the debug Layers overlay in editor play and debug exports."
+GroupPath = "Sea Shell/Debug UI"
+Tags = PackedStringArray("SeaShell", "Debug", "UI", "Overlay")
+Aliases = PackedStringArray("layers button", "debug overlay", "ui layers")
+DefaultValue = false
+Options = PackedStringArray()
+DocsPath = "res://Sea Shell Docs/02 Systems/Settings Items/SeaShell.UiLayers.DebugOverlay.md"
+DefinitionModifiedUnix = 1778293200
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="SeaShellSettingItem_2"]
+script = ExtResource("2")
+ItemId = "SeaShell.Build.VerboseGodotLog"
+ValueType = "Bool"
+DisplayName = "Verbose Godot Build Log"
+Description = "Preserves more Godot export output in the build dock log."
+GroupPath = "Sea Shell/Build"
+Tags = PackedStringArray("SeaShell", "Build", "Logs", "Debug")
+Aliases = PackedStringArray("verbose log", "export output")
+DefaultValue = false
+Options = PackedStringArray()
+DocsPath = "res://Sea Shell Docs/02 Systems/Settings Items/SeaShell.Build.VerboseGodotLog.md"
+DefinitionModifiedUnix = 1778293200
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="SeaShellSettingItem_3"]
+script = ExtResource("2")
+ItemId = "SeaShell.Build.OpenOutputOnSuccess"
+ValueType = "Bool"
+DisplayName = "Open Output On Success"
+Description = "Opens the exported artifact folder after a successful build."
+GroupPath = "Sea Shell/Build"
+Tags = PackedStringArray("SeaShell", "Build", "Workflow")
+Aliases = PackedStringArray("output folder", "artifact folder")
+DefaultValue = false
+Options = PackedStringArray()
+DocsPath = "res://Sea Shell Docs/02 Systems/Settings Items/SeaShell.Build.OpenOutputOnSuccess.md"
+DefinitionModifiedUnix = 1778293200
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="SeaShellSettingItem_4"]
+script = ExtResource("2")
+ItemId = "SeaShell.Settings.MarkdownDirtyCheck"
+ValueType = "Bool"
+DisplayName = "Markdown Dirty Check"
+Description = "Enables manual conflict detection between settings resources and Obsidian markdown item files."
+GroupPath = "Sea Shell/Settings/Markdown"
+Tags = PackedStringArray("SeaShell", "Settings", "Markdown", "Obsidian")
+Aliases = PackedStringArray("docs sync", "obsidian sync", "dirty check")
+DefaultValue = true
+Options = PackedStringArray()
+DocsPath = "res://Sea Shell Docs/02 Systems/Settings Items/SeaShell.Settings.MarkdownDirtyCheck.md"
+DefinitionModifiedUnix = 1778293200
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="SeaShellSettingItem_5"]
+script = ExtResource("2")
+ItemId = "SeaShell.Settings.RecentValueLimit"
+ValueType = "Integer"
+DisplayName = "Recent Value Limit"
+Description = "Limits how many recent values the default store keeps for each editable setting."
+GroupPath = "Sea Shell/Settings/History"
+Tags = PackedStringArray("SeaShell", "Settings", "History", "Profiles")
+Aliases = PackedStringArray("recent values", "history size")
+DefaultValue = 5
+Options = PackedStringArray()
+MinValue = 1.0
+MaxValue = 10.0
+Step = 1.0
+DocsPath = "res://Sea Shell Docs/02 Systems/Settings Items/SeaShell.Settings.RecentValueLimit.md"
+DefinitionModifiedUnix = 1778293200
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="SeaShellSettingItem_6"]
+script = ExtResource("2")
+ItemId = "SeaShell.Settings.DefaultProfileMode"
+ValueType = "Enum"
+DisplayName = "Default Profile Mode"
+Description = "Chooses whether profile exports default to full snapshots or partial overrides."
+GroupPath = "Sea Shell/Settings/Profiles"
+Tags = PackedStringArray("SeaShell", "Settings", "Profiles", "Import")
+Aliases = PackedStringArray("snapshot", "override profile")
+DefaultValue = "PartialOverrides"
+Options = PackedStringArray("FullSnapshot", "PartialOverrides")
+DocsPath = "res://Sea Shell Docs/02 Systems/Settings Items/SeaShell.Settings.DefaultProfileMode.md"
+DefinitionModifiedUnix = 1778293200
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="SeaShellSettingItem_7"]
+script = ExtResource("2")
+ItemId = "SeaShell.Settings.DocsRoot"
+ValueType = "Path"
+DisplayName = "Settings Docs Root"
+Description = "Base folder for Obsidian-compatible markdown setting item files."
+GroupPath = "Sea Shell/Settings/Markdown"
+Tags = PackedStringArray("SeaShell", "Settings", "Markdown", "Docs")
+Aliases = PackedStringArray("docs root", "markdown root")
+DefaultValue = "res://Sea Shell Docs/02 Systems/Settings Items"
+Options = PackedStringArray()
+ApplyPolicy = "StagedApply"
+DocsPath = "res://Sea Shell Docs/02 Systems/Settings Items/SeaShell.Settings.DocsRoot.md"
+DefinitionModifiedUnix = 1778293200
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="SeaShellSettingItem_8"]
+script = ExtResource("2")
+ItemId = "SeaShell.Settings.ToolkitStatus"
+Kind = "Info"
+DisplayName = "Settings Toolkit Status"
+Description = "Reports that the first Sea Shell Settings Toolkit vertical slice is available."
+GroupPath = "Sea Shell/Settings"
+Tags = PackedStringArray("SeaShell", "Settings", "Info")
+Aliases = PackedStringArray("status", "vertical slice")
+DefaultValue = "V1 vertical slice: packs, registry, store, markdown sync, profiles, editor dock, runtime panel."
+Options = PackedStringArray()
+DocsPath = "res://Sea Shell Docs/02 Systems/Settings Items/SeaShell.Settings.ToolkitStatus.md"
+DefinitionModifiedUnix = 1778293200
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="SeaShellSettingItem_9"]
+script = ExtResource("2")
+ItemId = "SeaShell.Settings.FeedbackPoll"
+Kind = "Poll"
+DisplayName = "Settings Toolkit Feedback"
+Description = "Metadata-only v1 poll entry for collecting future editor feedback schema."
+GroupPath = "Sea Shell/Settings/Polls"
+Tags = PackedStringArray("SeaShell", "Settings", "Poll", "Feedback")
+Aliases = PackedStringArray("feedback", "survey")
+DefaultValue = "rating:1-5; notes:text"
+Options = PackedStringArray()
+DocsPath = "res://Sea Shell Docs/02 Systems/Settings Items/SeaShell.Settings.FeedbackPoll.md"
+DefinitionModifiedUnix = 1778293200
+HookIds = PackedStringArray("SeaShell.Settings.FeedbackPoll.Opened", "SeaShell.Settings.FeedbackPoll.Submitted")
+
+[sub_resource type="Resource" id="SeaShellSettingItem_10"]
+script = ExtResource("2")
+ItemId = "SeaShell.Settings.AccentColor"
+ValueType = "Color"
+DisplayName = "Settings Accent Color"
+Description = "Dogfoods the Color value type and the default color picker control."
+GroupPath = "Sea Shell/Settings/Appearance"
+Tags = PackedStringArray("SeaShell", "Settings", "Appearance", "Color")
+Aliases = PackedStringArray("accent", "theme color", "color picker")
+DefaultValue = Color(0.18, 0.45, 0.32, 1)
+Options = PackedStringArray()
+DocsPath = "res://Sea Shell Docs/02 Systems/Settings Items/SeaShell.Settings.AccentColor.md"
+DefinitionModifiedUnix = 1778293200
+HookIds = PackedStringArray()
+
+[resource]
+script = ExtResource("1")
+PackId = "SeaShell.DevTools"
+DisplayName = "Sea Shell DevTools Settings"
+Description = "Dogfood settings pack for Sea Shell DevTools and its reusable settings toolkit."
+Items = Array[Resource]([SubResource("SeaShellSettingItem_1"), SubResource("SeaShellSettingItem_2"), SubResource("SeaShellSettingItem_3"), SubResource("SeaShellSettingItem_4"), SubResource("SeaShellSettingItem_5"), SubResource("SeaShellSettingItem_6"), SubResource("SeaShellSettingItem_7"), SubResource("SeaShellSettingItem_8"), SubResource("SeaShellSettingItem_9"), SubResource("SeaShellSettingItem_10")])
+Groups = PackedStringArray("Sea Shell", "Sea Shell/Build", "Sea Shell/Debug UI", "Sea Shell/Settings", "Sea Shell/Settings/Appearance", "Sea Shell/Settings/History", "Sea Shell/Settings/Markdown", "Sea Shell/Settings/Polls", "Sea Shell/Settings/Profiles")
+Tags = PackedStringArray("Appearance", "Build", "Color", "Debug", "Docs", "Feedback", "History", "Import", "Info", "Logs", "Markdown", "Obsidian", "Overlay", "Poll", "Profiles", "SeaShell", "Settings", "UI", "Workflow")
+DefinitionModifiedUnix = 1778293200

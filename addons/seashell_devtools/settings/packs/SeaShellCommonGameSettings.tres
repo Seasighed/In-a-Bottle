@@ -1,0 +1,425 @@
+[gd_resource type="Resource" script_class="SeaShellSettingsPack" format=3]
+
+[ext_resource type="Script" path="res://addons/seashell_devtools/settings/SeaShellSettingsPack.gd" id="1"]
+[ext_resource type="Script" path="res://addons/seashell_devtools/settings/SeaShellSettingItem.gd" id="2"]
+
+[sub_resource type="Resource" id="CommonGameSetting_1"]
+script = ExtResource("2")
+ItemId = "SeaShell.Game.Display.WindowMode"
+ValueType = "Enum"
+DisplayName = "Window Mode"
+Description = "Chooses between a decorated window, a borderless desktop window, or fullscreen."
+GroupPath = "Common Game/Display"
+Tags = PackedStringArray("CommonGame", "Display", "Window")
+Aliases = PackedStringArray("fullscreen", "borderless", "windowed")
+DefaultValue = "Windowed"
+Options = PackedStringArray("Windowed", "Borderless", "Fullscreen")
+RuntimeApplyId = "window_mode"
+DefinitionModifiedUnix = 1778982360
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="CommonGameSetting_2"]
+script = ExtResource("2")
+ItemId = "SeaShell.Game.Display.WindowResolution"
+ValueType = "Resolution"
+DisplayName = "Window Resolution"
+Description = "Preferred window size while the game is running in a normal window. Fullscreen still follows the active monitor size."
+GroupPath = "Common Game/Display"
+Tags = PackedStringArray("CommonGame", "Display", "Window")
+Aliases = PackedStringArray("resolution", "window size")
+DefaultValue = "1920x1080"
+Options = PackedStringArray()
+OptionProviderId = "common_resolutions"
+RuntimeApplyId = "window_resolution"
+DefinitionModifiedUnix = 1778982360
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="CommonGameSetting_3"]
+script = ExtResource("2")
+ItemId = "SeaShell.Game.Display.DisplayMonitor"
+ValueType = "Enum"
+DisplayName = "Display Monitor"
+Description = "Moves the main window to another monitor when the platform supports it."
+GroupPath = "Common Game/Display"
+Tags = PackedStringArray("CommonGame", "Display", "Window")
+Aliases = PackedStringArray("screen", "monitor")
+DefaultValue = "Monitor 1"
+Options = PackedStringArray()
+OptionProviderId = "display_monitors"
+RuntimeApplyId = "display_monitor"
+DefinitionModifiedUnix = 1778982360
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="CommonGameSetting_4"]
+script = ExtResource("2")
+ItemId = "SeaShell.Game.Display.FrameRateCap"
+ValueType = "Integer"
+DisplayName = "Frame Rate Cap"
+Description = "Caps the maximum render frame rate. A value of 0 means unlimited."
+GroupPath = "Common Game/Display"
+Tags = PackedStringArray("CommonGame", "Display", "Performance")
+Aliases = PackedStringArray("fps cap", "max fps")
+DefaultValue = 0
+Options = PackedStringArray()
+MinValue = 0.0
+MaxValue = 360.0
+Step = 30.0
+RuntimeApplyId = "frame_rate_cap"
+DefinitionModifiedUnix = 1778982360
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="CommonGameSetting_5"]
+script = ExtResource("2")
+ItemId = "SeaShell.Game.Display.VSyncMode"
+ValueType = "Enum"
+DisplayName = "V-Sync Mode"
+Description = "Controls how the main window synchronizes rendered frames to the monitor refresh cycle."
+GroupPath = "Common Game/Display"
+Tags = PackedStringArray("CommonGame", "Display", "Performance")
+Aliases = PackedStringArray("vsync", "tearing")
+DefaultValue = "Enabled"
+Options = PackedStringArray("Disabled", "Enabled", "Adaptive", "Mailbox")
+RuntimeApplyId = "vsync_mode"
+DefinitionModifiedUnix = 1778982360
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="CommonGameSetting_6"]
+script = ExtResource("2")
+ItemId = "SeaShell.Game.Display.QualityPreset"
+ValueType = "QualityMatrix"
+DisplayName = "Quality Preset"
+Description = "Shared quality tier choice projects can use to branch graphics or effect settings."
+GroupPath = "Common Game/Display"
+Tags = PackedStringArray("CommonGame", "Display", "Quality")
+Aliases = PackedStringArray("graphics quality", "preset")
+DefaultValue = "High"
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778982360
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="CommonGameSetting_7"]
+script = ExtResource("2")
+ItemId = "SeaShell.Game.Display.BrightnessGamma"
+ValueType = "Float"
+DisplayName = "Brightness / Gamma"
+Description = "Shared brightness slider projects can hook into their own post-process or calibration pipeline later."
+GroupPath = "Common Game/Display"
+Tags = PackedStringArray("CommonGame", "Display", "Accessibility")
+Aliases = PackedStringArray("gamma", "brightness")
+DefaultValue = 1.0
+Options = PackedStringArray()
+MinValue = 0.5
+MaxValue = 1.5
+Step = 0.05
+DefinitionModifiedUnix = 1778982360
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="CommonGameSetting_8"]
+script = ExtResource("2")
+ItemId = "SeaShell.Game.Audio.MasterVolume"
+ValueType = "Float"
+DisplayName = "Master Volume"
+Description = "Top-level audio volume for the whole game."
+GroupPath = "Common Game/Audio"
+Tags = PackedStringArray("CommonGame", "Audio", "Volume")
+Aliases = PackedStringArray("overall volume", "master")
+DefaultValue = 1.0
+Options = PackedStringArray()
+MaxValue = 1.0
+Step = 0.01
+RuntimeApplyId = "audio_bus_volume"
+RuntimeApplyArgs = {"bus_name": "Master"}
+DefinitionModifiedUnix = 1778982360
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="CommonGameSetting_9"]
+script = ExtResource("2")
+ItemId = "SeaShell.Game.Audio.MusicVolume"
+ValueType = "Float"
+DisplayName = "Music Volume"
+Description = "Starter music channel volume. Projects can point this at a matching Music audio bus."
+GroupPath = "Common Game/Audio"
+Tags = PackedStringArray("CommonGame", "Audio", "Volume")
+Aliases = PackedStringArray("bgm", "music")
+DefaultValue = 0.85
+Options = PackedStringArray()
+MaxValue = 1.0
+Step = 0.01
+RuntimeApplyId = "audio_bus_volume"
+RuntimeApplyArgs = {"bus_name": "Music"}
+DefinitionModifiedUnix = 1778982360
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="CommonGameSetting_10"]
+script = ExtResource("2")
+ItemId = "SeaShell.Game.Audio.SfxVolume"
+ValueType = "Float"
+DisplayName = "SFX Volume"
+Description = "Starter sound-effects channel volume."
+GroupPath = "Common Game/Audio"
+Tags = PackedStringArray("CommonGame", "Audio", "Volume")
+Aliases = PackedStringArray("effects", "sfx")
+DefaultValue = 1.0
+Options = PackedStringArray()
+MaxValue = 1.0
+Step = 0.01
+RuntimeApplyId = "audio_bus_volume"
+RuntimeApplyArgs = {"bus_name": "SFX"}
+DefinitionModifiedUnix = 1778982360
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="CommonGameSetting_11"]
+script = ExtResource("2")
+ItemId = "SeaShell.Game.Audio.UiVolume"
+ValueType = "Float"
+DisplayName = "UI Volume"
+Description = "Starter interface and menu sound volume."
+GroupPath = "Common Game/Audio"
+Tags = PackedStringArray("CommonGame", "Audio", "Volume")
+Aliases = PackedStringArray("menu sounds", "ui")
+DefaultValue = 0.9
+Options = PackedStringArray()
+MaxValue = 1.0
+Step = 0.01
+RuntimeApplyId = "audio_bus_volume"
+RuntimeApplyArgs = {"bus_name": "UI"}
+DefinitionModifiedUnix = 1778982360
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="CommonGameSetting_12"]
+script = ExtResource("2")
+ItemId = "SeaShell.Game.Audio.DialogueVolume"
+ValueType = "Float"
+DisplayName = "Dialogue Volume"
+Description = "Starter spoken-dialogue channel volume."
+GroupPath = "Common Game/Audio"
+Tags = PackedStringArray("CommonGame", "Audio", "Volume")
+Aliases = PackedStringArray("voice lines", "dialogue")
+DefaultValue = 1.0
+Options = PackedStringArray()
+MaxValue = 1.0
+Step = 0.01
+RuntimeApplyId = "audio_bus_volume"
+RuntimeApplyArgs = {"bus_name": "Dialogue"}
+DefinitionModifiedUnix = 1778982360
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="CommonGameSetting_13"]
+script = ExtResource("2")
+ItemId = "SeaShell.Game.Audio.VoiceChatVolume"
+ValueType = "Float"
+DisplayName = "Voice Chat Volume"
+Description = "Starter voice-chat channel volume for games that support live comms."
+GroupPath = "Common Game/Audio"
+Tags = PackedStringArray("CommonGame", "Audio", "Volume")
+Aliases = PackedStringArray("comms", "voice chat")
+DefaultValue = 0.9
+Options = PackedStringArray()
+MaxValue = 1.0
+Step = 0.01
+RuntimeApplyId = "audio_bus_volume"
+RuntimeApplyArgs = {"bus_name": "Voice"}
+DefinitionModifiedUnix = 1778982360
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="CommonGameSetting_14"]
+script = ExtResource("2")
+ItemId = "SeaShell.Game.Audio.NarrationVolume"
+ValueType = "Float"
+DisplayName = "Narration Volume"
+Description = "Starter narration or screen-reader mix volume."
+GroupPath = "Common Game/Audio"
+Tags = PackedStringArray("CommonGame", "Audio", "Accessibility", "Volume")
+Aliases = PackedStringArray("tts volume", "narration")
+DefaultValue = 1.0
+Options = PackedStringArray()
+MaxValue = 1.0
+Step = 0.01
+RuntimeApplyId = "audio_bus_volume"
+RuntimeApplyArgs = {"bus_name": "Narration"}
+DefinitionModifiedUnix = 1778982360
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="CommonGameSetting_15"]
+script = ExtResource("2")
+ItemId = "SeaShell.Game.Accessibility.NarrationEnabled"
+ValueType = "Bool"
+DisplayName = "Narration Enabled"
+Description = "Choice placeholder for future screen narration support. The setting is stored now, but the spoken UI behavior still needs implementation."
+GroupPath = "Common Game/Accessibility/Text"
+Tags = PackedStringArray("CommonGame", "Accessibility", "Text")
+Aliases = PackedStringArray("screen reader", "narrator")
+DefaultValue = false
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778982360
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="CommonGameSetting_16"]
+script = ExtResource("2")
+ItemId = "SeaShell.Game.Accessibility.SubtitlesEnabled"
+ValueType = "Bool"
+DisplayName = "Subtitles Enabled"
+Description = "Choice placeholder for subtitle support. The setting is stored now, but projects still need to implement the subtitle presentation."
+GroupPath = "Common Game/Accessibility/Text"
+Tags = PackedStringArray("CommonGame", "Accessibility", "Text")
+Aliases = PackedStringArray("captions", "subtitles")
+DefaultValue = true
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778982360
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="CommonGameSetting_17"]
+script = ExtResource("2")
+ItemId = "SeaShell.Game.Accessibility.SubtitleSize"
+ValueType = "Enum"
+DisplayName = "Subtitle Size"
+Description = "Choice placeholder for subtitle typography scale. The setting is stored now, but projects still need to wire it into their subtitle UI."
+GroupPath = "Common Game/Accessibility/Text"
+Tags = PackedStringArray("CommonGame", "Accessibility", "Text")
+Aliases = PackedStringArray("caption size", "subtitle scale")
+DefaultValue = "Medium"
+Options = PackedStringArray("Small", "Medium", "Large", "Extra Large")
+DefinitionModifiedUnix = 1778982360
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="CommonGameSetting_18"]
+script = ExtResource("2")
+ItemId = "SeaShell.Game.Accessibility.UiTextScale"
+ValueType = "FontScale"
+DisplayName = "UI Text Scale"
+Description = "Choice placeholder for general interface text scaling. The setting is stored now, but projects still need to apply it to their theme or UI layout."
+GroupPath = "Common Game/Accessibility/Text"
+Tags = PackedStringArray("CommonGame", "Accessibility", "Text")
+Aliases = PackedStringArray("font size", "ui scale")
+DefaultValue = 1.0
+Options = PackedStringArray()
+MinValue = 0.85
+MaxValue = 1.5
+Step = 0.05
+DefinitionModifiedUnix = 1778982360
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="CommonGameSetting_19"]
+script = ExtResource("2")
+ItemId = "SeaShell.Game.Accessibility.ColorblindMode"
+ValueType = "Enum"
+DisplayName = "Colorblind Filter"
+Description = "Choice placeholder for future color-vision presets. The setting is stored now, but projects still need to implement the visual treatment."
+GroupPath = "Common Game/Accessibility/Visual"
+Tags = PackedStringArray("CommonGame", "Accessibility", "Visual")
+Aliases = PackedStringArray("color blind", "vision mode")
+DefaultValue = "Off"
+Options = PackedStringArray("Off", "Protanopia", "Deuteranopia", "Tritanopia")
+DefinitionModifiedUnix = 1778982360
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="CommonGameSetting_20"]
+script = ExtResource("2")
+ItemId = "SeaShell.Game.Accessibility.HighContrastUi"
+ValueType = "Bool"
+DisplayName = "High Contrast UI"
+Description = "Choice placeholder for a future high-contrast presentation mode. The setting is stored now, but projects still need to implement the visual variant."
+GroupPath = "Common Game/Accessibility/Visual"
+Tags = PackedStringArray("CommonGame", "Accessibility", "Visual")
+Aliases = PackedStringArray("contrast", "readability")
+DefaultValue = false
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778982360
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="CommonGameSetting_21"]
+script = ExtResource("2")
+ItemId = "SeaShell.Game.Accessibility.ReduceMotion"
+ValueType = "Bool"
+DisplayName = "Reduce Motion"
+Description = "Choice placeholder for a future motion-safe mode. The setting is stored now, but projects still need to reduce animation intensity when it is enabled."
+GroupPath = "Common Game/Accessibility/Motion"
+Tags = PackedStringArray("CommonGame", "Accessibility", "Motion")
+Aliases = PackedStringArray("motion safe", "reduced motion")
+DefaultValue = false
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778982360
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="CommonGameSetting_22"]
+script = ExtResource("2")
+ItemId = "SeaShell.Game.Accessibility.CameraShakeIntensity"
+ValueType = "Float"
+DisplayName = "Camera Shake Intensity"
+Description = "Choice placeholder for future camera-shake scaling. The setting is stored now, but projects still need to apply it to their shake systems."
+GroupPath = "Common Game/Accessibility/Motion"
+Tags = PackedStringArray("CommonGame", "Accessibility", "Motion")
+Aliases = PackedStringArray("screen shake", "shake intensity")
+DefaultValue = 0.5
+Options = PackedStringArray()
+MaxValue = 1.0
+Step = 0.05
+DefinitionModifiedUnix = 1778982360
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="CommonGameSetting_23"]
+script = ExtResource("2")
+ItemId = "SeaShell.Game.Accessibility.MotionBlurEnabled"
+ValueType = "Bool"
+DisplayName = "Motion Blur Enabled"
+Description = "Choice placeholder for future motion-blur control. The setting is stored now, but projects still need to hook it into their post-processing."
+GroupPath = "Common Game/Accessibility/Motion"
+Tags = PackedStringArray("CommonGame", "Accessibility", "Motion")
+Aliases = PackedStringArray("blur", "motion blur")
+DefaultValue = false
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778982360
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="CommonGameSetting_24"]
+script = ExtResource("2")
+ItemId = "SeaShell.Game.Accessibility.FlashingEffectsReduced"
+ValueType = "Bool"
+DisplayName = "Reduce Flashing Effects"
+Description = "Choice placeholder for future flash-reduction support. The setting is stored now, but projects still need to tone down rapid flashing or intense effects."
+GroupPath = "Common Game/Accessibility/Motion"
+Tags = PackedStringArray("CommonGame", "Accessibility", "Motion")
+Aliases = PackedStringArray("photosensitivity", "flashing")
+DefaultValue = false
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778982360
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="CommonGameSetting_25"]
+script = ExtResource("2")
+ItemId = "SeaShell.Game.Accessibility.Language"
+ValueType = "Language"
+DisplayName = "Language"
+Description = "Shared language choice projects can bind to their localization layer later."
+GroupPath = "Common Game/Accessibility/Text"
+Tags = PackedStringArray("CommonGame", "Accessibility", "Text", "Locale")
+Aliases = PackedStringArray("locale", "language")
+DefaultValue = "English"
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778982360
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="CommonGameSetting_26"]
+script = ExtResource("2")
+ItemId = "SeaShell.Game.Accessibility.VibrationEnabled"
+ValueType = "Bool"
+DisplayName = "Vibration Enabled"
+Description = "Choice placeholder for future vibration or haptics control. The setting is stored now, but projects still need to apply it to their rumble systems."
+GroupPath = "Common Game/Accessibility/Motion"
+Tags = PackedStringArray("CommonGame", "Accessibility", "Motion")
+Aliases = PackedStringArray("rumble", "haptics")
+DefaultValue = true
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778982360
+HookIds = PackedStringArray()
+
+[resource]
+script = ExtResource("1")
+PackId = "SeaShell.CommonGame"
+DisplayName = "Sea Shell Common Game Settings"
+Description = "Reusable player-facing settings pack for common game display, audio, and accessibility choices."
+DocsDirectory = "res://Sea Shell Docs/02 Systems/Settings Items/Common Game"
+Items = Array[Resource]([SubResource("CommonGameSetting_1"), SubResource("CommonGameSetting_2"), SubResource("CommonGameSetting_3"), SubResource("CommonGameSetting_4"), SubResource("CommonGameSetting_5"), SubResource("CommonGameSetting_6"), SubResource("CommonGameSetting_7"), SubResource("CommonGameSetting_8"), SubResource("CommonGameSetting_9"), SubResource("CommonGameSetting_10"), SubResource("CommonGameSetting_11"), SubResource("CommonGameSetting_12"), SubResource("CommonGameSetting_13"), SubResource("CommonGameSetting_14"), SubResource("CommonGameSetting_15"), SubResource("CommonGameSetting_16"), SubResource("CommonGameSetting_17"), SubResource("CommonGameSetting_18"), SubResource("CommonGameSetting_19"), SubResource("CommonGameSetting_20"), SubResource("CommonGameSetting_21"), SubResource("CommonGameSetting_22"), SubResource("CommonGameSetting_23"), SubResource("CommonGameSetting_24"), SubResource("CommonGameSetting_25"), SubResource("CommonGameSetting_26")])
+Groups = PackedStringArray("Common Game", "Common Game/Display", "Common Game/Audio", "Common Game/Accessibility", "Common Game/Accessibility/Text", "Common Game/Accessibility/Visual", "Common Game/Accessibility/Motion")
+Tags = PackedStringArray("Accessibility", "Audio", "CommonGame", "Display", "Locale", "Motion", "Performance", "Quality", "Text", "Visual", "Volume", "Window")
+DefinitionModifiedUnix = 1778982360

@@ -125,14 +125,20 @@ func _record_possible_fatigue(amount: int) -> void:
 	_request_fatigue("Question modifiers were paused for this run. You can turn them back on from the toast if you want the chaos again.")
 
 func _accept_hint_text() -> String:
-	var hint_text: String = str(question.modifier_settings.get("accept_hint_text", question.modifier_settings.get("prompt", DEFAULT_ACCEPT_HINT_TEXT))).strip_edges()
+	var settings := _modifier_settings()
+	var hint_text: String = str(settings.get("accept_hint_text", settings.get("prompt", DEFAULT_ACCEPT_HINT_TEXT))).strip_edges()
 	return hint_text if not hint_text.is_empty() else DEFAULT_ACCEPT_HINT_TEXT
 
 func _fatigue_reroll_threshold() -> int:
-	return max(1, int(question.modifier_settings.get("fatigue_reroll_threshold", DEFAULT_FATIGUE_REROLL_THRESHOLD)))
+	return max(1, int(_modifier_settings().get("fatigue_reroll_threshold", DEFAULT_FATIGUE_REROLL_THRESHOLD)))
 
 func _spam_threshold() -> int:
-	return max(2, int(question.modifier_settings.get("spam_threshold", DEFAULT_SPAM_THRESHOLD)))
+	return max(2, int(_modifier_settings().get("spam_threshold", DEFAULT_SPAM_THRESHOLD)))
 
 func _spam_window_seconds() -> float:
-	return maxf(0.15, float(question.modifier_settings.get("spam_window_seconds", DEFAULT_SPAM_WINDOW_SECONDS)))
+	return maxf(0.15, float(_modifier_settings().get("spam_window_seconds", DEFAULT_SPAM_WINDOW_SECONDS)))
+
+func _modifier_settings() -> Dictionary:
+	if question == null:
+		return {}
+	return question.modifier_settings.duplicate(true)

@@ -1,0 +1,252 @@
+[gd_resource type="Resource" script_class="SeaShellSettingsPack" format=3 uid="uid://kfqt00xfa0wp"]
+
+[ext_resource type="Script" uid="uid://b4tg2ttgm15n1" path="res://addons/seashell_devtools/settings/SeaShellSettingsPack.gd" id="1"]
+[ext_resource type="Script" uid="uid://d0uxnjwhhoo0b" path="res://addons/seashell_devtools/settings/SeaShellSettingItem.gd" id="2"]
+
+[sub_resource type="Resource" id="FeedbackSetting_1"]
+script = ExtResource("2")
+ItemId = "SeaShell.Feedback.Enabled"
+ValueType = "Bool"
+DisplayName = "Feedback Enabled"
+Description = "Enables the shared Sea Shell feedback backbone for semantic events, cues, callouts, and capture."
+GroupPath = "Sea Shell/Feedback/Core"
+Tags = PackedStringArray("SeaShell", "Feedback", "Runtime")
+Aliases = PackedStringArray("click feedback", "callouts", "capture")
+DefaultValue = true
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778295000
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="FeedbackSetting_2"]
+script = ExtResource("2")
+ItemId = "SeaShell.Feedback.Mode"
+ValueType = "Enum"
+DisplayName = "Feedback Mode"
+Description = "Chooses which feedback surfaces are enabled."
+GroupPath = "Sea Shell/Feedback/Core"
+Tags = PackedStringArray("SeaShell", "Feedback", "Runtime")
+Aliases = PackedStringArray("developer capture", "player callouts")
+DefaultValue = "Both"
+Options = PackedStringArray("Off", "PlayerCallouts", "DeveloperCapture", "Both")
+DefinitionModifiedUnix = 1778295000
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="FeedbackSetting_3"]
+script = ExtResource("2")
+ItemId = "SeaShell.Feedback.SfxVolume"
+ValueType = "Float"
+DisplayName = "Feedback SFX Volume"
+Description = "Controls synthesized feedback sound volume."
+GroupPath = "Sea Shell/Feedback/Effects"
+Tags = PackedStringArray("SeaShell", "Feedback", "SFX")
+Aliases = PackedStringArray("sound", "audio", "volume")
+DefaultValue = 0.35
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778295000
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="FeedbackSetting_4"]
+script = ExtResource("2")
+ItemId = "SeaShell.Feedback.HoverSfxEnabled"
+ValueType = "Bool"
+DisplayName = "Hover SFX Enabled"
+Description = "Allows hover events to play their short procedural sound cue."
+GroupPath = "Sea Shell/Feedback/Effects"
+Tags = PackedStringArray("SeaShell", "Feedback", "SFX", "Hover")
+Aliases = PackedStringArray("hover sound")
+DefaultValue = false
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778295000
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="FeedbackSetting_5"]
+script = ExtResource("2")
+ItemId = "SeaShell.Feedback.VisualEffectsEnabled"
+ValueType = "Bool"
+DisplayName = "Visual Effects Enabled"
+Description = "Allows feedback cues to pulse, shake, or flash Control targets."
+GroupPath = "Sea Shell/Feedback/Effects"
+Tags = PackedStringArray("SeaShell", "Feedback", "Visual")
+Aliases = PackedStringArray("pulse", "shake", "flash")
+DefaultValue = true
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778295000
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="FeedbackSetting_6"]
+script = ExtResource("2")
+ItemId = "SeaShell.Feedback.CaptureGesture"
+DisplayName = "Capture Gesture"
+Description = "Documents the developer quick-capture gesture. V1 supports Ctrl+Shift+LeftClick."
+GroupPath = "Sea Shell/Feedback/Capture"
+Tags = PackedStringArray("SeaShell", "Feedback", "Capture")
+Aliases = PackedStringArray("quick capture", "armed capture")
+DefaultValue = "Ctrl+Shift+LeftClick"
+Options = PackedStringArray()
+ApplyPolicy = "RestartRequired"
+DefinitionModifiedUnix = 1778295000
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="FeedbackSetting_7"]
+script = ExtResource("2")
+ItemId = "SeaShell.Feedback.DevVaultRoot"
+ValueType = "Path"
+DisplayName = "Feedback Dev Vault Root"
+Description = "Root folder where development feedback sessions and attachments are written."
+GroupPath = "Sea Shell/Feedback/Capture"
+Tags = PackedStringArray("SeaShell", "Feedback", "Capture", "Docs")
+Aliases = PackedStringArray("devlog", "vault")
+DefaultValue = "user://sea_shell_feedback_devlog"
+Options = PackedStringArray()
+ApplyPolicy = "StagedApply"
+DefinitionModifiedUnix = 1778295000
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="FeedbackSetting_8"]
+script = ExtResource("2")
+ItemId = "SeaShell.Feedback.SessionFolder"
+DisplayName = "Feedback Session Folder"
+Description = "Relative folder below the feedback dev vault for session notes."
+GroupPath = "Sea Shell/Feedback/Capture"
+Tags = PackedStringArray("SeaShell", "Feedback", "Capture", "Markdown")
+Aliases = PackedStringArray("session notes")
+DefaultValue = "Devlog/Sessions"
+Options = PackedStringArray()
+ApplyPolicy = "StagedApply"
+DefinitionModifiedUnix = 1778295000
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="FeedbackSetting_9"]
+script = ExtResource("2")
+ItemId = "SeaShell.Feedback.AttachmentFolder"
+DisplayName = "Feedback Attachment Folder"
+Description = "Relative folder below the feedback dev vault where attachments are copied."
+GroupPath = "Sea Shell/Feedback/Capture"
+Tags = PackedStringArray("SeaShell", "Feedback", "Capture", "Attachments")
+Aliases = PackedStringArray("screenshots", "recordings")
+DefaultValue = "Devlog/Attachments"
+Options = PackedStringArray()
+ApplyPolicy = "StagedApply"
+DefinitionModifiedUnix = 1778295000
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="FeedbackSetting_10"]
+script = ExtResource("2")
+ItemId = "SeaShell.Feedback.AutoScreenshotEnabled"
+ValueType = "Bool"
+DisplayName = "Auto Screenshot Enabled"
+Description = "Reserves the v1 flag for best-effort screenshot capture during developer feedback."
+GroupPath = "Sea Shell/Feedback/Capture"
+Tags = PackedStringArray("SeaShell", "Feedback", "Capture", "Screenshot")
+Aliases = PackedStringArray("screenshot")
+DefaultValue = true
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778295000
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="FeedbackSetting_11"]
+script = ExtResource("2")
+ItemId = "SeaShell.Feedback.ActiveSessionPath"
+Kind = "Info"
+DisplayName = "Active Feedback Session"
+Description = "Readonly info row for the active feedback session path."
+GroupPath = "Sea Shell/Feedback/Status"
+Tags = PackedStringArray("SeaShell", "Feedback", "Info")
+Aliases = PackedStringArray()
+DefaultValue = "No feedback session has been opened yet."
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778295000
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="FeedbackSetting_12"]
+script = ExtResource("2")
+ItemId = "SeaShell.Feedback.LastCapturedTarget"
+Kind = "Info"
+DisplayName = "Last Captured Target"
+Description = "Readonly info row describing the last feedback target captured by the runtime service."
+GroupPath = "Sea Shell/Feedback/Status"
+Tags = PackedStringArray("SeaShell", "Feedback", "Info")
+Aliases = PackedStringArray()
+DefaultValue = "No target captured yet."
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778295000
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="FeedbackSetting_13"]
+script = ExtResource("2")
+ItemId = "SeaShell.Feedback.CurrentHoveredLayer"
+Kind = "Info"
+DisplayName = "Current Hovered Layer"
+Description = "Readonly info row for the UI layer nearest the currently captured control."
+GroupPath = "Sea Shell/Feedback/Status"
+Tags = PackedStringArray("SeaShell", "Feedback", "Info", "UI")
+Aliases = PackedStringArray()
+DefaultValue = "No layer captured yet."
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778295000
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="FeedbackSetting_14"]
+script = ExtResource("2")
+ItemId = "SeaShell.Feedback.AudioBus"
+ValueType = "Enum"
+DisplayName = "Feedback Audio Bus"
+Description = "Audio bus used by synthesized feedback SFX players."
+GroupPath = "Sea Shell/Feedback/Effects"
+Tags = PackedStringArray("SeaShell", "Feedback", "SFX", "Audio")
+Aliases = PackedStringArray("bus", "master")
+DefaultValue = "Master"
+Options = PackedStringArray()
+OptionProviderId = "audio_buses"
+DefinitionModifiedUnix = 1778295000
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="FeedbackSetting_15"]
+script = ExtResource("2")
+ItemId = "SeaShell.Feedback.RequireExplicitDevVault"
+ValueType = "Bool"
+DisplayName = "Require Explicit Dev Vault"
+Description = "When enabled, developer capture fails closed until a project chooses a non-default feedback dev vault."
+GroupPath = "Sea Shell/Feedback/Capture"
+Tags = PackedStringArray("SeaShell", "Feedback", "Capture", "Vault")
+Aliases = PackedStringArray("fail closed", "dev vault")
+DefaultValue = false
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778295000
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="FeedbackSetting_16"]
+script = ExtResource("2")
+ItemId = "SeaShell.Feedback.FrontmatterPrefix"
+DisplayName = "Feedback Frontmatter Prefix"
+Description = "Suffix prefix used for managed feedback session frontmatter keys."
+GroupPath = "Sea Shell/Feedback/Capture"
+Tags = PackedStringArray("SeaShell", "Feedback", "Capture", "Markdown")
+Aliases = PackedStringArray("frontmatter", "session metadata")
+DefaultValue = "SS"
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778295000
+HookIds = PackedStringArray()
+
+[sub_resource type="Resource" id="FeedbackSetting_17"]
+script = ExtResource("2")
+ItemId = "SeaShell.Feedback.NoteKind"
+DisplayName = "Feedback Note Kind"
+Description = "Frontmatter note kind written to feedback session notes."
+GroupPath = "Sea Shell/Feedback/Capture"
+Tags = PackedStringArray("SeaShell", "Feedback", "Capture", "Markdown")
+Aliases = PackedStringArray("note kind", "devlog session")
+DefaultValue = "feedback-session"
+Options = PackedStringArray()
+DefinitionModifiedUnix = 1778295000
+HookIds = PackedStringArray()
+
+[resource]
+script = ExtResource("1")
+PackId = "SeaShell.Feedback"
+DisplayName = "Sea Shell Feedback Settings"
+Description = "Settings for semantic feedback events, procedural cues, rich callouts, and developer capture."
+Items = Array[Resource]([SubResource("FeedbackSetting_1"), SubResource("FeedbackSetting_2"), SubResource("FeedbackSetting_3"), SubResource("FeedbackSetting_4"), SubResource("FeedbackSetting_5"), SubResource("FeedbackSetting_6"), SubResource("FeedbackSetting_7"), SubResource("FeedbackSetting_8"), SubResource("FeedbackSetting_9"), SubResource("FeedbackSetting_10"), SubResource("FeedbackSetting_11"), SubResource("FeedbackSetting_12"), SubResource("FeedbackSetting_13"), SubResource("FeedbackSetting_14"), SubResource("FeedbackSetting_15"), SubResource("FeedbackSetting_16"), SubResource("FeedbackSetting_17")])
+Groups = PackedStringArray("Sea Shell/Feedback", "Sea Shell/Feedback/Core", "Sea Shell/Feedback/Effects", "Sea Shell/Feedback/Capture", "Sea Shell/Feedback/Status")
+Tags = PackedStringArray("Attachments", "Audio", "Capture", "Docs", "Feedback", "Hover", "Info", "Markdown", "Runtime", "SFX", "Screenshot", "SeaShell", "UI", "Vault", "Visual")
+DefinitionModifiedUnix = 1778295000

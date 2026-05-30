@@ -29,7 +29,7 @@ theme_override_constants/separation = 10
 [node name="TitleLabel" type="Label" parent="Card/Stack" unique_id=1387421659]
 layout_mode = 2
 theme_override_font_sizes/font_size = 20
-text = "📅 When did you last revisit this project?"
+text = "When did you last revisit this project?"
 autowrap_mode = 3
 
 [node name="QuestionTypeBar" type="HBoxContainer" parent="Card/Stack" unique_id=1222115559]

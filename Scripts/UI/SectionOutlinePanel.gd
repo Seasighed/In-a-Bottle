@@ -142,6 +142,21 @@ func _create_section_row(section: SurveySection, section_index: int, is_active: 
 	SurveyStyle.apply_panel(row, fill, border, 16, 1)
 	row.gui_input.connect(_on_row_gui_input.bind(section_index, "", row))
 	row.mouse_entered.connect(_on_row_mouse_entered)
+	row.set_meta("feedback_context", {
+		"kind": "section_outline_section",
+		"summary": "Section outline: %s" % section.display_title(section_index),
+		"section_outline": {
+			"row_type": "section",
+			"section_index": section_index,
+			"section_title": section.display_title(section_index),
+			"question_count": section.questions.size(),
+			"completion_state": str(completion_state)
+		},
+		"survey_section": {
+			"section_index": section_index,
+			"section_title": section.display_title(section_index)
+		}
+	})
 
 	var hbox := HBoxContainer.new()
 	hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -200,6 +215,30 @@ func _create_question_row(section_index: int, question_index: int, question: Sur
 	SurveyStyle.apply_panel(row, fill, border, 14, 1)
 	row.gui_input.connect(_on_row_gui_input.bind(section_index, question.id, row))
 	row.mouse_entered.connect(_on_row_mouse_entered)
+	row.set_meta("feedback_context", {
+		"kind": "section_outline_question",
+		"summary": "Section outline question: %s" % question.display_title(question_index),
+		"section_outline": {
+			"row_type": "question",
+			"section_index": section_index,
+			"question_index": question_index,
+			"question_id": question.id,
+			"question_title": question.display_title(question_index),
+			"completion_state": str(completion_state)
+		},
+		"survey_section": {
+			"section_index": section_index,
+			"section_title": _survey.sections[section_index].display_title(section_index) if _survey != null and section_index >= 0 and section_index < _survey.sections.size() else ""
+		},
+		"survey_question": {
+			"question_id": question.id,
+			"prompt": question.prompt.strip_edges(),
+			"type": str(question.type),
+			"required": question.required,
+			"requirement_label": question.requirement_label(),
+			"answer_state": str(completion_state)
+		}
+	})
 
 	var hbox := HBoxContainer.new()
 	hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL

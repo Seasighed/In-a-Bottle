@@ -6,6 +6,7 @@ const SCALE_CHIPS_VIEW_SCENE: PackedScene = preload("res://Scenes/QuestionViews/
 const RANKED_CHOICE_VIEW_SCENE: PackedScene = preload("res://Scenes/QuestionViews/RankedChoiceQuestionView.tscn")
 const MATRIX_QUESTION_VIEW_SCENE: PackedScene = preload("res://Scenes/QuestionViews/MatrixQuestionView.tscn")
 const QUESTION_VIEW_REGISTRY = preload("res://Scripts/UI/QuestionViewRegistry.gd")
+const SURVEY_DEBUG_LOGGER = preload("res://Scripts/UI/SurveyDebugLogger.gd")
 const TRACE_LOG_PATH := "user://survey_journey_trace.log"
 
 signal answer_changed(question_id: String, value: Variant)
@@ -24,6 +25,7 @@ var _layout_refresh_in_progress := false
 var _answer_layout_refresh_queued := false
 var _question_debug_ids_enabled := false
 var _question_modifiers_enabled := true
+var _debug_trace_logging_enabled := false
 
 func _ready() -> void:
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -121,6 +123,9 @@ func set_question_modifiers_enabled(enabled: bool) -> void:
 	if _active_view != null and is_instance_valid(_active_view):
 		refresh_stage_layout(_viewport_size if _viewport_size != Vector2.ZERO else get_viewport().get_visible_rect().size)
 
+func set_debug_trace_logging_enabled(enabled: bool) -> void:
+	_debug_trace_logging_enabled = enabled
+
 func refresh_stage_layout(viewport_size: Vector2) -> void:
 	if _layout_refresh_in_progress:
 		return
@@ -149,12 +154,18 @@ func active_view() -> SurveyQuestionView:
 func _position_active_view(width: float) -> void:
 	if _active_view == null:
 		return
-	_active_view.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	_active_view.position = Vector2.ZERO
+	_active_view.anchor_left = 0.0
+	_active_view.anchor_top = 0.0
+	_active_view.anchor_right = 0.0
+	_active_view.anchor_bottom = 0.0
+	_active_view.offset_left = 0.0
+	_active_view.offset_top = 0.0
 	_active_view.custom_minimum_size = Vector2(width, 0.0)
 	_active_view.size = Vector2(width, 0.0)
 	_active_view.reset_size()
 	var view_height := maxf(_active_view.size.y, _active_view.get_combined_minimum_size().y)
+	_active_view.offset_right = width
+	_active_view.offset_bottom = view_height
 	_active_view.size = Vector2(width, view_height)
 
 func _refresh_after_show() -> void:
@@ -166,7 +177,8 @@ func _refresh_after_show() -> void:
 func _resolved_stage_width(scroll: ScrollContainer, viewport_width: float) -> float:
 	var stage_width := 0.0
 	var phone_layout := viewport_width <= 480.0
-	var max_stage_width := maxf(viewport_width - (4.0 if phone_layout else 96.0), 320.0)
+	var fallback_padding := 48.0 if phone_layout else 96.0
+	var max_stage_width := maxf(viewport_width - fallback_padding, 320.0)
 	if scroll != null:
 		if scroll.size.x > 0.0:
 			stage_width = scroll.size.x
@@ -255,14 +267,6 @@ func _duplicate_answer_value(value: Variant) -> Variant:
 	return value
 
 func _trace(message: String) -> void:
-	var existing := ""
-	if FileAccess.file_exists(TRACE_LOG_PATH):
-		var read_file := FileAccess.open(TRACE_LOG_PATH, FileAccess.READ)
-		if read_file != null:
-			existing = read_file.get_as_text()
-			read_file.close()
-	var write_file := FileAccess.open(TRACE_LOG_PATH, FileAccess.WRITE)
-	if write_file == null:
+	if not _debug_trace_logging_enabled:
 		return
-	write_file.store_string(existing + "[%s] %s\n" % [Time.get_time_string_from_system(), message])
-	write_file.close()
+	SURVEY_DEBUG_LOGGER.append_text(TRACE_LOG_PATH, "[%s] %s\n" % [Time.get_time_string_from_system(), message])

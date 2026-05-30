@@ -200,11 +200,6 @@
 					"prompt": "For each area below, choose what has felt closest to your recent experience.",
 					"description": "This matrix is meant to test partial and complete states cleanly.",
 					"type": "matrix",
-					"modifier": {
-						"key": "loot_box_matrix",
-						"accept_hint_text": "Tap to lock it in",
-						"fatigue_reroll_threshold": 4
-					},
 					"required": true,
 					"rows": [
 						"Energy level",

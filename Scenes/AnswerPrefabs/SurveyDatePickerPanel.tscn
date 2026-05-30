@@ -1,0 +1,137 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://Scripts/UI/SurveyDatePickerPanel.gd" id="1"]
+
+[node name="SurveyDatePickerPanel" type="PanelContainer"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 1
+script = ExtResource("1")
+
+[node name="Stack" type="VBoxContainer" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="PickerRow" type="HBoxContainer" parent="Stack"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="DayColumn" type="PanelContainer" parent="Stack/PickerRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 1
+
+[node name="ColumnStack" type="VBoxContainer" parent="Stack/PickerRow/DayColumn"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 3
+
+[node name="HeaderLabel" type="Label" parent="Stack/PickerRow/DayColumn/ColumnStack"]
+layout_mode = 2
+text = "Day"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="PreviousLabel" type="Label" parent="Stack/PickerRow/DayColumn/ColumnStack"]
+layout_mode = 2
+text = "14"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="CurrentLabel" type="Label" parent="Stack/PickerRow/DayColumn/ColumnStack"]
+layout_mode = 2
+text = "15"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="NextLabel" type="Label" parent="Stack/PickerRow/DayColumn/ColumnStack"]
+layout_mode = 2
+text = "16"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="MonthColumn" type="PanelContainer" parent="Stack/PickerRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 1
+
+[node name="ColumnStack" type="VBoxContainer" parent="Stack/PickerRow/MonthColumn"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 3
+
+[node name="HeaderLabel" type="Label" parent="Stack/PickerRow/MonthColumn/ColumnStack"]
+layout_mode = 2
+text = "Month"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="PreviousLabel" type="Label" parent="Stack/PickerRow/MonthColumn/ColumnStack"]
+layout_mode = 2
+text = "Apr"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="CurrentLabel" type="Label" parent="Stack/PickerRow/MonthColumn/ColumnStack"]
+layout_mode = 2
+text = "May"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="NextLabel" type="Label" parent="Stack/PickerRow/MonthColumn/ColumnStack"]
+layout_mode = 2
+text = "Jun"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="YearColumn" type="PanelContainer" parent="Stack/PickerRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 1
+
+[node name="ColumnStack" type="VBoxContainer" parent="Stack/PickerRow/YearColumn"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 3
+
+[node name="HeaderLabel" type="Label" parent="Stack/PickerRow/YearColumn/ColumnStack"]
+layout_mode = 2
+text = "Year"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="PreviousLabel" type="Label" parent="Stack/PickerRow/YearColumn/ColumnStack"]
+layout_mode = 2
+text = "2025"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="CurrentLabel" type="Label" parent="Stack/PickerRow/YearColumn/ColumnStack"]
+layout_mode = 2
+text = "2026"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="NextLabel" type="Label" parent="Stack/PickerRow/YearColumn/ColumnStack"]
+layout_mode = 2
+text = "2027"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="FooterRow" type="HBoxContainer" parent="Stack"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="TodayButton" type="Button" parent="Stack/FooterRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Today"
+
+[node name="ClearButton" type="Button" parent="Stack/FooterRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Clear"

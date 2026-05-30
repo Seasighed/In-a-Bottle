@@ -134,6 +134,8 @@ func _init(config: Dictionary = {}) -> void:
 	)
 
 func resolved_emoji() -> String:
+	if OS.has_feature("web"):
+		return ""
 	if not emoji.is_empty():
 		return emoji
 	match type:
@@ -211,6 +213,36 @@ func accent_label(show_debug_id: bool = false) -> String:
 
 func requirement_label() -> String:
 	return "Required" if required else "Optional"
+
+func answer_help_summary() -> String:
+	match type:
+		TYPE_SHORT_TEXT:
+			return "Type a short written answer in the field."
+		TYPE_LONG_TEXT:
+			return "Write a longer freeform response in the text box."
+		TYPE_SINGLE_CHOICE:
+			return "Choose the one option that fits best."
+		TYPE_MULTI_CHOICE:
+			return "Select every option that applies."
+		TYPE_BOOLEAN:
+			return "Choose either Yes or No."
+		TYPE_SCALE:
+			return "Pick one point on the scale that best matches your answer."
+		TYPE_RANKED_CHOICE:
+			return "Arrange all options from highest priority to lowest."
+		TYPE_DROPDOWN:
+			return "Open the list and choose the one option that fits best."
+		TYPE_EMAIL:
+			return "Enter a valid email address in the field."
+		TYPE_NUMBER:
+			return "Enter the number that best answers the question."
+		TYPE_DATE:
+			return "Pick the date that best answers the question."
+		TYPE_NPS:
+			return "Choose a score from 0 to 10."
+		TYPE_MATRIX:
+			return "Answer each row by choosing one option across the row."
+	return "Read the prompt and enter the answer that fits best."
 
 func resolved_reward_count(fallback_count: int = 0) -> int:
 	if reward_count_configured:

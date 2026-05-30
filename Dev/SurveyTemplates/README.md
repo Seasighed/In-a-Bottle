@@ -136,6 +136,6 @@ Yes, emojis work in the JSON format as long as the file is saved as UTF-8.
 - Questions marked with `asks_identifying_info: true` can be scrubbed from sanitized exports and uploads.
 - Template-based exports and upload bundles now include the template `version` and a derived `schema_hash`, which is useful for server-side whitelists in Supabase or other collection backends.
 - The opinion summary uses rating-enabled questions to generate per-question, per-section, and overall score percentages, then lets the respondent export that summary as a PNG.
-- Section Crossroads can route people into Survey Scroll, Search, topic browsing, Guided Match, or Gamble.
+- The primary respondent flows now center on Journey focus mode, section outlines, search, onboarding-guided matches, and export/upload handoff.
 
 

@@ -5,8 +5,9 @@ const SAMPLE_SURVEY = preload("res://Scripts/Survey/SampleSurvey.gd")
 const SURVEY_TEMPLATE_LOADER = preload("res://Scripts/Survey/SurveyTemplateLoader.gd")
 const SURVEY_EXPORTER = preload("res://Scripts/Survey/SurveyExporter.gd")
 const SURVEY_SAVE_BUNDLE = preload("res://Scripts/Survey/SurveySaveBundle.gd")
+const SURVEY_SESSION_STATE_SUPPORT = preload("res://Scripts/Survey/SurveySessionStateSupport.gd")
 const SURVEY_SUMMARY_ANALYZER = preload("res://Scripts/Survey/SurveySummaryAnalyzer.gd")
-const SURVEY_SUBMISSION_BUNDLE = preload("res://Scripts/Survey/SurveySubmissionBundle.gd")
+const SURVEY_TRANSFER_SUPPORT = preload("res://Scripts/Survey/SurveyTransferSupport.gd")
 const SURVEY_UPLOAD_AUDIT_STORE = preload("res://Scripts/Survey/SurveyUploadAuditStore.gd")
 const SURVEY_PREFERENCES_STORE = preload("res://Scripts/Survey/SurveyPreferencesStore.gd")
 const SURVEY_SESSION_CACHE = preload("res://Scripts/Survey/SurveySessionCache.gd")
@@ -19,15 +20,23 @@ const SURVEY_PROFILE_OVERLAY_SCENE: PackedScene = preload("res://Scenes/UI/Surve
 const SURVEY_GAMIFICATION_HUD_SCENE: PackedScene = preload("res://Scenes/UI/SurveyGamificationHud.tscn")
 const SURVEY_TOAST_OVERLAY_SCRIPT = preload("res://Scripts/UI/SurveyToastOverlay.gd")
 const SURVEY_THEME_DRAWER_SCRIPT = preload("res://Scripts/UI/SurveyThemeDrawer.gd")
+const SURVEY_PLAYTEST_FEEDBACK_CONTROLLER = preload("res://Scripts/UI/SurveyPlaytestFeedbackController.gd")
+const SURVEY_SHELL_SUPPORT = preload("res://Scripts/UI/SurveyShellSupport.gd")
+const SURVEY_DEBUG_LOGGER = preload("res://Scripts/UI/SurveyDebugLogger.gd")
 const DEFAULT_DARK_PALETTE = preload("res://Themes/SurveyDarkPalette.tres")
 const DEFAULT_LIGHT_PALETTE = preload("res://Themes/SurveyLightPalette.tres")
 const DEFAULT_THEME_CATALOG = preload("res://Themes/SurveyThemeCatalog.tres")
+const DEFAULT_FEATURE_FLAGS: Resource = preload("res://Resources/Survey/DefaultFeatureFlags.tres")
 const ACTION_TRASH_ICON_PATH := "res://Assets/UI/Icons/action-trash.svg"
 const DEFAULT_QUESTION_XP_CONFIG: SurveyQuestionXpConfig = preload("res://Resources/Survey/DefaultQuestionXpConfig.tres")
 const SURVEY_GAMIFICATION_HUB = preload("res://Scripts/UI/SurveyGamificationHub.gd")
 const SURVEY_GAMIFICATION_STORE = preload("res://Scripts/Survey/SurveyGamificationStore.gd")
 const SURVEY_PLATFORM_EXPORTS = preload("res://Scripts/UI/SurveyPlatformExports.gd")
 const SURVEY_PREVIEW_CONFIG = preload("res://Scripts/UI/SurveyPreviewConfig.gd")
+const SURVEY_JOURNEY_BOSS_STATE = preload("res://Scripts/UI/SurveyJourneyBossState.gd")
+const SURVEY_JOURNEY_BOSS_BAR_SCENE: PackedScene = preload("res://Scenes/UI/SurveyJourneyBossBar.tscn")
+const SURVEY_JOURNEY_CHARGE_METER_SCENE: PackedScene = preload("res://Scenes/UI/SurveyJourneyChargeMeter.tscn")
+const SURVEY_JOURNEY_WRAPUP_STAGE_SCENE: PackedScene = preload("res://Scenes/UI/SurveyJourneyWrapupStage.tscn")
 const COMPLETE_STATUS_COLOR := Color("3cab68")
 const PARTIAL_STATUS_COLOR := Color("d0a441")
 const UNANSWERED_STATUS_COLOR := Color("c55353")
@@ -39,7 +48,6 @@ const SURVEY_BACKUP_DIR := "user://survey_backups"
 const VIEW_LANDING := &"landing"
 const VIEW_SURVEY_SELECTION := &"survey_selection"
 const VIEW_LORE := &"lore"
-const VIEW_SECTION_SELECTION := &"section_selection"
 const VIEW_FOCUS := &"focus"
 const VIEW_REVIEW := &"review"
 const VIEW_THANKS := &"thanks"
@@ -53,6 +61,7 @@ const PURPOSE_LORE := &"lore"
 @export var light_palette: Resource = DEFAULT_LIGHT_PALETTE
 @export var theme_catalog: Resource = DEFAULT_THEME_CATALOG
 @export var default_theme_id := "classic"
+@export var feature_flags: Resource = DEFAULT_FEATURE_FLAGS
 @export var question_xp_config: SurveyQuestionXpConfig = DEFAULT_QUESTION_XP_CONFIG
 @export var xp_system_enabled := false
 @export var use_dark_mode := true
@@ -80,6 +89,7 @@ const PURPOSE_LORE := &"lore"
 @export_range(60, 604800, 1) var successful_uploads_per_template_window_seconds := 86400
 @export_range(0, 50, 1) var max_successful_uploads_per_install := 6
 @export_range(60, 604800, 1) var successful_uploads_per_install_window_seconds := 86400
+@export var debug_trace_logging_enabled := false
 
 var survey: SurveyDefinition
 var answers: Dictionary = {}
@@ -89,7 +99,7 @@ var _current_view: StringName = VIEW_LANDING
 var _current_template_path := ""
 var _selected_template_path := ""
 var _lore_return_view: StringName = VIEW_SURVEY_SELECTION
-var _section_selection_return_view: StringName = VIEW_SURVEY_SELECTION
+var _focus_return_view: StringName = VIEW_SURVEY_SELECTION
 var _selected_section_index := -1
 var _question_order: Array[String] = []
 var _playable_question_ids: Array[String] = []
@@ -115,6 +125,7 @@ var _preview_resolution_preset := ""
 var _selected_theme_id := ""
 var _question_debug_ids_enabled := false
 var _question_modifiers_enabled := true
+var _menu_access_layout_refresh_pending := false
 var _action_trash_icon: Texture2D = null
 var _focus_outline_overlay: Control
 var _focus_outline_panel: SectionOutlinePanel
@@ -145,6 +156,17 @@ var _pending_confirmation_action: Callable = Callable()
 var _pending_confirmation_option_action: Callable = Callable()
 var _confirmation_option_checkbox: CheckBox
 var _confirmation_dialog_is_destructive := true
+var _focus_boss_bar
+var _focus_charge_meter
+var _focus_boss_fx_layer: Control
+var _wrapup_stage
+var _boss_committed_questions: Dictionary = {}
+var _boss_seen_milestones: Dictionary = {}
+var _boss_seen_section_breaks: Dictionary = {}
+var _boss_wrapup_played_snapshot_hash := ""
+var _boss_bar_animation_count := 0
+var _boss_state_cache: Dictionary = {}
+var _playtest_feedback_controller
 
 @onready var _background: ColorRect = $Background
 @onready var _margin: MarginContainer = $Margin
@@ -154,7 +176,7 @@ var _confirmation_dialog_is_destructive := true
 @onready var _landing_view: VBoxContainer = $Margin/MainPanel/Stack/LandingView
 @onready var _landing_heading_label: Label = $Margin/MainPanel/Stack/LandingView/LandingHeadingLabel
 @onready var _landing_subtitle_label: Label = $Margin/MainPanel/Stack/LandingView/LandingSubtitleLabel
-@onready var _landing_actions: HBoxContainer = $Margin/MainPanel/Stack/LandingView/LandingActions
+@onready var _landing_actions: HFlowContainer = $Margin/MainPanel/Stack/LandingView/LandingActions
 @onready var _take_survey_button: Button = $Margin/MainPanel/Stack/LandingView/LandingActions/TakeSurveyButton
 @onready var _get_lore_button: Button = $Margin/MainPanel/Stack/LandingView/LandingActions/GetLoreButton
 @onready var _character_button: Button = $Margin/MainPanel/Stack/LandingView/LandingActions/CharacterButton
@@ -181,14 +203,6 @@ var _confirmation_dialog_is_destructive := true
 @onready var _lore_empty_label: Label = $Margin/MainPanel/Stack/LoreView/LoreBody/LoreEmptyPanel/LoreEmptyStack/LoreEmptyLabel
 @onready var _lore_link_button: Button = $Margin/MainPanel/Stack/LoreView/LoreBody/LoreEmptyPanel/LoreEmptyStack/LoreLinkButton
 @onready var _lore_take_survey_button: Button = $Margin/MainPanel/Stack/LoreView/LoreTakeSurveyButton
-@onready var _section_selection_view: VBoxContainer = $Margin/MainPanel/Stack/SectionSelectionView
-@onready var _section_selection_back_button: Button = $Margin/MainPanel/Stack/SectionSelectionView/SectionSelectionTopRow/SectionSelectionBackButton
-@onready var _section_selection_heading_label: Label = $Margin/MainPanel/Stack/SectionSelectionView/SectionSelectionHeadingLabel
-@onready var _section_selection_subtitle_label: Label = $Margin/MainPanel/Stack/SectionSelectionView/SectionSelectionSubtitleLabel
-@onready var _section_selection_survey_label: Label = $Margin/MainPanel/Stack/SectionSelectionView/SectionSelectionSurveyLabel
-@onready var _section_selection_grid: GridContainer = $Margin/MainPanel/Stack/SectionSelectionView/SectionSelectionScroll/SectionSelectionGrid
-@onready var _section_selection_action_spacer: Control = $Margin/MainPanel/Stack/SectionSelectionView/SectionSelectionActionRow/SectionSelectionActionSpacer
-@onready var _section_selection_next_button: Button = $Margin/MainPanel/Stack/SectionSelectionView/SectionSelectionActionRow/SectionSelectionNextButton
 @onready var _focus_view: VBoxContainer = $Margin/MainPanel/Stack/FocusView
 @onready var _focus_back_button: Button = $Margin/MainPanel/Stack/FocusView/FocusTopRow/FocusBackButton
 @onready var _focus_section_label: Label = $Margin/MainPanel/Stack/FocusView/FocusSectionLabel
@@ -199,6 +213,7 @@ var _confirmation_dialog_is_destructive := true
 @onready var _focus_bottom_spacer: Control = $Margin/MainPanel/Stack/FocusView/FocusBottomSpacer
 @onready var _focus_previous_button: Button = $Margin/MainPanel/Stack/FocusView/FocusNavRow/FocusPreviousButton
 @onready var _focus_nav_spacer: Control = $Margin/MainPanel/Stack/FocusView/FocusNavRow/FocusNavSpacer
+@onready var _focus_xp_anchor: CenterContainer = $Margin/MainPanel/Stack/FocusView/FocusNavRow/FocusNavSpacer/FocusXpAnchor
 @onready var _focus_xp_stack: VBoxContainer = $Margin/MainPanel/Stack/FocusView/FocusNavRow/FocusNavSpacer/FocusXpAnchor/FocusXpStack
 @onready var _focus_xp_level_label: Label = $Margin/MainPanel/Stack/FocusView/FocusNavRow/FocusNavSpacer/FocusXpAnchor/FocusXpStack/FocusXpLevelLabel
 @onready var _focus_xp_bar: PanelContainer = $Margin/MainPanel/Stack/FocusView/FocusNavRow/FocusNavSpacer/FocusXpAnchor/FocusXpStack/FocusXpBar
@@ -208,10 +223,12 @@ var _confirmation_dialog_is_destructive := true
 @onready var _review_back_button: Button = $Margin/MainPanel/Stack/ReviewView/ReviewTopRow/ReviewBackButton
 @onready var _review_heading_label: Label = $Margin/MainPanel/Stack/ReviewView/ReviewHeadingLabel
 @onready var _review_subtitle_label: Label = $Margin/MainPanel/Stack/ReviewView/ReviewSubtitleLabel
+@onready var _review_scroll: ScrollContainer = $Margin/MainPanel/Stack/ReviewView/ReviewScroll
 @onready var _review_list: VBoxContainer = $Margin/MainPanel/Stack/ReviewView/ReviewScroll/ReviewList
 @onready var _thanks_view: VBoxContainer = $Margin/MainPanel/Stack/ThanksView
 @onready var _thanks_heading_label: Label = $Margin/MainPanel/Stack/ThanksView/ThanksHeadingLabel
 @onready var _thanks_body_label: Label = $Margin/MainPanel/Stack/ThanksView/ThanksBodyLabel
+@onready var _thanks_actions: HBoxContainer = $Margin/MainPanel/Stack/ThanksView/ThanksActions
 @onready var _thanks_review_button: Button = $Margin/MainPanel/Stack/ThanksView/ThanksActions/ThanksReviewButton
 @onready var _thanks_export_button: Button = $Margin/MainPanel/Stack/ThanksView/ThanksActions/ThanksExportButton
 @onready var _export_view: VBoxContainer = $Margin/MainPanel/Stack/ExportView
@@ -245,8 +262,9 @@ var _confirmation_dialog_is_destructive := true
 @onready var _upload_response_text_edit: TextEdit = $Margin/MainPanel/Stack/UploadView/UploadScroll/UploadContent/UploadNoticePanel/UploadNoticeStack/UploadResponseTextEdit
 @onready var _overlay_menu: OverlayMenu = get_node_or_null("OverlayMenu") as OverlayMenu
 @onready var _profile_overlay = get_node_or_null("ProfileOverlay")
-@onready var _menu_access_layer: CanvasLayer = get_node_or_null("MenuAccessLayer") as CanvasLayer
+@onready var _menu_access_layer: Control = get_node_or_null("MenuAccessLayer") as Control
 @onready var _menu_access_button: Button = get_node_or_null("MenuAccessLayer/MenuAccessButton") as Button
+@onready var _report_access_button: Button = get_node_or_null("MenuAccessLayer/ReportAccessButton") as Button
 @onready var _help_access_button: Button = get_node_or_null("MenuAccessLayer/HelpAccessButton") as Button
 @onready var _help_overlay = get_node_or_null("QuestionHelpOverlay")
 @onready var _lore_link_prompt_overlay: Control = get_node_or_null("LoreLinkPromptOverlay") as Control
@@ -258,8 +276,12 @@ var _confirmation_dialog_is_destructive := true
 @onready var _lore_link_prompt_open_button: Button = get_node_or_null("LoreLinkPromptOverlay/Center/Panel/Stack/ActionRow/OpenButton") as Button
 var _toast_overlay
 var _theme_drawer
+var _export_copy_details_button: Button
+var _export_copy_details_open := false
 
 func _ready() -> void:
+	debug_trace_logging_enabled = debug_trace_logging_enabled or _feature_flag_enabled("enable_debug_trace_logging", false)
+	_question_modifiers_enabled = _feature_flag_enabled("enable_question_modifiers", true)
 	_start_trace_session()
 	_prime_preferences_from_store()
 	_apply_selected_theme_palette()
@@ -267,16 +289,20 @@ func _ready() -> void:
 	_ensure_upload_request()
 	_configure_file_dialogs()
 	_ensure_optional_ui_nodes()
+	_ensure_export_details_nodes()
 	_prepare_survey_selection_shell()
 	_connect_actions()
 	_load_available_templates()
 	_load_initial_survey()
 	_refresh_theme()
+	if _focus_question_stage != null and _focus_question_stage.has_method("set_debug_trace_logging_enabled"):
+		_focus_question_stage.set_debug_trace_logging_enabled(debug_trace_logging_enabled)
 	if _upload_response_text_edit != null:
 		_upload_response_text_edit.editable = false
 	_show_view(VIEW_LANDING)
 	call_deferred("_sync_scroll_content_widths")
 	_refresh_menu_access_button()
+	set_process_input(true)
 	set_process_unhandled_input(true)
 
 func _notification(what: int) -> void:
@@ -285,11 +311,19 @@ func _notification(what: int) -> void:
 		_refresh_focus_stage_layout()
 		call_deferred("_sync_scroll_content_widths")
 
+func _input(event: InputEvent) -> void:
+	if _playtest_feedback_controller != null and _playtest_feedback_controller.handle_input(event):
+		get_viewport().set_input_as_handled()
+		return
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey):
 		return
 	var key_event := event as InputEventKey
 	if not key_event.pressed or key_event.echo or key_event.keycode != KEY_ESCAPE:
+		return
+	if _playtest_feedback_controller != null and _playtest_feedback_controller.close_active_ui():
+		_refresh_menu_access_button()
 		return
 	if _lore_link_prompt_overlay != null and _lore_link_prompt_overlay.visible:
 		_close_lore_link_prompt()
@@ -307,7 +341,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		_set_focus_outline_visible(false)
 		return
 	match _current_view:
-		VIEW_SURVEY_SELECTION, VIEW_LORE, VIEW_SECTION_SELECTION:
+		VIEW_SURVEY_SELECTION, VIEW_LORE:
 			_show_view(VIEW_LANDING)
 		VIEW_FOCUS:
 			_on_focus_back_pressed()
@@ -325,6 +359,31 @@ func _resolved_palette_resource(candidate: Resource, fallback: Resource) -> Reso
 
 func _resolved_theme_catalog_resource(candidate: Resource, fallback: Resource) -> Resource:
 	return candidate if candidate != null else fallback
+
+func _resolved_feature_flags() -> Resource:
+	return feature_flags if feature_flags != null else DEFAULT_FEATURE_FLAGS
+
+func _feature_flag_enabled(property_name: String, default_value: bool = true) -> bool:
+	var flags: Resource = _resolved_feature_flags()
+	if flags == null or property_name.strip_edges().is_empty():
+		return default_value
+	var value: Variant = flags.get(property_name)
+	return default_value if value == null else bool(value)
+
+func _is_lore_enabled() -> bool:
+	return _feature_flag_enabled("enable_lore", true)
+
+func _is_character_profile_enabled() -> bool:
+	return _feature_flag_enabled("enable_character_profile", true)
+
+func _is_preview_controls_enabled() -> bool:
+	return _feature_flag_enabled("enable_preview_controls", true)
+
+func _is_boss_battle_enabled() -> bool:
+	return _feature_flag_enabled("enable_boss_battle", true)
+
+func _playtest_feedback_enabled() -> bool:
+	return OS.is_debug_build()
 
 func _available_theme_sets() -> Array:
 	var catalog = _resolved_theme_catalog_resource(theme_catalog, DEFAULT_THEME_CATALOG)
@@ -441,9 +500,14 @@ func _ensure_optional_ui_nodes() -> void:
 	_ensure_gamification_nodes()
 	_toast_overlay = get_node_or_null("SurveyToastOverlay")
 	if _menu_access_layer == null:
-		var access_layer := CanvasLayer.new()
+		var access_layer := Control.new()
 		access_layer.name = "MenuAccessLayer"
-		access_layer.layer = 61
+		access_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+		access_layer.anchor_right = 1.0
+		access_layer.anchor_bottom = 1.0
+		access_layer.grow_horizontal = Control.GROW_DIRECTION_BOTH
+		access_layer.grow_vertical = Control.GROW_DIRECTION_BOTH
+		access_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(access_layer)
 		_menu_access_layer = access_layer
 	if _menu_access_button == null and _menu_access_layer != null:
@@ -451,11 +515,8 @@ func _ensure_optional_ui_nodes() -> void:
 		access_button.name = "MenuAccessButton"
 		access_button.text = "☰"
 		access_button.tooltip_text = "Open menu"
-		access_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-		access_button.anchor_left = 1.0
-		access_button.anchor_right = 1.0
-		access_button.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-		access_button.grow_vertical = Control.GROW_DIRECTION_BOTH
+		access_button.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		access_button.mouse_filter = Control.MOUSE_FILTER_STOP
 		_menu_access_layer.add_child(access_button)
 		_menu_access_button = access_button
 	if _help_access_button == null and _menu_access_layer != null:
@@ -463,14 +524,120 @@ func _ensure_optional_ui_nodes() -> void:
 		help_button.name = "HelpAccessButton"
 		help_button.text = "?"
 		help_button.tooltip_text = "Open question help"
-		help_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-		help_button.anchor_left = 1.0
-		help_button.anchor_right = 1.0
-		help_button.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-		help_button.grow_vertical = Control.GROW_DIRECTION_BOTH
+		help_button.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		help_button.mouse_filter = Control.MOUSE_FILTER_STOP
 		_menu_access_layer.add_child(help_button)
 		_help_access_button = help_button
+	if _playtest_feedback_enabled() and _report_access_button == null and _menu_access_layer != null:
+		var report_button := Button.new()
+		report_button.name = "ReportAccessButton"
+		report_button.text = "Report"
+		report_button.tooltip_text = "Tag a playtest issue"
+		report_button.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		report_button.mouse_filter = Control.MOUSE_FILTER_STOP
+		report_button.set_meta("feedback_context", {
+			"kind": "floating_report_button",
+			"summary": "Start issue tagging",
+			"menu_action": {
+				"menu": "floating",
+				"action": "start_issue_tagging",
+				"label": "Report"
+			}
+		})
+		_menu_access_layer.add_child(report_button)
+		_report_access_button = report_button
+	_ensure_playtest_feedback_controller()
+
+func _ensure_export_details_nodes() -> void:
+	if _export_action_grid == null:
+		return
+	_export_copy_details_button = _export_action_grid.get_node_or_null("ExportCopyDetailsButton") as Button
+	if _export_copy_details_button == null:
+		_export_copy_details_button = Button.new()
+		_export_copy_details_button.name = "ExportCopyDetailsButton"
+		_export_copy_details_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_export_copy_details_button.pressed.connect(_on_export_copy_details_pressed)
+		_export_action_grid.add_child(_export_copy_details_button)
+	var ordered_buttons: Array[Button] = [
+		_export_upload_answers_button,
+		_export_json_button,
+		_export_csv_button,
+		_export_copy_details_button,
+		_export_copy_json_button,
+		_export_copy_csv_button
+	]
+	for index in range(ordered_buttons.size()):
+		var button := ordered_buttons[index]
+		if button != null and button.get_parent() == _export_action_grid:
+			_export_action_grid.move_child(button, index)
 	_ensure_focus_outline_nodes()
+	_ensure_boss_nodes()
+
+func _ensure_playtest_feedback_controller() -> void:
+	if not _playtest_feedback_enabled() or SURVEY_PLAYTEST_FEEDBACK_CONTROLLER == null:
+		_playtest_feedback_controller = null
+		return
+	if _playtest_feedback_controller == null:
+		_playtest_feedback_controller = get_node_or_null("SurveyPlaytestFeedbackController")
+	if _playtest_feedback_controller == null:
+		_playtest_feedback_controller = SURVEY_PLAYTEST_FEEDBACK_CONTROLLER.new()
+		if _playtest_feedback_controller != null:
+			_playtest_feedback_controller.name = "SurveyPlaytestFeedbackController"
+			add_child(_playtest_feedback_controller)
+	if _playtest_feedback_controller != null:
+		_playtest_feedback_controller.configure(
+			self,
+			"survey_journey",
+			Callable(self, "_playtest_feedback_page_context"),
+			Callable(self, "_download_buffer_to_browser"),
+			Callable(self, "_share_buffer_to_browser"),
+			Callable(self, "_supports_browser_feedback_share")
+		)
+
+func _ensure_boss_nodes() -> void:
+	if not _is_boss_battle_enabled():
+		return
+	if _focus_boss_bar == null and _focus_view != null and SURVEY_JOURNEY_BOSS_BAR_SCENE != null:
+		_focus_boss_bar = SURVEY_JOURNEY_BOSS_BAR_SCENE.instantiate()
+		if _focus_boss_bar != null:
+			_focus_boss_bar.name = "FocusBossBar"
+			var insert_index := mini(_focus_view.get_children().find(_focus_section_label), _focus_view.get_child_count())
+			if insert_index < 0:
+				insert_index = 1
+			_focus_view.add_child(_focus_boss_bar)
+			_focus_view.move_child(_focus_boss_bar, insert_index)
+	if _focus_charge_meter == null and _focus_xp_anchor != null and SURVEY_JOURNEY_CHARGE_METER_SCENE != null:
+		_focus_charge_meter = SURVEY_JOURNEY_CHARGE_METER_SCENE.instantiate()
+		if _focus_charge_meter != null:
+			_focus_charge_meter.name = "FocusChargeMeter"
+			_focus_xp_anchor.add_child(_focus_charge_meter)
+			if _focus_xp_stack != null:
+				_focus_xp_anchor.move_child(_focus_charge_meter, _focus_xp_anchor.get_children().find(_focus_xp_stack))
+	if _wrapup_stage == null and _thanks_view != null and SURVEY_JOURNEY_WRAPUP_STAGE_SCENE != null:
+		_wrapup_stage = SURVEY_JOURNEY_WRAPUP_STAGE_SCENE.instantiate()
+		if _wrapup_stage != null:
+			_wrapup_stage.name = "WrapupStage"
+			var actions_index := _thanks_view.get_children().find(_thanks_actions)
+			if actions_index < 0:
+				actions_index = maxi(_thanks_view.get_child_count() - 1, 0)
+			_thanks_view.add_child(_wrapup_stage)
+			_thanks_view.move_child(_wrapup_stage, actions_index)
+			_wrapup_stage.replay_requested.connect(_on_wrapup_replay_requested)
+			_wrapup_stage.recap_finished.connect(_on_wrapup_recap_finished)
+	if _focus_boss_fx_layer == null:
+		var fx_layer := Control.new()
+		fx_layer.name = "FocusBossFxLayer"
+		fx_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+		fx_layer.anchor_right = 1.0
+		fx_layer.anchor_bottom = 1.0
+		fx_layer.grow_horizontal = Control.GROW_DIRECTION_BOTH
+		fx_layer.grow_vertical = Control.GROW_DIRECTION_BOTH
+		fx_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(fx_layer)
+		var overlay_index := get_children().find(_overlay_menu)
+		if overlay_index > 0:
+			move_child(fx_layer, overlay_index)
+		_focus_boss_fx_layer = fx_layer
 
 func _prepare_survey_selection_shell() -> void:
 	if _survey_selection_view == null:
@@ -576,12 +743,14 @@ func _configure_file_dialogs() -> void:
 	add_child(_template_dialog)
 
 func _connect_actions() -> void:
-	for button in [_take_survey_button, _get_lore_button, _character_button, _browse_surveys_button, _survey_selection_back_button, _survey_selection_import_button, _survey_selection_export_button, _survey_selection_clear_button, _survey_selection_next_button, _lore_back_button, _lore_link_button, _lore_take_survey_button, _lore_link_prompt_close_button, _lore_link_prompt_copy_button, _lore_link_prompt_open_button, _section_selection_back_button, _section_selection_next_button, _focus_back_button, _review_back_button, _thanks_review_button, _thanks_export_button, _export_back_button, _export_json_button, _export_upload_answers_button, _export_copy_json_button, _export_copy_csv_button, _export_csv_button, _upload_back_button, _upload_scrub_checkbox, _upload_consent_checkbox, _upload_submit_button, _upload_copy_response_button]:
+	for button in [_take_survey_button, _get_lore_button, _character_button, _browse_surveys_button, _survey_selection_back_button, _survey_selection_import_button, _survey_selection_export_button, _survey_selection_clear_button, _survey_selection_next_button, _lore_back_button, _lore_link_button, _lore_take_survey_button, _lore_link_prompt_close_button, _lore_link_prompt_copy_button, _lore_link_prompt_open_button, _focus_back_button, _review_back_button, _thanks_review_button, _thanks_export_button, _export_back_button, _export_json_button, _export_upload_answers_button, _export_copy_details_button, _export_copy_json_button, _export_copy_csv_button, _export_csv_button, _upload_back_button, _upload_scrub_checkbox, _upload_consent_checkbox, _upload_submit_button, _upload_copy_response_button]:
 		_wire_button_feedback(button)
 	for button in [_focus_previous_button, _focus_next_button]:
 		_wire_button_hover_feedback(button)
 	if _menu_access_button != null:
 		_wire_button_feedback(_menu_access_button)
+	if _report_access_button != null:
+		_wire_button_feedback(_report_access_button)
 	if _help_access_button != null:
 		_wire_button_feedback(_help_access_button)
 	_take_survey_button.pressed.connect(_on_take_survey_pressed)
@@ -602,8 +771,6 @@ func _connect_actions() -> void:
 		_lore_link_prompt_copy_button.pressed.connect(_copy_current_lore_url_to_clipboard)
 	if _lore_link_prompt_open_button != null:
 		_lore_link_prompt_open_button.pressed.connect(_open_current_lore_url)
-	_section_selection_back_button.pressed.connect(_on_section_selection_back_pressed)
-	_section_selection_next_button.pressed.connect(_advance_from_section_selection)
 	_focus_back_button.pressed.connect(_on_focus_back_pressed)
 	_focus_previous_button.pressed.connect(_on_focus_previous_button_feedback)
 	_focus_next_button.pressed.connect(_on_focus_next_button_feedback)
@@ -616,7 +783,7 @@ func _connect_actions() -> void:
 	_focus_question_stage.layout_stabilized.connect(_on_focus_stage_layout_stabilized)
 	_review_back_button.pressed.connect(_close_review_view)
 	_thanks_review_button.pressed.connect(_open_review_view)
-	_thanks_export_button.pressed.connect(_open_export_overlay)
+	_thanks_export_button.pressed.connect(_on_thanks_submit_pressed)
 	_export_back_button.pressed.connect(_close_export_overlay)
 	_export_json_button.pressed.connect(_export_json)
 	_export_upload_answers_button.pressed.connect(_open_upload_view)
@@ -630,6 +797,8 @@ func _connect_actions() -> void:
 	_upload_copy_response_button.pressed.connect(_copy_upload_response_to_clipboard)
 	if _menu_access_button != null:
 		_menu_access_button.pressed.connect(_open_overlay_menu)
+	if _report_access_button != null:
+		_report_access_button.pressed.connect(_on_report_access_button_pressed)
 	if _help_access_button != null:
 		_help_access_button.pressed.connect(_open_question_help)
 	if _overlay_menu != null:
@@ -645,6 +814,12 @@ func _connect_actions() -> void:
 		_overlay_menu.preview_mode_requested.connect(_on_menu_preview_mode_requested)
 		_overlay_menu.preview_resolution_requested.connect(_on_menu_preview_resolution_requested)
 		_overlay_menu.question_debug_ids_requested.connect(_on_menu_question_debug_ids_requested)
+		_overlay_menu.playtest_feedback_capture_requested.connect(_on_playtest_feedback_capture_requested)
+		_overlay_menu.playtest_feedback_review_requested.connect(_on_playtest_feedback_review_requested)
+		_overlay_menu.playtest_feedback_copy_requested.connect(_on_playtest_feedback_copy_requested)
+		_overlay_menu.playtest_feedback_share_requested.connect(_on_playtest_feedback_share_requested)
+		_overlay_menu.playtest_feedback_download_requested.connect(_on_playtest_feedback_download_requested)
+		_overlay_menu.playtest_feedback_clear_requested.connect(_on_playtest_feedback_clear_requested)
 	if _help_overlay != null:
 		_help_overlay.closed.connect(_refresh_menu_access_button)
 	if _focus_outline_toggle_button != null:
@@ -654,6 +829,10 @@ func _connect_actions() -> void:
 		_focus_outline_panel.navigate_requested.connect(_on_focus_outline_navigate_requested)
 	if _theme_drawer != null:
 		_theme_drawer.theme_selected.connect(_on_theme_drawer_theme_selected)
+	if _playtest_feedback_controller != null:
+		_playtest_feedback_controller.issues_changed.connect(_on_playtest_feedback_issues_changed)
+		_playtest_feedback_controller.overlay_visibility_changed.connect(_on_playtest_feedback_overlay_visibility_changed)
+		_playtest_feedback_controller.status_requested.connect(_show_status_message)
 		_theme_drawer.theme_mode_requested.connect(_on_menu_theme_mode_requested)
 	if _toast_overlay != null:
 		_toast_overlay.action_requested.connect(_on_toast_overlay_action_requested)
@@ -698,7 +877,7 @@ func _trash_action_icon() -> Texture2D:
 
 func _on_focus_back_pressed() -> void:
 	_set_focus_outline_visible(false)
-	_show_view(_section_selection_return_view)
+	_show_view(_focus_return_view)
 
 func _on_focus_outline_toggled(pressed: bool) -> void:
 	_set_focus_outline_visible(pressed)
@@ -902,6 +1081,7 @@ func _load_initial_survey() -> void:
 		survey_template_path = ""
 		answers.clear()
 		_rebuild_question_order()
+		_prime_boss_trackers()
 		_prime_gamification_trackers()
 		_refresh_gamification_surfaces()
 		return
@@ -979,9 +1159,11 @@ func _load_survey_from_path(raw_path: String, reset_answers: bool = true) -> boo
 		_focus_question_stage.reset()
 		_reset_upload_form_state()
 	_rebuild_question_order()
+	_prime_boss_trackers()
 	_prime_gamification_trackers()
 	_reset_upload_status(true)
 	_refresh_all_views()
+	_refresh_boss_surfaces()
 	_refresh_gamification_surfaces()
 	_persist_selected_template_path()
 	return true
@@ -1015,8 +1197,6 @@ func _refresh_theme() -> void:
 		SurveyStyle.apply_secondary_button(_lore_link_prompt_copy_button)
 	if _lore_link_prompt_open_button != null:
 		SurveyStyle.apply_primary_button(_lore_link_prompt_open_button)
-	SurveyStyle.apply_secondary_button(_section_selection_back_button)
-	SurveyStyle.apply_primary_button(_section_selection_next_button)
 	SurveyStyle.apply_secondary_button(_focus_back_button)
 	_refresh_focus_outline_toggle_state()
 	SurveyStyle.apply_secondary_button(_focus_previous_button)
@@ -1036,15 +1216,24 @@ func _refresh_theme() -> void:
 	SurveyStyle.apply_primary_button(_upload_submit_button)
 	SurveyStyle.apply_secondary_button(_upload_copy_response_button)
 	SurveyStyle.style_text_edit(_upload_response_text_edit)
-	for button in [_export_json_button, _export_copy_json_button, _export_copy_csv_button, _export_csv_button]:
+	for button in [_export_json_button, _export_copy_details_button, _export_copy_json_button, _export_copy_csv_button, _export_csv_button]:
+		if button == null:
+			continue
 		SurveyStyle.apply_secondary_button(button)
 	if _menu_access_button != null:
 		SurveyStyle.apply_secondary_button(_menu_access_button)
 		_menu_access_button.text = "☰"
 		_menu_access_button.tooltip_text = "Open menu"
+		_tune_corner_access_button_padding(_menu_access_button)
+	if _report_access_button != null:
+		SurveyStyle.apply_secondary_button(_report_access_button)
+		_report_access_button.text = "Report"
+		_report_access_button.tooltip_text = "Tag a playtest issue"
+		_tune_corner_access_button_padding(_report_access_button)
 	if _help_access_button != null:
 		SurveyStyle.apply_secondary_button(_help_access_button)
 		_help_access_button.tooltip_text = "Open question help"
+		_tune_corner_access_button_padding(_help_access_button)
 	SurveyStyle.style_caption(_landing_featured_survey_label, SurveyStyle.TEXT_PRIMARY)
 	if not _playable_question_ids.is_empty():
 		_rebuild_focus_question_stage()
@@ -1062,12 +1251,19 @@ func _refresh_theme() -> void:
 		_gamification_hud.refresh_theme()
 	if _toast_overlay != null:
 		_toast_overlay.refresh_theme()
+	if _focus_boss_bar != null:
+		_focus_boss_bar.refresh_theme()
+	if _focus_charge_meter != null:
+		_focus_charge_meter.refresh_theme()
+	if _wrapup_stage != null:
+		_wrapup_stage.refresh_theme()
 	_refresh_theme_drawer()
 	_refresh_lore_surface_theme(_is_phone_layout_for_size(get_viewport().get_visible_rect().size), SurveyStyle.journey_mobile_scale(get_viewport().get_visible_rect().size), get_viewport().get_visible_rect().size)
 	_refresh_focus_xp_theme()
 	if _focus_outline_panel != null:
 		_focus_outline_panel.refresh_theme()
 	_refresh_confirmation_dialog_theme()
+	_refresh_boss_surfaces()
 
 func _refresh_survey_selection_next_button_theme() -> void:
 	if _survey_selection_next_button == null:
@@ -1084,23 +1280,30 @@ func _update_responsive_layout() -> void:
 	var compact_layout := _is_compact_layout_for_size(viewport_size)
 	var shortest_side := minf(viewport_size.x, viewport_size.y)
 	var journey_scale := SurveyStyle.journey_mobile_scale(viewport_size)
-	var panel_margin := 6 if phone_layout else int(clampf(minf(viewport_size.x, viewport_size.y) * 0.02, 12.0, 32.0))
+	var panel_margin := (10 if viewport_size.x <= 420.0 else 8) if phone_layout else int(clampf(minf(viewport_size.x, viewport_size.y) * 0.02, 12.0, 32.0))
 	_margin.add_theme_constant_override("margin_left", panel_margin)
 	_margin.add_theme_constant_override("margin_right", panel_margin)
 	_margin.add_theme_constant_override("margin_top", panel_margin)
 	_margin.add_theme_constant_override("margin_bottom", panel_margin)
+	for shell_control in [_landing_view, _survey_selection_view, _lore_view, _focus_view, _review_view, _thanks_view, _export_view, _upload_view, _survey_selection_scroll, _focus_question_scroll, _review_scroll, _export_scroll, _upload_scroll, _survey_selection_grid, _review_list, _export_content, _upload_content]:
+		if shell_control == null:
+			continue
+		shell_control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		shell_control.custom_minimum_size.x = 0.0
 	_stack.add_theme_constant_override("separation", 14 if phone_layout else 18)
 	_landing_view.add_theme_constant_override("separation", 14 if phone_layout else 18)
 	_survey_selection_view.add_theme_constant_override("separation", 12 if phone_layout else 14)
 	_lore_view.add_theme_constant_override("separation", 12 if phone_layout else 14)
-	_section_selection_view.add_theme_constant_override("separation", 12 if phone_layout else 14)
 	_focus_view.add_theme_constant_override("separation", 8 if phone_layout else 10)
 	_review_view.add_theme_constant_override("separation", 12 if phone_layout else 14)
 	_thanks_view.add_theme_constant_override("separation", 14 if phone_layout else 18)
 	_export_view.add_theme_constant_override("separation", 12 if phone_layout else 14)
 	_upload_view.add_theme_constant_override("separation", 12 if phone_layout else 14)
-	_landing_actions.add_theme_constant_override("separation", 10 if phone_layout else 14)
-	_main_panel.add_theme_stylebox_override("panel", _panel_style(SurveyStyle.SURFACE, SurveyStyle.BORDER, 18 if phone_layout else 30, 1, (12.0 if phone_layout else 24.0)))
+	_landing_actions.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_landing_actions.alignment = FlowContainer.ALIGNMENT_BEGIN if phone_layout else FlowContainer.ALIGNMENT_CENTER
+	_landing_actions.add_theme_constant_override("h_separation", 8 if viewport_size.x <= 420.0 else (10 if phone_layout else 14))
+	_landing_actions.add_theme_constant_override("v_separation", 8 if phone_layout else 10)
+	_main_panel.add_theme_stylebox_override("panel", _panel_style(SurveyStyle.SURFACE, SurveyStyle.BORDER, 18 if phone_layout else 30, 1, (10.0 if viewport_size.x <= 420.0 else (12.0 if phone_layout else 24.0))))
 	SurveyStyle.style_caption(_status_label, SurveyStyle.TEXT_PRIMARY)
 	SurveyStyle.style_heading(_landing_heading_label, int(round((30 if phone_layout else 40) * (journey_scale if phone_layout else 1.0))))
 	SurveyStyle.style_body(_landing_subtitle_label)
@@ -1115,11 +1318,6 @@ func _update_responsive_layout() -> void:
 	SurveyStyle.style_caption(_lore_survey_label, SurveyStyle.TEXT_PRIMARY)
 	_lore_survey_label.add_theme_font_size_override("font_size", int(round((13 if phone_layout else 15) * (journey_scale if phone_layout else 1.0))))
 	_refresh_lore_surface_theme(phone_layout, journey_scale, viewport_size)
-	SurveyStyle.style_heading(_section_selection_heading_label, int(round((24 if phone_layout else 28) * (journey_scale if phone_layout else 1.0))))
-	SurveyStyle.style_body(_section_selection_subtitle_label)
-	_section_selection_subtitle_label.add_theme_font_size_override("font_size", int(round((14 if phone_layout else 15) * (journey_scale if phone_layout else 1.0))))
-	SurveyStyle.style_caption(_section_selection_survey_label, SurveyStyle.TEXT_PRIMARY)
-	_section_selection_survey_label.add_theme_font_size_override("font_size", int(round((13 if phone_layout else 15) * (journey_scale if phone_layout else 1.0))))
 	SurveyStyle.style_heading(_focus_section_label, int(round((24 if phone_layout else 28) * (journey_scale if phone_layout else 1.0))))
 	SurveyStyle.style_caption(_focus_progress_label, SurveyStyle.TEXT_PRIMARY)
 	_focus_progress_label.add_theme_font_size_override("font_size", int(round((12 if phone_layout else 13) * (journey_scale if phone_layout else 1.0))))
@@ -1155,14 +1353,6 @@ func _update_responsive_layout() -> void:
 	_survey_selection_manage_grid.add_theme_constant_override("h_separation", 10 if phone_layout else 12)
 	_survey_selection_manage_grid.add_theme_constant_override("v_separation", 10 if phone_layout else 12)
 	_survey_selection_manage_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL if phone_layout else 0
-	if viewport_size.x < 760.0:
-		_section_selection_grid.columns = 1
-	elif viewport_size.x < 1240.0:
-		_section_selection_grid.columns = 2
-	else:
-		_section_selection_grid.columns = 3
-	_section_selection_grid.add_theme_constant_override("h_separation", 10 if phone_layout else 14)
-	_section_selection_grid.add_theme_constant_override("v_separation", 10 if phone_layout else 14)
 	_export_action_grid.columns = 1 if phone_layout or viewport_size.x < 860.0 else 2
 	_export_action_grid.add_theme_constant_override("h_separation", 10 if phone_layout else 12)
 	_export_action_grid.add_theme_constant_override("v_separation", 10 if phone_layout else 12)
@@ -1171,7 +1361,6 @@ func _update_responsive_layout() -> void:
 			continue
 		width_control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_survey_selection_action_spacer.visible = not phone_layout
-	_section_selection_action_spacer.visible = not phone_layout
 	_focus_nav_spacer.visible = true
 	_take_survey_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL if phone_layout else 0
 	_get_lore_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL if phone_layout else 0
@@ -1181,7 +1370,6 @@ func _update_responsive_layout() -> void:
 	_survey_selection_export_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL if phone_layout else 0
 	_survey_selection_clear_button.size_flags_horizontal = 0
 	_survey_selection_next_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL if phone_layout else 0
-	_section_selection_next_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL if phone_layout else 0
 	_focus_previous_button.size_flags_horizontal = 0
 	_focus_next_button.size_flags_horizontal = 0
 	if _focus_outline_toggle_button != null:
@@ -1191,11 +1379,11 @@ func _update_responsive_layout() -> void:
 	_thanks_export_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL if phone_layout else 0
 	_focus_question_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_focus_bottom_spacer.visible = false
-	for button in [_take_survey_button, _get_lore_button, _character_button, _browse_surveys_button, _survey_selection_back_button, _survey_selection_import_button, _survey_selection_export_button, _survey_selection_clear_button, _survey_selection_next_button, _lore_back_button, _lore_take_survey_button, _lore_link_prompt_close_button, _lore_link_prompt_copy_button, _lore_link_prompt_open_button, _section_selection_back_button, _section_selection_next_button, _focus_back_button, _focus_previous_button, _focus_next_button, _review_back_button, _thanks_review_button, _thanks_export_button, _export_back_button, _export_json_button, _export_upload_answers_button, _export_copy_json_button, _export_copy_csv_button, _export_csv_button, _upload_back_button, _upload_submit_button, _upload_copy_response_button]:
+	for button in [_take_survey_button, _get_lore_button, _character_button, _browse_surveys_button, _survey_selection_back_button, _survey_selection_import_button, _survey_selection_export_button, _survey_selection_clear_button, _survey_selection_next_button, _lore_back_button, _lore_take_survey_button, _lore_link_prompt_close_button, _lore_link_prompt_copy_button, _lore_link_prompt_open_button, _focus_back_button, _focus_previous_button, _focus_next_button, _review_back_button, _thanks_review_button, _thanks_export_button, _export_back_button, _export_json_button, _export_upload_answers_button, _export_copy_details_button, _export_copy_json_button, _export_copy_csv_button, _export_csv_button, _upload_back_button, _upload_submit_button, _upload_copy_response_button]:
 		if button == null:
 			continue
 		button.custom_minimum_size = Vector2(button.custom_minimum_size.x if not phone_layout else 0.0, (56.0 * journey_scale) if phone_layout else maxf(button.custom_minimum_size.y, 44.0))
-		button.add_theme_font_size_override("font_size", int(round((15 if phone_layout else 14) * (journey_scale if phone_layout else 1.0))))
+		button.add_theme_font_size_override("font_size", int(round(((14 if viewport_size.x <= 420.0 else 15) if phone_layout else 14) * (journey_scale if phone_layout else 1.0))))
 	for manage_button in [_survey_selection_import_button, _survey_selection_export_button]:
 		if manage_button == null:
 			continue
@@ -1217,25 +1405,17 @@ func _update_responsive_layout() -> void:
 	_refresh_focus_xp_layout(viewport_size)
 	_refresh_focus_outline_layout(viewport_size)
 	if _menu_access_button != null:
-		var menu_button_size := (48.0 * journey_scale) if phone_layout else (42.0 if compact_layout else 48.0)
+		var menu_button_size := (46.0 * journey_scale) if phone_layout else (42.0 if compact_layout else 48.0)
 		_menu_access_button.custom_minimum_size = Vector2(menu_button_size, menu_button_size)
-		_menu_access_button.add_theme_font_size_override("font_size", int(round((20 if phone_layout else 18) * (journey_scale if phone_layout else 1.0))))
-		var menu_button_width := menu_button_size
-		var menu_button_height := menu_button_size
-		var menu_inset := clampf(shortest_side * 0.015, 8.0, 20.0)
-		_menu_access_button.offset_left = -menu_button_width - menu_inset
-		_menu_access_button.offset_top = menu_inset
-		_menu_access_button.offset_right = -menu_inset
-		_menu_access_button.offset_bottom = menu_inset + menu_button_height
+		_menu_access_button.add_theme_font_size_override("font_size", int(round((18 if phone_layout else 18) * (journey_scale if phone_layout else 1.0))))
+		if _report_access_button != null:
+			_report_access_button.custom_minimum_size = Vector2((94.0 * journey_scale) if phone_layout else (88.0 if compact_layout else 96.0), menu_button_size)
+			_report_access_button.add_theme_font_size_override("font_size", int(round((13 if phone_layout else 14) * (journey_scale if phone_layout else 1.0))))
 		if _help_access_button != null:
-			_help_access_button.custom_minimum_size = Vector2((46.0 * journey_scale) if phone_layout else 44.0, (46.0 * journey_scale) if phone_layout else 44.0)
-			_help_access_button.add_theme_font_size_override("font_size", int(round((18 if phone_layout else 18) * (journey_scale if phone_layout else 1.0))))
-			var help_gap := 8.0
-			var help_button_size := menu_button_height
-			_help_access_button.offset_left = -menu_button_width - help_button_size - menu_inset - help_gap
-			_help_access_button.offset_top = menu_inset
-			_help_access_button.offset_right = -menu_button_width - menu_inset - help_gap
-			_help_access_button.offset_bottom = menu_inset + help_button_size
+			_help_access_button.custom_minimum_size = Vector2((44.0 * journey_scale) if phone_layout else 44.0, (44.0 * journey_scale) if phone_layout else 44.0)
+			_help_access_button.add_theme_font_size_override("font_size", int(round((17 if phone_layout else 18) * (journey_scale if phone_layout else 1.0))))
+		_layout_menu_access_buttons(viewport_size, phone_layout)
+		_queue_menu_access_layout_refresh()
 	call_deferred("_sync_scroll_content_widths")
 	_refresh_focus_stage_layout()
 	_refresh_menu_access_button()
@@ -1250,13 +1430,21 @@ func _update_responsive_layout() -> void:
 		_gamification_hud.refresh_layout(viewport_size)
 	if _toast_overlay != null:
 		_toast_overlay.refresh_layout(viewport_size)
+	if _playtest_feedback_controller != null:
+		_playtest_feedback_controller.refresh_layout(viewport_size)
+	if _focus_boss_bar != null:
+		_focus_boss_bar.refresh_layout(viewport_size)
+	if _focus_charge_meter != null:
+		_focus_charge_meter.refresh_layout(viewport_size)
+	if _wrapup_stage != null:
+		_wrapup_stage.refresh_layout(viewport_size)
 	_refresh_gamification_surfaces()
+	_refresh_boss_surfaces()
 
 func _refresh_all_views() -> void:
 	_refresh_landing_view()
 	_refresh_survey_selection_view()
 	_refresh_lore_view()
-	_refresh_section_selection_view()
 	_refresh_focus_view(false)
 	_refresh_focus_outline_state()
 	_refresh_review_view()
@@ -1264,32 +1452,45 @@ func _refresh_all_views() -> void:
 	_refresh_export_view()
 	_refresh_upload_view()
 	_refresh_theme_drawer()
+	_refresh_boss_surfaces()
+
+func _journey_view_nodes() -> Dictionary:
+	return {
+		VIEW_LANDING: _landing_view,
+		VIEW_SURVEY_SELECTION: _survey_selection_view,
+		VIEW_LORE: _lore_view,
+		VIEW_FOCUS: _focus_view,
+		VIEW_REVIEW: _review_view,
+		VIEW_THANKS: _thanks_view,
+		VIEW_EXPORT: _export_view,
+		VIEW_UPLOAD: _upload_view
+	}
+
+func _apply_journey_view_state(view_name: StringName) -> StringName:
+	var view_nodes := _journey_view_nodes()
+	var resolved_view: StringName = view_name if view_nodes.has(view_name) else VIEW_LANDING
+	for candidate_view in view_nodes.keys():
+		var node := view_nodes.get(candidate_view) as Control
+		if node != null:
+			node.visible = candidate_view == resolved_view
+	return resolved_view
 
 func _show_view(view_name: StringName) -> void:
+	if _current_view == VIEW_FOCUS and view_name != VIEW_FOCUS and _is_boss_battle_enabled():
+		_prime_boss_trackers()
 	if view_name != VIEW_FOCUS:
 		_close_question_help()
 		_set_focus_outline_visible(false)
 	if view_name != VIEW_LORE:
 		_close_lore_link_prompt()
-	_current_view = view_name
-	_landing_view.visible = view_name == VIEW_LANDING
-	_survey_selection_view.visible = view_name == VIEW_SURVEY_SELECTION
-	_lore_view.visible = view_name == VIEW_LORE
-	_section_selection_view.visible = view_name == VIEW_SECTION_SELECTION
-	_focus_view.visible = view_name == VIEW_FOCUS
-	_review_view.visible = view_name == VIEW_REVIEW
-	_thanks_view.visible = view_name == VIEW_THANKS
-	_export_view.visible = view_name == VIEW_EXPORT
-	_upload_view.visible = view_name == VIEW_UPLOAD
-	match view_name:
+	_current_view = _apply_journey_view_state(view_name)
+	match _current_view:
 		VIEW_LANDING:
 			_refresh_landing_view()
 		VIEW_SURVEY_SELECTION:
 			_refresh_survey_selection_view()
 		VIEW_LORE:
 			_refresh_lore_view()
-		VIEW_SECTION_SELECTION:
-			_refresh_section_selection_view()
 		VIEW_FOCUS:
 			_refresh_focus_view(true)
 			_refresh_focus_outline_state()
@@ -1305,8 +1506,11 @@ func _show_view(view_name: StringName) -> void:
 	_refresh_menu_access_button()
 	_refresh_theme_drawer()
 	_refresh_gamification_surfaces()
+	_refresh_boss_surfaces()
 
 func _sync_scroll_content_widths() -> void:
+	_sync_scroll_content_width(_survey_selection_scroll, _survey_selection_grid)
+	_sync_scroll_content_width(_review_scroll, _review_list)
 	_sync_scroll_content_width(_export_scroll, _export_content)
 	_sync_scroll_content_width(_upload_scroll, _upload_content)
 
@@ -1320,9 +1524,14 @@ func _sync_scroll_content_width(scroll: ScrollContainer, content: Control) -> vo
 
 func _refresh_landing_view() -> void:
 	var single_survey_mode_active := _is_single_survey_landing_active()
+	_get_lore_button.visible = _is_lore_enabled()
+	_character_button.visible = _is_character_profile_enabled()
 	if single_survey_mode_active:
 		_landing_heading_label.text = "Start Survey"
-		_landing_subtitle_label.text = "This build is featuring a single playtest survey first, so you can jump straight into the opening question flow or check your Character."
+		_landing_subtitle_label.text = "This build is featuring a single playtest survey first, so you can jump straight into the opening question flow%s%s." % [
+			" or check the lore" if _is_lore_enabled() else "",
+			" or check your Character" if _is_character_profile_enabled() else ""
+		]
 		_take_survey_button.text = "Start Survey"
 		_get_lore_button.text = "Get Lore"
 		_character_button.text = "Character"
@@ -1333,7 +1542,10 @@ func _refresh_landing_view() -> void:
 		_landing_featured_survey_label.text = "Featured survey: %s" % _featured_template_title()
 		return
 	_landing_heading_label.text = "Choose Your Path"
-	_landing_subtitle_label.text = "Jump into a survey, browse the lore first, open your Character, or explore the full template list."
+	_landing_subtitle_label.text = "Jump into a survey%s%s, or explore the full template list." % [
+		", browse the lore first" if _is_lore_enabled() else "",
+		", open your Character" if _is_character_profile_enabled() else ""
+	]
 	_take_survey_button.text = "Take Survey"
 	_get_lore_button.text = "Get Lore"
 	_character_button.text = "Character"
@@ -1345,14 +1557,16 @@ func _refresh_landing_view() -> void:
 func _refresh_menu_access_button() -> void:
 	if _menu_access_layer == null:
 		return
-	var overlay_blocking: bool = (_overlay_menu != null and _overlay_menu.visible) or (_help_overlay != null and _help_overlay.visible) or (_profile_overlay != null and _profile_overlay.visible) or (_lore_link_prompt_overlay != null and _lore_link_prompt_overlay.visible)
+	var overlay_blocking: bool = (_overlay_menu != null and _overlay_menu.visible) or (_help_overlay != null and _help_overlay.visible) or (_profile_overlay != null and _profile_overlay.visible) or (_lore_link_prompt_overlay != null and _lore_link_prompt_overlay.visible) or (_playtest_feedback_controller != null and _playtest_feedback_controller.has_open_ui())
 	var can_show_access := not overlay_blocking
 	if _menu_access_button != null:
 		_menu_access_button.visible = can_show_access
+	if _report_access_button != null:
+		_report_access_button.visible = can_show_access and _playtest_feedback_enabled() and _playtest_feedback_controller != null
 	var help_available := _current_view == VIEW_FOCUS and _current_focus_question() != null
 	if _help_access_button != null:
 		_help_access_button.visible = false and can_show_access and help_available
-	_menu_access_layer.visible = can_show_access and (_menu_access_button != null and _menu_access_button.visible)
+	_menu_access_layer.visible = can_show_access and ((_menu_access_button != null and _menu_access_button.visible) or (_report_access_button != null and _report_access_button.visible))
 
 func _open_overlay_menu() -> void:
 	if _overlay_menu == null or survey == null:
@@ -1374,6 +1588,11 @@ func _refresh_overlay_menu_if_open() -> void:
 		return
 	_overlay_menu.open_menu(survey, _menu_section_index(), answers, sfx_volume, false, _journey_menu_options())
 
+func _on_report_access_button_pressed() -> void:
+	if _playtest_feedback_controller == null:
+		return
+	_playtest_feedback_controller.begin_armed_capture(&"floating_report_button")
+
 func _menu_section_index() -> int:
 	if survey == null or survey.sections.is_empty():
 		return 0
@@ -1384,54 +1603,140 @@ func _menu_section_index() -> int:
 			return active_section_index
 	return clampi(_selected_section_index, 0, max(survey.sections.size() - 1, 0))
 
+func _playtest_feedback_page_context() -> Dictionary:
+	var current_question_id := _current_focus_question_id() if _current_view == VIEW_FOCUS else ""
+	var current_question := _question_definition(current_question_id)
+	var section_index := _section_index_for_question_id(current_question_id)
+	var section: SurveySection = survey.sections[section_index] if survey != null and section_index >= 0 and section_index < survey.sections.size() else null
+	var page_summary := "Journey | %s" % str(_current_view)
+	if survey != null:
+		page_summary = "Journey | %s | %s" % [survey.title, str(_current_view)]
+	if section != null:
+		page_summary += " | Section %d: %s" % [section_index + 1, section.display_title(section_index)]
+	if current_question != null:
+		page_summary += " | Question: %s" % current_question.id
+	return {
+		"page_summary": page_summary,
+		"survey": {
+			"survey_id": survey.id if survey != null else "",
+			"survey_title": survey.title if survey != null else "",
+			"template_path": survey_template_path,
+			"template_version": survey.template_version if survey != null else -1,
+			"schema_hash": survey.schema_hash if survey != null else ""
+		},
+		"page_context": {
+			"current_view": str(_current_view),
+			"selected_section_index": _selected_section_index,
+			"current_section_index": section_index,
+			"current_section_title": section.display_title(section_index) if section != null else "",
+			"current_question_id": current_question_id,
+			"current_question_prompt": current_question.prompt.strip_edges() if current_question != null else "",
+			"open_overlays": _playtest_feedback_open_overlays()
+		}
+	}
+
+func _playtest_feedback_open_overlays() -> Array:
+	var overlays: Array[String] = []
+	if _overlay_menu != null and _overlay_menu.visible:
+		overlays.append("overlay_menu")
+	if _help_overlay != null and _help_overlay.visible:
+		overlays.append("help")
+	if _profile_overlay != null and _profile_overlay.visible:
+		overlays.append("profile")
+	if _focus_outline_overlay != null and _focus_outline_overlay.visible:
+		overlays.append("focus_outline")
+	if _lore_link_prompt_overlay != null and _lore_link_prompt_overlay.visible:
+		overlays.append("lore_link_prompt")
+	return overlays
+
 func _journey_menu_options() -> Dictionary:
 	return {
 		"heading_text": "Journey Menu",
+		"close_label": "Continue",
 		"restart_label": "Clear All Answers",
-		"profile_label": "Social Profile",
-		"export_label": "Open Export Screen",
-		"section_heading_text": "Jump To Or Clear A Section",
+		"profile_label": "Character",
+		"export_label": "Submit / Save Answers",
+		"section_heading_text": "Jump To Section",
 		"position_text": _journey_menu_position_text(),
+		"show_restart": false,
 		"show_search": false,
 		"show_onboarding": false,
 		"show_template_picker": false,
 		"show_settings": false,
 		"summary_label": "Review Answers",
 		"show_summary": survey != null,
-		"show_profile": true,
+		"show_profile": _is_character_profile_enabled(),
 		"show_fill_test_answers": false,
 		"show_export": survey != null,
-		"show_theme_toggle": true,
-		"show_sfx_controls": true,
+		"show_theme_toggle": false,
+		"show_sfx_controls": false,
 		"show_section_tools": survey != null,
-		"show_preview_controls": true,
+		"show_section_clear_actions": false,
+		"show_preview_controls": false,
 		"preview_mode_options": _preview_mode_option_dictionaries(),
 		"preview_mode": _preview_mode_override,
 		"preview_resolution_options": _preview_resolution_option_dictionaries(),
 		"preview_resolution": _preview_resolution_preset,
-		"question_debug_ids": _question_debug_ids_enabled
+		"question_debug_ids": _question_debug_ids_enabled,
+		"show_feedback_tools": _playtest_feedback_enabled() and _playtest_feedback_controller != null,
+		"show_feedback_share": _playtest_feedback_controller != null and _playtest_feedback_controller.supports_share_feedback_zip(),
+		"feedback_issue_count": _playtest_feedback_controller.issue_count() if _playtest_feedback_controller != null else 0
 	}
+
+func _on_playtest_feedback_review_requested() -> void:
+	if _playtest_feedback_controller == null:
+		return
+	_playtest_feedback_controller.open_review()
+
+func _on_playtest_feedback_capture_requested() -> void:
+	if _playtest_feedback_controller == null:
+		return
+	_playtest_feedback_controller.begin_armed_capture(&"feedback_menu")
+
+func _on_playtest_feedback_copy_requested() -> void:
+	if _playtest_feedback_controller == null:
+		return
+	_playtest_feedback_controller.copy_text_report()
+
+func _on_playtest_feedback_share_requested() -> void:
+	if _playtest_feedback_controller == null:
+		return
+	_playtest_feedback_controller.share_feedback_zip()
+
+func _on_playtest_feedback_download_requested() -> void:
+	if _playtest_feedback_controller == null:
+		return
+	_playtest_feedback_controller.download_feedback_zip()
+
+func _on_playtest_feedback_clear_requested() -> void:
+	if _playtest_feedback_controller == null:
+		return
+	_playtest_feedback_controller.clear_all_issues()
+
+func _on_playtest_feedback_issues_changed(_issue_count: int) -> void:
+	_refresh_overlay_menu_if_open()
+
+func _on_playtest_feedback_overlay_visibility_changed(_is_visible: bool) -> void:
+	_refresh_menu_access_button()
 
 func _journey_menu_position_text() -> String:
 	if survey == null:
 		return "No survey is loaded yet."
 	match _current_view:
 		VIEW_LANDING:
-			return "Loaded survey: %s. Start from landing or jump straight to a section." % survey.title
+			return "Loaded survey: %s. Start from landing or jump straight into focus mode." % survey.title
 		VIEW_SURVEY_SELECTION:
 			return "Choose which survey to open in Journey mode."
 		VIEW_LORE:
 			return "Reading the lore and framing for %s." % survey.title
-		VIEW_SECTION_SELECTION:
-			return "Choose where to begin in %s." % survey.title
 		VIEW_REVIEW:
 			return "Reviewing answers across %s before jumping back into focus mode." % survey.title
 		VIEW_THANKS:
 			return "You have reached the thank-you screen for %s." % survey.title
 		VIEW_EXPORT:
-			return "You are on the export screen for %s." % survey.title
+			return "You are choosing whether to submit or save answers for %s." % survey.title
 		VIEW_UPLOAD:
-			return "You are on the upload handoff screen for %s." % survey.title
+			return "You are reviewing the upload details for %s." % survey.title
 	var current_question_id := _current_focus_question_id()
 	var section_index := _section_index_for_question_id(current_question_id)
 	var answered_total := 0
@@ -1487,6 +1792,9 @@ func _open_survey_browser() -> void:
 	_show_view(VIEW_SURVEY_SELECTION)
 
 func _on_get_lore_pressed() -> void:
+	if not _is_lore_enabled():
+		_show_status_message("Lore is disabled in this build.")
+		return
 	if _open_featured_lore_from_landing():
 		return
 	_selection_purpose = PURPOSE_LORE
@@ -1502,7 +1810,7 @@ func _start_featured_survey_from_landing() -> bool:
 	if not _load_survey_from_path(featured_path, false):
 		return true
 	_selection_purpose = PURPOSE_SURVEY
-	_section_selection_return_view = VIEW_LANDING
+	_focus_return_view = VIEW_LANDING
 	if survey == null or survey.sections.is_empty():
 		_show_status_message("The featured survey does not contain any sections yet.", true)
 		return true
@@ -1510,6 +1818,8 @@ func _start_featured_survey_from_landing() -> bool:
 	return true
 
 func _open_featured_lore_from_landing() -> bool:
+	if not _is_lore_enabled():
+		return false
 	if not _is_single_survey_landing_active():
 		return false
 	var featured_path := _featured_template_path()
@@ -1552,7 +1862,11 @@ func _on_theme_drawer_theme_selected(theme_id: String) -> void:
 	_refresh_theme()
 	_persist_preferences()
 	var active_theme = _selected_theme_set()
-	_show_status_message("Theme set to %s." % (active_theme.display_title() if active_theme != null else "the selected palette"))
+	var feedback_message := "Theme set to %s." % (active_theme.display_title() if active_theme != null else "the selected palette")
+	if _theme_drawer != null and _theme_drawer.has_method("show_feedback"):
+		_theme_drawer.show_feedback(feedback_message)
+	else:
+		_show_status_message(feedback_message)
 
 func _on_menu_theme_mode_requested(wants_dark_mode: bool) -> void:
 	if use_dark_mode == wants_dark_mode:
@@ -1594,11 +1908,12 @@ func _on_menu_question_debug_ids_requested(enabled: bool) -> void:
 	_show_status_message("Journey question chrome now shows %s." % ("IDs" if enabled else "types"))
 
 func _set_question_modifiers_enabled(enabled: bool) -> void:
-	if _question_modifiers_enabled == enabled:
+	var resolved_enabled := enabled and _feature_flag_enabled("enable_question_modifiers", true)
+	if _question_modifiers_enabled == resolved_enabled:
 		return
-	_question_modifiers_enabled = enabled
+	_question_modifiers_enabled = resolved_enabled
 	if _focus_question_stage != null:
-		_focus_question_stage.set_question_modifiers_enabled(enabled)
+		_focus_question_stage.set_question_modifiers_enabled(resolved_enabled)
 
 func _on_focus_modifier_fatigue_detected(_question_id: String, _modifier_key: String, message: String) -> void:
 	if not _question_modifiers_enabled:
@@ -1607,19 +1922,10 @@ func _on_focus_modifier_fatigue_detected(_question_id: String, _modifier_key: St
 	_show_modifier_restore_toast(message)
 
 func _show_modifier_restore_toast(message: String) -> void:
-	if _toast_overlay == null:
-		return
-	var resolved_message := message.strip_edges()
-	if resolved_message.is_empty():
-		resolved_message = "Question modifiers were paused for this run. You can turn them back on any time."
-	_toast_overlay.show_toast(resolved_message, "modifier", "restore_question_modifiers", "Turn Modifiers Back On", true)
+	SURVEY_SHELL_SUPPORT.show_modifier_restore_toast(_toast_overlay, message)
 
 func _on_toast_overlay_action_requested(action_id: String) -> void:
-	if action_id != "restore_question_modifiers":
-		return
-	_set_question_modifiers_enabled(true)
-	if _toast_overlay != null:
-		_toast_overlay.show_toast("Question modifiers are back on for this run.", "success")
+	SURVEY_SHELL_SUPPORT.handle_modifier_restore_action(action_id, Callable(self, "_set_question_modifiers_enabled"), _toast_overlay)
 
 func _apply_preview_resolution_preset(resolution_id: String) -> void:
 	var normalized_id := _normalized_preview_resolution_id(resolution_id)
@@ -1689,8 +1995,10 @@ func _clear_all_answers() -> void:
 		SURVEY_SESSION_CACHE.clear_session(survey, _current_template_path)
 	if _focus_question_stage != null:
 		_focus_question_stage.sync_answers(answers)
+	_prime_boss_trackers()
 	_prime_gamification_trackers()
 	_refresh_all_views()
+	_refresh_boss_surfaces()
 	_refresh_gamification_surfaces()
 	if _current_view == VIEW_FOCUS and not _playable_question_ids.is_empty():
 		_refresh_focus_view(true)
@@ -1708,8 +2016,10 @@ func _clear_section_answers(section_index: int) -> void:
 	if _focus_question_stage != null:
 		_focus_question_stage.sync_answers(answers)
 	_persist_current_session_cache()
+	_prime_boss_trackers()
 	_prime_gamification_trackers()
 	_refresh_all_views()
+	_refresh_boss_surfaces()
 	_refresh_gamification_surfaces()
 	if _current_view == VIEW_FOCUS and not _playable_question_ids.is_empty():
 		_refresh_focus_view(true)
@@ -1721,7 +2031,7 @@ func _refresh_survey_selection_view() -> void:
 	_survey_selection_subtitle_label.text = "Pick a survey" if _selection_purpose == PURPOSE_SURVEY else "Pick a survey to browse its framing, themes, and sections before you dive in."
 	_survey_selection_next_button.text = "DIVE IN!" if _selection_purpose == PURPOSE_SURVEY else "Open Lore"
 	_survey_selection_import_button.text = "Import"
-	_survey_selection_export_button.text = "Export"
+	_survey_selection_export_button.text = "Save Copy"
 	_clear_container(_survey_selection_grid)
 	_survey_selection_import_button.disabled = not _supports_template_import()
 	_survey_selection_import_button.tooltip_text = "Import a packaged survey template JSON." if _supports_template_import() else "This build cannot open a template picker right now."
@@ -1744,7 +2054,7 @@ func _refresh_survey_selection_view() -> void:
 	_survey_selection_next_button.tooltip_text = "Select a survey to continue." if _survey_selection_next_button.disabled else ""
 	var selected_template_state := _template_selection_state(_selected_template_path) if not _selected_template_path.is_empty() else {}
 	_survey_selection_export_button.disabled = _selected_template_path.is_empty() or not bool(selected_template_state.get("has_saved_answers", false))
-	_survey_selection_export_button.tooltip_text = "Select a survey with saved answers to export." if _survey_selection_export_button.disabled else "Open the export flow for the selected survey."
+	_survey_selection_export_button.tooltip_text = "Select a survey with saved answers to save or submit." if _survey_selection_export_button.disabled else "Open save and submit options for the selected survey."
 	_survey_selection_clear_button.disabled = _selected_template_path.is_empty() or not bool(selected_template_state.get("has_saved_answers", false))
 	for template_summary in _available_templates:
 		var template_path := str(template_summary.get("path", "")).strip_edges()
@@ -1803,7 +2113,7 @@ func _advance_from_survey_selection() -> void:
 	if not _load_survey_from_path(_selected_template_path, true):
 		return
 	if _selection_purpose == PURPOSE_SURVEY:
-		_section_selection_return_view = VIEW_SURVEY_SELECTION
+		_focus_return_view = VIEW_SURVEY_SELECTION
 		if survey == null or survey.sections.is_empty():
 			_show_status_message("This survey does not contain any sections yet.", true)
 			return
@@ -1836,8 +2146,8 @@ func _open_template_export_workflow() -> void:
 	var template_summary := _template_summary_for_path(_selected_template_path)
 	var survey_name := str(template_summary.get("title", "this survey")).strip_edges()
 	_request_confirmation(
-		"Export Answers",
-		"Export opens the answer screen for %s.\n\nFrom there you can save JSON or CSV, copy the bundle, or continue to the upload flow." % survey_name,
+		"Save Or Submit Answers",
+		"Open the answer handoff screen for %s.\n\nFrom there you can upload answers when the build is configured for it, or save a local JSON or CSV copy." % survey_name,
 		"Continue",
 		_export_selected_template_answers,
 		false
@@ -1950,8 +2260,10 @@ func _clear_template_answers_for_path(skip_backup: bool, template_path: String) 
 		_restore_response_quality_tracking({}, false)
 		if _focus_question_stage != null:
 			_focus_question_stage.sync_answers(answers)
+	_prime_boss_trackers()
 	_prime_gamification_trackers()
 	_refresh_all_views()
+	_refresh_boss_surfaces()
 	_refresh_gamification_surfaces()
 	var status_message := "Cleared saved answers for %s." % template_survey.title
 	var backup_message := str(backup_report.get("message", "")).strip_edges()
@@ -2129,7 +2441,7 @@ func _on_lore_back_pressed() -> void:
 
 func _on_lore_take_survey_pressed() -> void:
 	_selection_purpose = PURPOSE_SURVEY
-	_section_selection_return_view = _lore_return_view
+	_focus_return_view = _lore_return_view
 	if survey == null or survey.sections.is_empty():
 		_show_status_message("This survey does not contain any sections yet.", true)
 		return
@@ -2197,49 +2509,6 @@ func _open_current_lore_url() -> void:
 		return
 	_show_status_message("Failed to open the associated URL.", true)
 
-func _refresh_section_selection_view() -> void:
-	_section_selection_heading_label.text = "Choose Your Starting Section"
-	_section_selection_subtitle_label.text = "Pick where you want to jump in. The redesign uses Focus Mode all the way through."
-	_section_selection_survey_label.text = survey.title if survey != null else "No survey loaded."
-	if survey != null and (_selected_section_index < 0 or _selected_section_index >= survey.sections.size()):
-		_selected_section_index = 0 if not survey.sections.is_empty() else -1
-	_section_selection_next_button.text = "Start Section"
-	_section_selection_next_button.disabled = _selected_section_index < 0
-	_clear_container(_section_selection_grid)
-	if survey == null:
-		_section_selection_next_button.disabled = true
-		return
-	for section_index in range(survey.sections.size()):
-		var section: SurveySection = survey.sections[section_index]
-		var answered_count := _section_answered_count(section)
-		var completion_state := _section_completion_state(section)
-		var accent_color := _completion_color(completion_state)
-		var description := section.description.strip_edges() if not section.description.strip_edges().is_empty() else "Start here when you want this section's questions first."
-		var caption := "%d question(s) • %d answered" % [section.questions.size(), answered_count]
-		var is_active := section_index == _selected_section_index
-		var card := _create_card_panel(SURVEY_ICON_LIBRARY.section_texture(section.icon_name), section.display_title(section_index), description, caption, is_active, accent_color)
-		_make_card_interactive(card, _on_section_card_selected.bind(section_index), _on_section_card_activated.bind(section_index))
-		_section_selection_grid.add_child(card)
-
-func _on_section_card_selected(section_index: int) -> void:
-	if _selected_section_index == section_index:
-		return
-	_selected_section_index = section_index
-	_refresh_section_selection_view()
-
-func _on_section_card_activated(section_index: int) -> void:
-	_selected_section_index = section_index
-	_advance_from_section_selection()
-
-func _on_section_selection_back_pressed() -> void:
-	_show_view(_section_selection_return_view)
-
-func _advance_from_section_selection() -> void:
-	if survey == null or _selected_section_index < 0 or _selected_section_index >= survey.sections.size():
-		_show_status_message("Choose a section first.", true)
-		return
-	_start_focus_from_section(_selected_section_index, "")
-
 func _start_focus_from_section(section_index: int, question_id: String = "") -> void:
 	if survey == null or section_index < 0 or section_index >= survey.sections.size():
 		return
@@ -2283,6 +2552,8 @@ func _refresh_focus_view(force_rebuild: bool = false, transition_direction: int 
 		_focus_question_scroll.scroll_vertical = 0
 		_focus_question_stage.show_question(question_id)
 		_update_focus_scroll_height(get_viewport().get_visible_rect().size)
+	_prepare_current_focus_question_for_editing(force_rebuild or transition_direction != 0)
+	_refresh_boss_surfaces()
 	_refresh_focus_outline_state()
 	_refresh_question_help_overlay()
 
@@ -2319,6 +2590,8 @@ func _rebuild_focus_question_stage() -> void:
 	_focus_question_stage.prepare_questions(focus_questions, answers, get_viewport().get_visible_rect().size)
 	_focus_question_stage.set_question_debug_ids_enabled(_question_debug_ids_enabled)
 	_focus_question_stage.set_question_modifiers_enabled(_question_modifiers_enabled)
+	if _focus_question_stage.has_method("set_debug_trace_logging_enabled"):
+		_focus_question_stage.set_debug_trace_logging_enabled(debug_trace_logging_enabled)
 
 func _refresh_focus_stage_layout() -> void:
 	if _focus_question_stage != null:
@@ -2344,6 +2617,7 @@ func _update_focus_scroll_height(viewport_size: Vector2) -> void:
 	reserved_height += _control_layout_height(top_row)
 	reserved_height += _control_layout_height(_focus_section_label)
 	reserved_height += _control_layout_height(_focus_progress_label)
+	reserved_height += _control_layout_height(_focus_boss_bar)
 	reserved_height += _control_layout_height(_focus_segment_row)
 	reserved_height += _control_layout_height(nav_row)
 	reserved_height += float(_focus_view.get_theme_constant("separation")) * 4.0
@@ -2365,12 +2639,16 @@ func _on_focus_answer_changed(question_id: String, value: Variant) -> void:
 	_register_response_answer_change(question, previous_value, value)
 	answers[question_id] = _duplicate_answer_value(value)
 	_trace("Answer changed question=%s type=%s" % [question_id, typeof(value)])
+	var charge_ratio := SURVEY_JOURNEY_BOSS_STATE.charge_ratio_for_question(question, value)
+	if _is_boss_battle_enabled() and question_id == _current_focus_question_id():
+		SURVEY_UI_FEEDBACK.play_answer_charge(charge_ratio)
 	if question != null and question.is_answer_complete(answers.get(question_id, null)):
 		_gamification_completed_questions[question_id] = true
 	elif question != null:
 		_gamification_completed_questions.erase(question_id)
 	_persist_current_session_cache()
 	_refresh_focus_view(false)
+	_refresh_boss_surfaces()
 	_refresh_profile_overlay()
 
 func _on_focus_question_selected(question_id: String) -> void:
@@ -2410,6 +2688,12 @@ func _close_review_view() -> void:
 	if return_view == VIEW_REVIEW:
 		return_view = VIEW_THANKS if survey != null else VIEW_LANDING
 	_show_view(return_view)
+
+func _on_thanks_submit_pressed() -> void:
+	if _is_upload_endpoint_configured():
+		_open_upload_view()
+		return
+	_open_export_overlay()
 
 func _refresh_review_view() -> void:
 	_clear_container(_review_list)
@@ -2466,24 +2750,70 @@ func _refresh_review_view() -> void:
 			section_block.add_child(_create_review_question_card(section_index, question_index, question))
 
 func _refresh_thanks_view() -> void:
-	_thanks_heading_label.text = "Thank You"
+	_thanks_heading_label.text = "Wrap Up"
 	if survey == null:
+		_thanks_body_label.visible = true
 		_thanks_body_label.text = "Your survey session has wrapped."
+		if _wrapup_stage != null:
+			_wrapup_stage.visible = false
 		_thanks_review_button.disabled = true
 		_thanks_export_button.disabled = true
 		return
-	var answered_questions := 0
-	for question_id in _question_order:
-		var question := _question_definition(question_id)
-		if question != null and question.is_answer_complete(answers.get(question_id, null)):
-			answered_questions += 1
+	var boss_enabled := _is_boss_battle_enabled() and _wrapup_stage != null
+	var state := _final_boss_state()
+	var snapshot_hash := SURVEY_JOURNEY_BOSS_STATE.snapshot_hash(survey, answers)
+	var thanks_active := _current_view == VIEW_THANKS
 	_thanks_review_button.disabled = false
 	_thanks_export_button.disabled = false
-	_thanks_body_label.text = "Thanks for participating in %s.\n\nYou answered %d question(s). When you're ready, open the export screen to save or share your results." % [survey.title, answered_questions]
+	_refresh_thanks_actions(state)
+	if not boss_enabled:
+		if _wrapup_stage != null:
+			_wrapup_stage.visible = false
+		var answered_questions := 0
+		for question_id in _question_order:
+			var question := _question_definition(question_id)
+			if question != null and question.is_answer_complete(answers.get(question_id, null)):
+				answered_questions += 1
+		_thanks_body_label.visible = true
+		_thanks_body_label.text = "Thanks for participating in %s.\n\nYou answered %d question(s). When you're ready, use the highlighted action to %s." % [survey.title, answered_questions, "upload your answers" if _is_upload_endpoint_configured() else "save your answers"]
+		return
+	_thanks_body_label.visible = false
+	_wrapup_stage.visible = thanks_active
+	if not thanks_active:
+		_wrapup_stage.show_settled_state(state, snapshot_hash)
+		return
+	if _wrapup_stage.is_animating() and _wrapup_stage.snapshot_hash() == snapshot_hash:
+		return
+	if snapshot_hash != _boss_wrapup_played_snapshot_hash:
+		_play_wrapup_recap(state, snapshot_hash)
+		return
+	_wrapup_stage.show_settled_state(state, snapshot_hash)
+
+func _refresh_thanks_actions(state: Dictionary) -> void:
+	if _thanks_review_button == null or _thanks_export_button == null:
+		return
+	var survey_complete := _is_final_survey_complete(state)
+	var upload_configured := _is_upload_endpoint_configured()
+	_thanks_review_button.text = "Review Answers"
+	if survey_complete:
+		_thanks_export_button.text = "Upload Answers" if upload_configured else "Save Answers"
+		_apply_thanks_cta_theme("submit")
+	else:
+		_thanks_export_button.text = "Submit Anyway" if upload_configured else "Save a Copy"
+		_apply_thanks_cta_theme("review")
+
+func _is_final_survey_complete(state: Dictionary = {}) -> bool:
+	if survey == null:
+		return false
+	var resolved_state := state if not state.is_empty() else _final_boss_state()
+	var total_questions := int(resolved_state.get("total_questions", _question_order.size()))
+	if total_questions <= 0:
+		return false
+	return int(resolved_state.get("complete_count", 0)) >= total_questions
 
 func _open_export_overlay() -> void:
 	if survey == null:
-		_show_status_message("Load a survey before exporting.", true)
+		_show_status_message("Load a survey before saving or submitting answers.", true)
 		return
 	_close_profile_overlay()
 	if _current_view != VIEW_EXPORT:
@@ -2514,7 +2844,7 @@ func _close_upload_view() -> void:
 	_show_view(return_view)
 
 func _open_profile_overlay() -> void:
-	if _profile_overlay == null:
+	if not _is_character_profile_enabled() or _profile_overlay == null:
 		return
 	_set_focus_outline_visible(false)
 	_close_overlay_menu()
@@ -2530,7 +2860,8 @@ func _close_profile_overlay() -> void:
 func _refresh_export_view() -> void:
 	var state := _build_export_overlay_state()
 	var has_survey := survey != null
-	_export_heading_label.text = "Export Your Answers"
+	var upload_configured := _is_upload_endpoint_configured()
+	_export_heading_label.text = "Submit or Save Answers" if upload_configured else "Save Your Answers"
 	_export_subtitle_label.text = survey.title if has_survey else "No survey is loaded."
 	var body_lines: Array[String] = []
 	var export_summary := str(state.get("export_summary", "")).strip_edges()
@@ -2546,15 +2877,26 @@ func _refresh_export_view() -> void:
 		else:
 			body_text += "\n\n%s" % line
 	_export_body_label.text = body_text
-	_export_json_button.text = str(state.get("export_json_label", "Export JSON"))
+	_export_json_button.text = str(state.get("export_json_label", "Save JSON Copy"))
 	_export_upload_answers_button.text = str(state.get("upload_answers_label", "Upload Answers"))
-	_export_csv_button.text = str(state.get("export_csv_label", "Export CSV"))
+	_export_csv_button.text = str(state.get("export_csv_label", "Save CSV Copy"))
 	_export_json_button.disabled = not bool(state.get("export_json_enabled", false))
+	_export_upload_answers_button.visible = upload_configured
 	_export_upload_answers_button.disabled = not bool(state.get("upload_answers_enabled", false))
+	if _export_copy_details_button != null:
+		_export_copy_details_button.visible = has_survey
+		_export_copy_details_button.disabled = not has_survey
+		_export_copy_details_button.text = "Hide Copy Options" if _export_copy_details_open else "More Copy Options"
 	_export_copy_json_button.disabled = not has_survey
 	_export_copy_csv_button.disabled = not has_survey
+	_export_copy_json_button.visible = has_survey and _export_copy_details_open
+	_export_copy_csv_button.visible = has_survey and _export_copy_details_open
 	_export_csv_button.disabled = not has_survey
 	call_deferred("_sync_scroll_content_widths")
+
+func _on_export_copy_details_pressed() -> void:
+	_export_copy_details_open = not _export_copy_details_open
+	_refresh_export_view()
 
 func _refresh_upload_view() -> void:
 	var state := _build_upload_view_state()
@@ -2594,24 +2936,30 @@ func _build_export_overlay_state() -> Dictionary:
 	var scrub_identifying_info: bool = _default_upload_scrub_enabled()
 	var readiness: Dictionary = _upload_readiness_state(scrub_identifying_info)
 	var destination_name := _upload_destination_display_name()
+	var upload_configured := _is_upload_endpoint_configured()
 	var identifying_note := ""
 	if survey != null and survey.asks_identifying_info:
 		identifying_note = " The upload flow can scrub answers from questions marked as identifying before submission."
+	var export_summary := "Save a local JSON bundle or CSV snapshot of your answers. JSON includes current answers and Journey context."
+	var upload_ready_message := "Upload is not configured for this build, so save a local copy when you are done."
+	if upload_configured:
+		export_summary = "Upload is the preferred handoff for this build. You can also save a local JSON or CSV copy for your records."
+		upload_ready_message = "%s%s" % [str(readiness.get("message", "")).strip_edges(), identifying_note]
 	return {
 		"survey_title": survey.title if survey != null else "",
-		"export_summary": "Export a JSON bundle or CSV snapshot of your answers. JSON exports include your current answers and journey context.",
+		"export_summary": export_summary,
 		"export_json_enabled": survey != null,
-		"upload_answers_enabled": survey != null,
-		"export_json_label": "Export JSON",
+		"upload_answers_enabled": survey != null and upload_configured and bool(readiness.get("ok", false)),
+		"export_json_label": "Save JSON Copy",
 		"upload_answers_label": "Upload Answers",
-		"export_csv_label": "Export CSV",
+		"export_csv_label": "Save CSV Copy",
 		"upload_destination_name": upload_destination_name.strip_edges(),
 		"upload_destination_url": upload_endpoint_url.strip_edges(),
 		"upload_usage_summary": upload_usage_summary.strip_edges(),
 		"upload_reason_summary": upload_reason_summary.strip_edges(),
 		"upload_metadata_summary": "Spam protection metadata includes an anonymous install ID, upload timestamps, template identity, session timing signals, answer counts, reload history, and a payload hash for duplicate suppression.",
 		"upload_ready": bool(readiness.get("ok", false)),
-		"upload_ready_message": "%s%s" % [str(readiness.get("message", "")).strip_edges(), identifying_note],
+		"upload_ready_message": upload_ready_message,
 		"upload_busy": _upload_in_progress,
 		"upload_status_text": _last_upload_status_text if not _last_upload_status_text.is_empty() else "Upload to %s once you are ready." % destination_name,
 		"upload_status_error": _last_upload_status_is_error,
@@ -2641,11 +2989,12 @@ func _build_upload_view_state() -> Dictionary:
 			scrub_summary = "%d answered identifying question(s) will be removed before upload." % scrubbed_response_count
 		else:
 			scrub_summary = "%d answered identifying question(s) will be included in the uploaded payload." % identifying_answered_count
-	var consent_summary := "This upload will send %d survey answer(s) to %s." % [valid_response_count, destination_name]
-	var public_repo_acknowledgement := "%s\nUploaded answer data will be publicly available at %s." % [consent_summary, public_repo_name]
+	var consent_summary := "This will send %d survey answer(s) to %s." % [valid_response_count, destination_name]
+	var privacy_summary := "Identifying answers will be removed before upload." if scrubbed_response_count > 0 and scrub_identifying_info else "No identifying answers will be removed before upload."
+	var public_repo_acknowledgement := "%s\n%s\nUploaded answer data will be publicly available at %s." % [consent_summary, privacy_summary, public_repo_name]
 	if not upload_public_repo_url.strip_edges().is_empty():
 		public_repo_acknowledgement += "\n%s" % upload_public_repo_url.strip_edges()
-	var consent_label := "I agree to this public upload."
+	var consent_label := "I understand and agree to upload these answers."
 	var destination_url_summary := "Endpoint URL: %s" % upload_endpoint_url.strip_edges() if not upload_endpoint_url.strip_edges().is_empty() else "No endpoint URL is configured for this build."
 	return {
 		"upload_usage_summary": upload_usage_summary.strip_edges(),
@@ -2739,37 +3088,22 @@ func _upload_readiness_state(scrub_identifying_info: bool) -> Dictionary:
 func _build_upload_package(scrub_identifying_info: bool) -> Dictionary:
 	if survey == null:
 		return {}
-	var install_id: String = SURVEY_UPLOAD_AUDIT_STORE.get_install_id()
 	var session_metrics: Dictionary = _current_upload_quality_metadata()
-	var upload_package: Dictionary = SURVEY_SUBMISSION_BUNDLE.build_package(
+	var audit_context: Dictionary = _current_upload_audit_context(session_metrics)
+	return SURVEY_TRANSFER_SUPPORT.build_upload_package(
 		survey,
 		_current_template_path,
 		answers,
 		_build_summary_data(),
-		install_id,
+		SURVEY_UPLOAD_AUDIT_STORE.get_install_id(),
 		scrub_identifying_info,
-		session_metrics
-	)
-	if upload_package.is_empty():
-		return {}
-	var stats: Dictionary = upload_package.get("stats", {}) as Dictionary
-	var total_question_count: int = max(int(stats.get("total_question_count", 0)), 0)
-	var min_required_answers: int = min(max(minimum_answered_questions_for_upload, 0), total_question_count)
-	var audit_context: Dictionary = _current_upload_audit_context(session_metrics)
-	var audit: Dictionary = SURVEY_UPLOAD_AUDIT_STORE.evaluate_attempt(
-		str(upload_package.get("payload_hash", "")).strip_edges(),
-		int(stats.get("valid_response_count", 0)),
-		min_required_answers,
+		session_metrics,
+		minimum_answered_questions_for_upload,
 		upload_cooldown_seconds,
 		upload_max_attempts_per_window,
 		upload_attempt_window_seconds,
 		audit_context
 	)
-	upload_package["min_required_answers"] = min_required_answers
-	upload_package["session_metrics"] = session_metrics
-	upload_package["audit_context"] = audit_context
-	upload_package["audit"] = audit
-	return upload_package
 
 func _on_upload_scrub_toggled(_enabled: bool) -> void:
 	if _upload_consent_checkbox != null:
@@ -2839,23 +3173,19 @@ func _submit_upload_answers() -> void:
 		_show_status_message(failure_text, true)
 
 func _copy_upload_response_to_clipboard() -> void:
-	if _last_upload_response_text.strip_edges().is_empty():
-		_show_status_message("No server response is available to copy yet.", true)
+	var copy_result := SURVEY_TRANSFER_SUPPORT.copy_text_to_clipboard(
+		_last_upload_response_text,
+		"No server response is available to copy yet.",
+		"Server response copied to the clipboard."
+	)
+	if not bool(copy_result.get("ok", false)):
+		_show_status_message(str(copy_result.get("message", "Unable to copy the server response.")), true)
 		return
-	DisplayServer.clipboard_set(_last_upload_response_text)
 	SURVEY_UI_FEEDBACK.play_export()
-	_show_status_message("Server response copied to the clipboard.")
+	_show_status_message(str(copy_result.get("message", "Server response copied to the clipboard.")))
 
 func _configured_upload_headers() -> PackedStringArray:
-	var headers: PackedStringArray = PackedStringArray(["Content-Type: application/json"])
-	for raw_header in upload_request_headers:
-		var header_text: String = str(raw_header).strip_edges()
-		if header_text.is_empty():
-			continue
-		if header_text.to_lower().begins_with("content-type:"):
-			continue
-		headers.append(header_text)
-	return headers
+	return SURVEY_TRANSFER_SUPPORT.configured_upload_headers(upload_request_headers)
 
 func _upload_destination_display_name() -> String:
 	if not upload_destination_name.strip_edges().is_empty():
@@ -2872,90 +3202,31 @@ func _upload_public_repo_display_name() -> String:
 	return "the configured public repository"
 
 func _is_upload_endpoint_configured() -> bool:
-	return not upload_endpoint_url.strip_edges().is_empty()
-
-func _format_upload_response_body(body_text: String) -> String:
-	var trimmed_body: String = body_text.strip_edges()
-	if trimmed_body.is_empty():
-		return ""
-	var parsed: Variant = JSON.parse_string(trimmed_body)
-	if parsed is Dictionary or parsed is Array:
-		return JSON.stringify(parsed, "\t")
-	return trimmed_body
-
-func _format_upload_response(result: int, response_code: int, headers: PackedStringArray, body_text: String) -> String:
-	var lines: Array[String] = []
-	lines.append("Result: %s" % _http_request_result_label(result))
-	lines.append("HTTP Status: %d" % response_code)
-	if not headers.is_empty():
-		lines.append("")
-		lines.append("Headers:")
-		for header in headers:
-			lines.append(str(header))
-	var formatted_body: String = _format_upload_response_body(body_text)
-	if not formatted_body.is_empty():
-		lines.append("")
-		lines.append("Body:")
-		lines.append(formatted_body)
-	return "\n".join(lines).strip_edges()
-
-func _http_request_result_label(result: int) -> String:
-	match result:
-		HTTPRequest.RESULT_SUCCESS:
-			return "Success"
-		HTTPRequest.RESULT_CHUNKED_BODY_SIZE_MISMATCH:
-			return "Chunked body size mismatch"
-		HTTPRequest.RESULT_CANT_CONNECT:
-			return "Cannot connect"
-		HTTPRequest.RESULT_CANT_RESOLVE:
-			return "Cannot resolve host"
-		HTTPRequest.RESULT_CONNECTION_ERROR:
-			return "Connection error"
-		HTTPRequest.RESULT_TLS_HANDSHAKE_ERROR:
-			return "TLS handshake error"
-		HTTPRequest.RESULT_NO_RESPONSE:
-			return "No response"
-		HTTPRequest.RESULT_BODY_SIZE_LIMIT_EXCEEDED:
-			return "Body size limit exceeded"
-		HTTPRequest.RESULT_BODY_DECOMPRESS_FAILED:
-			return "Body decompress failed"
-		HTTPRequest.RESULT_REQUEST_FAILED:
-			return "Request failed"
-		HTTPRequest.RESULT_DOWNLOAD_FILE_CANT_OPEN:
-			return "Cannot open download file"
-		HTTPRequest.RESULT_DOWNLOAD_FILE_WRITE_ERROR:
-			return "Cannot write download file"
-		HTTPRequest.RESULT_REDIRECT_LIMIT_REACHED:
-			return "Redirect limit reached"
-		HTTPRequest.RESULT_TIMEOUT:
-			return "Timeout"
-	return "Unknown result"
+	return SURVEY_TRANSFER_SUPPORT.is_upload_endpoint_configured(upload_endpoint_url)
 
 func _on_upload_request_completed(result: int, response_code: int, headers: PackedStringArray, body: PackedByteArray) -> void:
+	var completion := SURVEY_TRANSFER_SUPPORT.build_upload_completion_state(result, response_code, headers, body)
 	_upload_in_progress = false
-	var body_text: String = body.get_string_from_utf8()
-	var response_text: String = _format_upload_response(result, response_code, headers, body_text)
-	var accepted: bool = result == HTTPRequest.RESULT_SUCCESS and response_code >= 200 and response_code < 300
-	_last_upload_response_text = response_text
-	_last_upload_status_is_error = not accepted
+	_last_upload_response_text = str(completion.get("response_text", ""))
+	_last_upload_status_is_error = bool(completion.get("is_error", false))
+	var accepted: bool = bool(completion.get("accepted", false))
+	_last_upload_status_text = str(completion.get("status_text", ""))
 	if accepted:
-		_last_upload_status_text = "Upload accepted by the server."
 		SURVEY_UI_FEEDBACK.play_export()
 		_show_status_message(_last_upload_status_text)
 	else:
-		_last_upload_status_text = "Upload failed or was rejected by the server."
 		_show_status_message(_last_upload_status_text, true)
 	SURVEY_UPLOAD_AUDIT_STORE.record_attempt(_pending_upload_payload_hash, accepted, response_code, _last_upload_status_text, _current_upload_audit_context())
 	_pending_upload_payload_hash = ""
 	_refresh_upload_view()
 
 func _reset_upload_status(clear_response: bool = false) -> void:
-	_upload_in_progress = false
-	_pending_upload_payload_hash = ""
-	_last_upload_status_text = ""
-	_last_upload_status_is_error = false
-	if clear_response:
-		_last_upload_response_text = ""
+	var reset_state := SURVEY_TRANSFER_SUPPORT.build_upload_status_reset_state(clear_response, _last_upload_response_text)
+	_upload_in_progress = bool(reset_state.get("upload_in_progress", false))
+	_pending_upload_payload_hash = str(reset_state.get("pending_upload_payload_hash", "")).strip_edges()
+	_last_upload_status_text = str(reset_state.get("last_upload_status_text", ""))
+	_last_upload_status_is_error = bool(reset_state.get("last_upload_status_is_error", false))
+	_last_upload_response_text = str(reset_state.get("last_upload_response_text", ""))
 
 func _build_profile_json_text() -> String:
 	return SURVEY_GAMIFICATION_STORE.build_profile_json(_build_profile_snapshot())
@@ -3065,12 +3336,16 @@ func _export_csv() -> void:
 
 func _copy_export_to_clipboard(format: String) -> void:
 	var export_text := _build_export_text(format)
-	if export_text.is_empty():
-		_show_status_message("Unable to build %s export." % _export_label(format), true)
+	var copy_result := SURVEY_TRANSFER_SUPPORT.copy_text_to_clipboard(
+		export_text,
+		"Unable to build %s export." % _export_label(format),
+		"%s copied to clipboard." % _export_label(format)
+	)
+	if not bool(copy_result.get("ok", false)):
+		_show_status_message(str(copy_result.get("message", "Unable to copy the export.")), true)
 		return
-	DisplayServer.clipboard_set(export_text)
 	SURVEY_UI_FEEDBACK.play_export()
-	_show_status_message("%s copied to clipboard." % _export_label(format))
+	_show_status_message(str(copy_result.get("message", "%s copied to clipboard." % _export_label(format))))
 
 func _prompt_save_export(format: String) -> void:
 	var export_text := _build_export_text(format)
@@ -3207,12 +3482,14 @@ func _apply_loaded_progress_payload(payload: Dictionary, source_name: String) ->
 	_restore_response_quality_tracking(loaded_session_state, not loaded_answers.is_empty() or not loaded_session_state.is_empty())
 	_reset_upload_status(true)
 	_reset_upload_form_state()
+	_prime_boss_trackers()
 	_prime_gamification_trackers()
 	var theme_changed := _apply_loaded_preferences(loaded_preferences)
 	if theme_changed:
 		_refresh_theme()
 	else:
 		_refresh_all_views()
+	_refresh_boss_surfaces()
 	if not loaded_session_state.is_empty():
 		var restored_question_id := str(loaded_session_state.get("selected_question_id", "")).strip_edges()
 		if not restored_question_id.is_empty():
@@ -3220,12 +3497,12 @@ func _apply_loaded_progress_payload(payload: Dictionary, source_name: String) ->
 			if restored_section_index != -1:
 				_start_focus_from_section(restored_section_index, restored_question_id)
 			else:
-				_show_view(VIEW_SECTION_SELECTION)
+				_start_focus_from_section(0, "")
 		else:
 			var restored_section_index := clampi(int(loaded_session_state.get("current_section_index", 0)), 0, max(survey.sections.size() - 1, 0))
 			_start_focus_from_section(restored_section_index, "")
 	else:
-		_show_view(VIEW_SECTION_SELECTION)
+		_start_focus_from_section(0, "")
 	_refresh_export_view()
 	_refresh_gamification_surfaces()
 	_persist_current_session_cache()
@@ -3287,12 +3564,7 @@ func _apply_loaded_preferences(preferences: Dictionary) -> bool:
 	return theme_changed
 
 func _current_preferences() -> Dictionary:
-	return {
-		"selected_theme_id": _selected_theme_id,
-		"use_dark_mode": use_dark_mode,
-		"sfx_volume": sfx_volume,
-		"survey_view_mode": "focus"
-	}
+	return SURVEY_SHELL_SUPPORT.build_preferences(_selected_theme_id, use_dark_mode, sfx_volume, "focus")
 
 func _persist_current_session_cache() -> void:
 	if survey == null or _current_template_path.is_empty():
@@ -3300,112 +3572,75 @@ func _persist_current_session_cache() -> void:
 	SURVEY_SESSION_CACHE.save_session(survey, _current_template_path, answers, _current_preferences(), _current_session_state())
 
 func _restore_response_quality_tracking(restored_state: Dictionary, restored_progress: bool) -> void:
-	var now: int = int(Time.get_unix_time_from_system())
-	_response_session_started_at_unix = max(0, int(restored_state.get("session_started_at_unix", now)))
-	if _response_session_started_at_unix <= 0 or _response_session_started_at_unix > now:
-		_response_session_started_at_unix = now
-	_response_first_answer_at_unix = clampi(int(restored_state.get("first_answer_at_unix", 0)), 0, now)
-	_response_last_answer_at_unix = clampi(int(restored_state.get("last_answer_at_unix", 0)), 0, now)
-	if _response_first_answer_at_unix > 0 and _response_first_answer_at_unix < _response_session_started_at_unix:
-		_response_first_answer_at_unix = _response_session_started_at_unix
-	if _response_last_answer_at_unix > 0 and _response_last_answer_at_unix < _response_first_answer_at_unix:
-		_response_last_answer_at_unix = _response_first_answer_at_unix
-	_response_answer_change_count = max(0, int(restored_state.get("answer_change_count", 0)))
-	if _response_answer_change_count <= 0:
-		_response_answer_change_count = _current_answered_question_count()
-	_response_restored_progress = restored_progress or bool(restored_state.get("restored_progress", false))
+	var state := SURVEY_SESSION_STATE_SUPPORT.restore_response_quality_state(
+		restored_state,
+		restored_progress,
+		SURVEY_SESSION_STATE_SUPPORT.answered_question_count(survey, answers)
+	)
+	_apply_response_quality_state(state)
 
 func _register_response_answer_change(question: SurveyQuestion, previous_value: Variant, next_value: Variant) -> void:
-	if question == null or previous_value == next_value:
-		return
-	var now: int = int(Time.get_unix_time_from_system())
-	if _response_session_started_at_unix <= 0:
-		_response_session_started_at_unix = now
-	_response_answer_change_count += 1
-	if not question.is_answer_empty(next_value):
-		if _response_first_answer_at_unix <= 0:
-			_response_first_answer_at_unix = now
-		_response_last_answer_at_unix = now
-	elif _response_last_answer_at_unix <= 0:
-		_response_last_answer_at_unix = now
+	_apply_response_quality_state(
+		SURVEY_SESSION_STATE_SUPPORT.register_response_answer_change(
+			question,
+			previous_value,
+			next_value,
+			_response_quality_state()
+		)
+	)
 
 func _current_answered_question_count() -> int:
-	if survey == null:
-		return 0
-	var count := 0
-	for section in survey.sections:
-		for question in section.questions:
-			if not question.is_answer_empty(answers.get(question.id, null)):
-				count += 1
-	return count
+	return SURVEY_SESSION_STATE_SUPPORT.answered_question_count(survey, answers)
 
 func _current_completed_answer_count() -> int:
-	if survey == null:
-		return 0
-	var count := 0
-	for section in survey.sections:
-		for question in section.questions:
-			if question.is_answer_complete(answers.get(question.id, null)):
-				count += 1
-	return count
+	return SURVEY_SESSION_STATE_SUPPORT.completed_answer_count(survey, answers)
 
 func _current_upload_quality_metadata() -> Dictionary:
-	var now: int = int(Time.get_unix_time_from_system())
-	var session_started_at_unix: int = _response_session_started_at_unix if _response_session_started_at_unix > 0 else now
-	var answered_question_count: int = _current_answered_question_count()
-	var completed_answer_count: int = _current_completed_answer_count()
-	var session_duration_seconds: int = max(now - session_started_at_unix, 0)
-	var seconds_to_first_answer: int = -1
-	if _response_first_answer_at_unix > 0:
-		seconds_to_first_answer = max(_response_first_answer_at_unix - session_started_at_unix, 0)
-	var seconds_since_last_answer: int = -1
-	if _response_last_answer_at_unix > 0:
-		seconds_since_last_answer = max(now - _response_last_answer_at_unix, 0)
-	var answers_per_minute := 0.0
-	if session_duration_seconds > 0:
-		answers_per_minute = (float(answered_question_count) * 60.0) / float(session_duration_seconds)
-	return {
-		"session_duration_seconds": session_duration_seconds,
-		"seconds_to_first_answer": seconds_to_first_answer,
-		"seconds_since_last_answer": seconds_since_last_answer,
-		"answer_change_count": _response_answer_change_count,
-		"distinct_answered_question_count": answered_question_count,
-		"completed_answered_question_count": completed_answer_count,
-		"answers_per_minute": answers_per_minute,
-		"template_load_count_this_session": 1,
-		"restored_progress": _response_restored_progress
-	}
+	return SURVEY_SESSION_STATE_SUPPORT.build_upload_quality_metadata(survey, answers, _response_quality_state())
 
 func _current_upload_template_key() -> String:
-	if survey == null:
-		return ""
-	return SURVEY_UPLOAD_AUDIT_STORE.template_key_for_values(survey.id, survey.template_version, survey.schema_hash)
+	return SURVEY_SESSION_STATE_SUPPORT.upload_template_key(survey)
 
 func _current_upload_audit_context(session_metrics: Dictionary = {}) -> Dictionary:
-	var context: Dictionary = session_metrics.duplicate(true)
-	context["template_key"] = _current_upload_template_key()
-	context["min_session_duration_seconds"] = minimum_upload_session_seconds
-	context["min_seconds_per_answer"] = minimum_upload_seconds_per_answer
-	context["min_seconds_to_first_answer"] = minimum_seconds_to_first_answer
-	context["max_template_loads_per_window"] = max_template_loads_per_window
-	context["template_load_window_seconds"] = template_load_window_seconds
-	context["max_successful_uploads_per_template"] = max_successful_uploads_per_template
-	context["successful_uploads_per_template_window_seconds"] = successful_uploads_per_template_window_seconds
-	context["max_successful_uploads_per_install"] = max_successful_uploads_per_install
-	context["successful_uploads_per_install_window_seconds"] = successful_uploads_per_install_window_seconds
-	return context
+	return SURVEY_SESSION_STATE_SUPPORT.build_upload_audit_context(
+		session_metrics,
+		survey,
+		{
+			"min_session_duration_seconds": minimum_upload_session_seconds,
+			"min_seconds_per_answer": minimum_upload_seconds_per_answer,
+			"min_seconds_to_first_answer": minimum_seconds_to_first_answer,
+			"max_template_loads_per_window": max_template_loads_per_window,
+			"template_load_window_seconds": template_load_window_seconds,
+			"max_successful_uploads_per_template": max_successful_uploads_per_template,
+			"successful_uploads_per_template_window_seconds": successful_uploads_per_template_window_seconds,
+			"max_successful_uploads_per_install": max_successful_uploads_per_install,
+			"successful_uploads_per_install_window_seconds": successful_uploads_per_install_window_seconds
+		}
+	)
 
 func _current_session_state() -> Dictionary:
 	var selected_question_id := _current_focus_question_id()
-	return {
-		"current_section_index": _section_index_for_question_id(selected_question_id),
-		"selected_question_id": selected_question_id,
-		"session_started_at_unix": _response_session_started_at_unix,
-		"first_answer_at_unix": _response_first_answer_at_unix,
-		"last_answer_at_unix": _response_last_answer_at_unix,
-		"answer_change_count": _response_answer_change_count,
-		"restored_progress": _response_restored_progress
-	}
+	return SURVEY_SESSION_STATE_SUPPORT.build_session_state(
+		_section_index_for_question_id(selected_question_id),
+		selected_question_id,
+		_response_quality_state()
+	)
+
+func _response_quality_state() -> Dictionary:
+	return SURVEY_SESSION_STATE_SUPPORT.build_response_quality_state(
+		_response_session_started_at_unix,
+		_response_first_answer_at_unix,
+		_response_last_answer_at_unix,
+		_response_answer_change_count,
+		_response_restored_progress
+	)
+
+func _apply_response_quality_state(state: Dictionary) -> void:
+	_response_session_started_at_unix = max(0, int(state.get("session_started_at_unix", 0)))
+	_response_first_answer_at_unix = max(0, int(state.get("first_answer_at_unix", 0)))
+	_response_last_answer_at_unix = max(0, int(state.get("last_answer_at_unix", 0)))
+	_response_answer_change_count = max(0, int(state.get("answer_change_count", 0)))
+	_response_restored_progress = bool(state.get("restored_progress", false))
 
 func _current_focus_question_id() -> String:
 	if not _playable_question_ids.is_empty() and _focus_index >= 0 and _focus_index < _playable_question_ids.size():
@@ -3422,6 +3657,9 @@ func _supports_browser_downloads() -> bool:
 
 func _supports_browser_progress_import() -> bool:
 	return _is_web_platform() and Engine.has_singleton("JavaScriptBridge")
+
+func _supports_browser_feedback_share() -> bool:
+	return SURVEY_TRANSFER_SUPPORT.supports_browser_file_share()
 
 func _open_web_template_import_picker() -> bool:
 	if not _supports_template_import():
@@ -3550,6 +3788,15 @@ func _download_buffer_to_browser(buffer: PackedByteArray, file_name: String, suc
 	JavaScriptBridge.download_buffer(buffer, file_name)
 	SURVEY_UI_FEEDBACK.play_export()
 	_show_status_message(success_message)
+	return true
+
+func _share_buffer_to_browser(buffer: PackedByteArray, file_name: String, mime_type: String, title: String, text: String, success_message: String) -> bool:
+	var share_result: Dictionary = SURVEY_TRANSFER_SUPPORT.share_buffer_to_browser(buffer, file_name, mime_type, title, text)
+	if not bool(share_result.get("ok", false)):
+		return false
+	SURVEY_UI_FEEDBACK.play_export()
+	var status_message: String = str(share_result.get("message", success_message)).strip_edges()
+	_show_status_message(status_message if not status_message.is_empty() else success_message)
 	return true
 
 func _open_web_progress_import_picker() -> bool:
@@ -3712,6 +3959,22 @@ func _create_template_selection_card(texture: Texture2D, title: String, descript
 	var fill := SurveyStyle.SURFACE_MUTED if is_active else SurveyStyle.SURFACE_ALT
 	var border := accent_color if is_active else SurveyStyle.BORDER
 	card.add_theme_stylebox_override("panel", _panel_style(fill, border, 18 if phone_layout else 22, 2 if is_active else 1, (14.0 * journey_scale) if phone_layout else 16.0))
+	card.set_meta("feedback_context", {
+		"kind": "journey_template_card",
+		"summary": "Template card: %s" % title.strip_edges(),
+		"journey_template": {
+			"title": title.strip_edges(),
+			"description": description.strip_edges(),
+			"source_label": source_label.strip_edges(),
+			"template_path": template_path,
+			"total_sections": total_sections,
+			"total_questions": total_questions,
+			"answered_count": answered_count,
+			"stored_count": stored_count,
+			"has_saved_answers": has_saved_answers,
+			"is_active": is_active
+		}
+	})
 
 	var row := HBoxContainer.new()
 	row.layout_mode = 2
@@ -3792,6 +4055,18 @@ func _create_template_selection_card(texture: Texture2D, title: String, descript
 		trash_button.add_theme_constant_override("h_separation", 0)
 		trash_button.pressed.connect(_confirm_clear_template_answers.bind(template_path))
 		_wire_button_feedback(trash_button)
+		trash_button.set_meta("feedback_context", {
+			"kind": "journey_template_clear_action",
+			"summary": "Clear saved answers for %s" % title.strip_edges(),
+			"journey_template": {
+				"title": title.strip_edges(),
+				"template_path": template_path
+			},
+			"menu_action": {
+				"action": "clear_saved_template_answers",
+				"label": "Clear saved answers"
+			}
+		})
 		action_row.add_child(trash_button)
 
 	return card
@@ -3853,6 +4128,30 @@ func _create_review_question_card(section_index: int, question_index: int, quest
 	var card := PanelContainer.new()
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	card.add_theme_stylebox_override("panel", _panel_style(SurveyStyle.SURFACE_MUTED, SurveyStyle.BORDER, 16 if phone_layout else 18, 1, 14.0))
+	card.set_meta("feedback_context", {
+		"kind": "journey_review_question",
+		"summary": "Review card: %s" % question.display_title(question_index),
+		"journey_review": {
+			"section_index": section_index,
+			"question_index": question_index,
+			"question_id": question.id,
+			"completion_state": str(completion_state),
+			"answer_summary": _review_answer_summary(question, answers.get(question.id, null))
+		},
+		"survey_section": {
+			"section_index": section_index,
+			"section_title": survey.sections[section_index].display_title(section_index) if survey != null and section_index >= 0 and section_index < survey.sections.size() else ""
+		},
+		"survey_question": {
+			"question_id": question.id,
+			"prompt": question.prompt.strip_edges(),
+			"type": str(question.type),
+			"required": question.required,
+			"requirement_label": question.requirement_label(),
+			"answer_state": str(completion_state),
+			"answer_summary": _review_answer_summary(question, answers.get(question.id, null))
+		}
+	})
 	var row := HBoxContainer.new()
 	row.layout_mode = 2
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -3938,6 +4237,24 @@ func _create_review_question_card(section_index: int, question_index: int, quest
 	clear_button.add_theme_font_size_override("font_size", 12 if phone_layout else 11)
 	_wire_button_feedback(clear_button)
 	clear_button.pressed.connect(_confirm_clear_review_question_answer.bind(question.id))
+	clear_button.set_meta("feedback_context", {
+		"kind": "journey_review_clear_action",
+		"summary": "Clear saved answer for %s" % question.display_title(question_index),
+		"journey_review": {
+			"section_index": section_index,
+			"question_index": question_index,
+			"question_id": question.id
+		},
+		"survey_question": {
+			"question_id": question.id,
+			"prompt": question.prompt.strip_edges(),
+			"type": str(question.type)
+		},
+		"menu_action": {
+			"action": "clear_review_answer",
+			"label": clear_button.text
+		}
+	})
 	action_column.add_child(clear_button)
 
 	_make_card_interactive(card, _on_review_question_selected.bind(section_index, question.id), _on_review_question_selected.bind(section_index, question.id))
@@ -3971,8 +4288,10 @@ func _clear_review_question_answer(question_id: String) -> void:
 	if _focus_question_stage != null:
 		_focus_question_stage.sync_answers(answers)
 	_persist_current_session_cache()
+	_prime_boss_trackers()
 	_prime_gamification_trackers()
 	_refresh_all_views()
+	_refresh_boss_surfaces()
 	_refresh_gamification_surfaces()
 	var cleared_label := question.prompt.strip_edges() if not question.prompt.strip_edges().is_empty() else question_id
 	_show_status_message("Cleared the saved answer for %s." % cleared_label)
@@ -4099,6 +4418,8 @@ func _queue_focus_navigation(direction: int) -> void:
 		return
 	if direction < 0 and _focus_index <= 0:
 		return
+	if direction > 0:
+		_commit_current_focus_question_boss_attack()
 	_commit_current_focus_question_progress()
 	_release_focus_before_navigation()
 	_focus_navigation_pending = true
@@ -4129,6 +4450,7 @@ func _apply_focus_navigation(direction: int) -> void:
 		_focus_index = min(_focus_index + 1, max(_playable_question_ids.size() - 1, 0))
 	_trace("Apply navigation direction=%d new_index=%d target_question=%s" % [direction, _focus_index, _current_focus_question_id()])
 	_refresh_focus_view(true, direction)
+	_refresh_boss_surfaces()
 
 func _panel_style(fill: Color, border: Color, radius: int, border_width: int, content_margin: float) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
@@ -4141,6 +4463,74 @@ func _panel_style(fill: Color, border: Color, radius: int, border_width: int, co
 	style.content_margin_top = content_margin
 	style.content_margin_bottom = content_margin
 	return style
+
+func _tune_corner_access_button_padding(button: Button) -> void:
+	if button == null:
+		return
+	for state_name in ["normal", "hover", "focus", "pressed", "disabled"]:
+		var style := button.get_theme_stylebox(state_name)
+		if style is not StyleBoxFlat:
+			continue
+		var tuned_style := (style as StyleBoxFlat).duplicate()
+		tuned_style.content_margin_left = 0.0
+		tuned_style.content_margin_right = 0.0
+		tuned_style.content_margin_top = 0.0
+		tuned_style.content_margin_bottom = 0.0
+		button.add_theme_stylebox_override(state_name, tuned_style)
+
+func _main_panel_global_rect(viewport_size: Vector2) -> Rect2:
+	if _main_panel != null and _main_panel.size.x > 0.0 and _main_panel.size.y > 0.0:
+		return _main_panel.get_global_rect()
+	var margin_left := float(_margin.get_theme_constant("margin_left")) if _margin != null else 0.0
+	var margin_top := float(_margin.get_theme_constant("margin_top")) if _margin != null else 0.0
+	var margin_right := float(_margin.get_theme_constant("margin_right")) if _margin != null else 0.0
+	var margin_bottom := float(_margin.get_theme_constant("margin_bottom")) if _margin != null else 0.0
+	return Rect2(
+		Vector2(margin_left, margin_top),
+		Vector2(maxf(viewport_size.x - margin_left - margin_right, 0.0), maxf(viewport_size.y - margin_top - margin_bottom, 0.0))
+	)
+
+func _layout_menu_access_buttons(viewport_size: Vector2, phone_layout: bool) -> void:
+	if _menu_access_button == null:
+		return
+	var panel_rect: Rect2 = _main_panel_global_rect(viewport_size)
+	var shell_inset: float = 10.0 if phone_layout else 12.0
+	var menu_button_size: float = _menu_access_button.custom_minimum_size.x
+	var menu_left: float = floor(panel_rect.end.x - shell_inset - menu_button_size)
+	var menu_top: float = floor(panel_rect.position.y + shell_inset)
+	_menu_access_button.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_menu_access_button.position = Vector2(menu_left, menu_top)
+	_menu_access_button.size = Vector2(menu_button_size, menu_button_size)
+	var report_gap: float = 8.0
+	var report_left: float = menu_left
+	if _report_access_button != null:
+		var report_width: float = _report_access_button.custom_minimum_size.x
+		report_left = floor(menu_left - report_gap - report_width)
+		_report_access_button.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		_report_access_button.position = Vector2(report_left, menu_top)
+		_report_access_button.size = Vector2(report_width, _report_access_button.custom_minimum_size.y)
+	if _help_access_button == null:
+		return
+	var help_button_size: float = _help_access_button.custom_minimum_size.x
+	var help_gap: float = 8.0
+	var help_left: float = floor((report_left if _report_access_button != null else menu_left) - help_gap - help_button_size)
+	_help_access_button.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_help_access_button.position = Vector2(help_left, menu_top)
+	_help_access_button.size = Vector2(help_button_size, help_button_size)
+
+func _queue_menu_access_layout_refresh() -> void:
+	if _menu_access_layout_refresh_pending:
+		return
+	_menu_access_layout_refresh_pending = true
+	call_deferred("_refresh_menu_access_layout_after_frame")
+
+func _refresh_menu_access_layout_after_frame() -> void:
+	await get_tree().process_frame
+	_menu_access_layout_refresh_pending = false
+	if not is_inside_tree():
+		return
+	var viewport_size := get_viewport().get_visible_rect().size
+	_layout_menu_access_buttons(viewport_size, _is_phone_layout_for_size(viewport_size))
 
 func _section_answered_count(section: SurveySection) -> int:
 	var total := 0
@@ -4195,6 +4585,323 @@ func _duplicate_answer_value(value: Variant) -> Variant:
 		TYPE_DICTIONARY:
 			return (value as Dictionary).duplicate(true)
 	return value
+
+func _prime_boss_trackers() -> void:
+	_boss_committed_questions.clear()
+	_boss_seen_milestones.clear()
+	_boss_seen_section_breaks.clear()
+	_boss_state_cache.clear()
+	if not _is_boss_battle_enabled() or survey == null:
+		return
+	_boss_committed_questions = SURVEY_JOURNEY_BOSS_STATE.build_committed_questions_from_answers(survey, answers)
+	var state := _current_boss_state()
+	for milestone_key in SURVEY_JOURNEY_BOSS_STATE.milestone_keys_crossed(0.0, float(state.get("damage_ratio", 0.0))):
+		_boss_seen_milestones[milestone_key] = true
+	var sections_value: Variant = state.get("sections", [])
+	var sections: Array = sections_value as Array if sections_value is Array else []
+	for section_index in range(sections.size()):
+		var section_value: Variant = sections[section_index]
+		var section: Dictionary = section_value as Dictionary if section_value is Dictionary else {}
+		if bool(section.get("is_broken", false)):
+			_boss_seen_section_breaks[str(section_index)] = true
+
+func _current_boss_state() -> Dictionary:
+	if not _is_boss_battle_enabled() or survey == null:
+		_boss_state_cache = {}
+		return {}
+	_boss_state_cache = SURVEY_JOURNEY_BOSS_STATE.build_state(survey, answers, _boss_committed_questions)
+	return _boss_state_cache
+
+func _final_boss_state() -> Dictionary:
+	if not _is_boss_battle_enabled() or survey == null:
+		return {}
+	return SURVEY_JOURNEY_BOSS_STATE.build_state(
+		survey,
+		answers,
+		SURVEY_JOURNEY_BOSS_STATE.build_committed_questions_from_answers(survey, answers)
+	)
+
+func _current_focus_charge_ratio(question: SurveyQuestion = null) -> float:
+	var resolved_question := question if question != null else _current_focus_question()
+	if resolved_question == null:
+		return 0.0
+	return SURVEY_JOURNEY_BOSS_STATE.charge_ratio_for_question(resolved_question, answers.get(resolved_question.id, null))
+
+func _refresh_boss_surfaces() -> void:
+	if not _is_boss_battle_enabled():
+		if _focus_boss_bar != null:
+			_focus_boss_bar.visible = false
+		if _focus_charge_meter != null:
+			_focus_charge_meter.visible = false
+		if _wrapup_stage != null:
+			_wrapup_stage.visible = false
+		return
+	_ensure_boss_nodes()
+	var state := _current_boss_state()
+	var focus_visible := survey != null and _current_view == VIEW_FOCUS
+	if _focus_boss_bar != null:
+		_focus_boss_bar.visible = focus_visible
+		if focus_visible:
+			var section_index := _section_index_for_question_id(_current_focus_question_id())
+			var subtitle := survey.title.strip_edges()
+			if survey != null and section_index >= 0 and section_index < survey.sections.size():
+				subtitle = survey.sections[section_index].display_title(section_index)
+			_focus_boss_bar.set_header(
+				"Survey Boss",
+				subtitle,
+				_boss_health_status_text(state),
+				_boss_question_detail_text(state, section_index)
+			)
+			if _boss_bar_animation_count <= 0:
+				_focus_boss_bar.configure_from_state(state, false)
+	if _focus_charge_meter != null:
+		_focus_charge_meter.visible = focus_visible
+		if focus_visible:
+			var question := _current_focus_question()
+			var completion_state := question.answer_completion_state(answers.get(question.id, null)) if question != null else SurveyQuestion.ANSWER_STATE_UNANSWERED
+			_focus_charge_meter.set_charge_state(question, completion_state, _current_focus_charge_ratio(question))
+	_refresh_focus_active_charge_visuals()
+	if _wrapup_stage != null and _current_view != VIEW_THANKS:
+		_wrapup_stage.visible = false
+
+func _boss_health_status_text(state: Dictionary) -> String:
+	var health_percent := int(round(clampf(float(state.get("health_ratio", 1.0)), 0.0, 1.0) * 100.0))
+	return "HP %d%%" % health_percent
+
+func _boss_question_detail_text(state: Dictionary, section_index: int) -> String:
+	var sections_value: Variant = state.get("sections", [])
+	var sections: Array = sections_value as Array if sections_value is Array else []
+	if section_index < 0 or section_index >= sections.size():
+		return ""
+	var section_value: Variant = sections[section_index]
+	if not (section_value is Dictionary):
+		return ""
+	var section: Dictionary = section_value as Dictionary
+	var total_ratio := float(section.get("question_total_damage_ratio", state.get("damage_per_question", 0.0)))
+	var layer_ratio := float(section.get("question_layer_damage_ratio", 0.0))
+	if total_ratio <= 0.0 or layer_ratio <= 0.0:
+		return ""
+	return "This question: %d%% total HP | %d%% layer" % [
+		int(round(total_ratio * 100.0)),
+		int(round(layer_ratio * 100.0))
+	]
+
+func _refresh_focus_active_charge_visuals() -> void:
+	if _focus_question_stage == null:
+		return
+	var active_view: SurveyQuestionView = _focus_question_stage.active_view()
+	if active_view == null:
+		return
+	active_view.set_charge_ratio(_current_focus_charge_ratio())
+
+func _prepare_current_focus_question_for_editing(play_animation: bool = true) -> void:
+	if not _is_boss_battle_enabled() or survey == null:
+		return
+	var question_id := _current_focus_question_id()
+	if question_id.is_empty() or not _boss_committed_questions.has(question_id):
+		_refresh_focus_active_charge_visuals()
+		return
+	var previous_state := _current_boss_state()
+	_boss_committed_questions.erase(question_id)
+	var next_state := _current_boss_state()
+	var damage_amount := float(previous_state.get("damage_per_question", 0.0))
+	var question_section_map: Dictionary = previous_state.get("question_section_map", {})
+	var section_index := int(question_section_map.get(question_id, -1))
+	if play_animation and _current_view == VIEW_FOCUS and _focus_boss_bar != null and section_index >= 0 and damage_amount > 0.0:
+		_begin_boss_bar_animation(0.18)
+		_focus_boss_bar.animate_section_change(section_index, damage_amount, true, 0.16)
+		_focus_boss_bar.show_callout("Answer reopened", SurveyStyle.SUCCESS)
+	_refresh_boss_surfaces()
+	_boss_state_cache = next_state
+
+func _commit_current_focus_question_boss_attack() -> void:
+	if not _is_boss_battle_enabled() or survey == null:
+		return
+	var question := _current_focus_question()
+	if question == null:
+		return
+	if _boss_committed_questions.has(question.id):
+		return
+	if not question.is_answer_complete(answers.get(question.id, null)):
+		return
+	var previous_state := _current_boss_state()
+	_boss_committed_questions[question.id] = true
+	var next_state := _current_boss_state()
+	var sections_before: Array = previous_state.get("sections", []) as Array
+	var sections_after: Array = next_state.get("sections", []) as Array
+	var section_index := int((next_state.get("question_section_map", {}) as Dictionary).get(question.id, -1))
+	var strong_hit := false
+	if section_index >= 0 and section_index < sections_after.size():
+		var previous_section: Dictionary = sections_before[section_index] as Dictionary if section_index < sections_before.size() and sections_before[section_index] is Dictionary else {}
+		var next_section: Dictionary = sections_after[section_index] as Dictionary if sections_after[section_index] is Dictionary else {}
+		strong_hit = bool(next_section.get("is_broken", false)) and not bool(previous_section.get("is_broken", false))
+	strong_hit = strong_hit or float(next_state.get("damage_ratio", 0.0)) >= 0.999
+	_play_focus_attack(question.id, previous_state, next_state, strong_hit)
+	_maybe_fire_boss_milestones(previous_state, next_state)
+	_maybe_fire_section_break(previous_state, next_state, section_index)
+
+func _play_focus_attack(question_id: String, previous_state: Dictionary, next_state: Dictionary, strong_hit: bool) -> void:
+	var question_section_map: Dictionary = next_state.get("question_section_map", {})
+	var section_index := int(question_section_map.get(question_id, -1))
+	var damage_amount := float(next_state.get("damage_per_question", 0.0))
+	if _focus_charge_meter != null:
+		_focus_charge_meter.play_release()
+	if _current_view != VIEW_FOCUS or _focus_boss_bar == null or _focus_charge_meter == null or _focus_boss_fx_layer == null or section_index < 0 or damage_amount <= 0.0:
+		_refresh_boss_surfaces()
+		return
+	var projectile_count := 6 if strong_hit else 5
+	var source_global: Vector2 = _focus_charge_meter.source_global_position()
+	var target_global: Vector2 = _focus_boss_bar.section_target_position(section_index)
+	var per_projectile_damage := damage_amount / float(projectile_count)
+	var total_duration := 0.38 + (float(projectile_count - 1) * 0.035)
+	_begin_boss_bar_animation(total_duration + 0.08)
+	SURVEY_UI_FEEDBACK.play_attack_launch(strong_hit)
+	_focus_boss_bar.show_callout("Attack unleashed", SurveyStyle.HIGHLIGHT_GOLD)
+	for projectile_index in range(projectile_count):
+		call_deferred(
+			"_play_focus_attack_projectile",
+			source_global,
+			target_global,
+			float(projectile_index) * 0.035,
+			section_index,
+			per_projectile_damage,
+			projectile_index == projectile_count - 1,
+			strong_hit
+		)
+
+func _play_focus_attack_projectile(source_global: Vector2, target_global: Vector2, delay: float, section_index: int, damage_amount: float, is_final_hit: bool, strong_hit: bool) -> void:
+	if delay > 0.0:
+		await get_tree().create_timer(delay).timeout
+	if _focus_boss_fx_layer == null or not is_instance_valid(_focus_boss_fx_layer) or _focus_boss_bar == null or not is_instance_valid(_focus_boss_bar):
+		return
+	var projectile := PanelContainer.new()
+	projectile.custom_minimum_size = Vector2(14.0, 14.0)
+	projectile.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	SurveyStyle.apply_panel(projectile, SurveyStyle.HIGHLIGHT_GOLD, Color(0, 0, 0, 0), 999, 0)
+	_focus_boss_fx_layer.add_child(projectile)
+	var source_local: Vector2 = source_global - _focus_boss_fx_layer.global_position
+	var target_local: Vector2 = (target_global + Vector2(randf_range(-12.0, 12.0), randf_range(-8.0, 8.0))) - _focus_boss_fx_layer.global_position
+	projectile.position = source_local
+	projectile.modulate = Color(1, 1, 1, 0.0)
+	projectile.scale = Vector2.ONE * 0.75
+	var tween := create_tween()
+	tween.parallel().tween_property(projectile, "modulate:a", 1.0, 0.06)
+	tween.parallel().tween_property(projectile, "position", target_local, 0.34).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	tween.parallel().tween_property(projectile, "scale", Vector2.ONE, 0.34).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	await tween.finished
+	_focus_boss_bar.animate_section_change(section_index, damage_amount, false, 0.11, strong_hit and is_final_hit)
+	if is_final_hit:
+		SURVEY_UI_FEEDBACK.play_boss_hit(strong_hit)
+		SURVEY_UI_FEEDBACK.shake_control(_main_panel, 3.0 if not strong_hit else 4.0, 0.18)
+	var spark := PanelContainer.new()
+	spark.custom_minimum_size = Vector2(18.0, 18.0)
+	spark.position = target_local - Vector2(9.0, 9.0)
+	spark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	SurveyStyle.apply_panel(spark, Color(1, 1, 1, 0.94), Color(0, 0, 0, 0), 999, 0)
+	_focus_boss_fx_layer.add_child(spark)
+	var spark_tween := create_tween()
+	spark_tween.parallel().tween_property(spark, "scale", Vector2.ONE * 1.8, 0.16)
+	spark_tween.parallel().tween_property(spark, "modulate:a", 0.0, 0.16)
+	spark_tween.finished.connect(Callable(projectile, "queue_free"))
+	spark_tween.finished.connect(Callable(spark, "queue_free"))
+
+func _maybe_fire_boss_milestones(previous_state: Dictionary, next_state: Dictionary) -> void:
+	if _focus_boss_bar == null:
+		return
+	for milestone_key in SURVEY_JOURNEY_BOSS_STATE.milestone_keys_crossed(float(previous_state.get("damage_ratio", 0.0)), float(next_state.get("damage_ratio", 0.0))):
+		if _boss_seen_milestones.has(milestone_key):
+			continue
+		_boss_seen_milestones[milestone_key] = true
+		_focus_boss_bar.show_callout(SURVEY_JOURNEY_BOSS_STATE.milestone_label(milestone_key), SurveyStyle.HIGHLIGHT_GOLD)
+		SURVEY_UI_FEEDBACK.play_unlock()
+
+func _maybe_fire_section_break(previous_state: Dictionary, next_state: Dictionary, section_index: int) -> void:
+	if section_index < 0:
+		return
+	var key := str(section_index)
+	if _boss_seen_section_breaks.has(key):
+		return
+	var previous_sections: Array = previous_state.get("sections", []) as Array
+	var next_sections: Array = next_state.get("sections", []) as Array
+	if section_index >= next_sections.size():
+		return
+	var previous_section: Dictionary = previous_sections[section_index] as Dictionary if section_index < previous_sections.size() and previous_sections[section_index] is Dictionary else {}
+	var next_section: Dictionary = next_sections[section_index] as Dictionary if next_sections[section_index] is Dictionary else {}
+	if bool(next_section.get("is_broken", false)) and not bool(previous_section.get("is_broken", false)):
+		_boss_seen_section_breaks[key] = true
+		if _focus_boss_bar != null:
+			_focus_boss_bar.show_callout("%s shattered" % str(next_section.get("display_title", "Section")), SurveyStyle.DANGER)
+		SURVEY_UI_FEEDBACK.play_boss_section_break()
+
+func _begin_boss_bar_animation(duration: float) -> void:
+	_boss_bar_animation_count += 1
+	call_deferred("_finish_boss_bar_animation_after", maxf(duration, 0.0))
+
+func _finish_boss_bar_animation_after(duration: float) -> void:
+	if duration > 0.0:
+		await get_tree().create_timer(duration).timeout
+	_boss_bar_animation_count = max(_boss_bar_animation_count - 1, 0)
+	if _boss_bar_animation_count <= 0:
+		_refresh_boss_surfaces()
+
+func _build_wrapup_projectile_entries(state: Dictionary) -> Array[Dictionary]:
+	var entries: Array[Dictionary] = []
+	if survey == null:
+		return entries
+	var label_budget := 10
+	var question_section_map: Dictionary = state.get("question_section_map", {})
+	var damage_amount := float(state.get("damage_per_question", 0.0))
+	for question_id in _question_order:
+		var question := _question_definition(question_id)
+		if question == null:
+			continue
+		var answer_value: Variant = answers.get(question_id, null)
+		var answer_state: StringName = question.answer_completion_state(answer_value)
+		if answer_state == SurveyQuestion.ANSWER_STATE_UNANSWERED:
+			continue
+		var label_text := ""
+		if label_budget > 0:
+			label_text = _review_answer_summary(question, answer_value)
+			label_budget -= 1
+		entries.append({
+			"question_id": question_id,
+			"section_index": int(question_section_map.get(question_id, -1)),
+			"counts_as_damage": answer_state == SurveyQuestion.ANSWER_STATE_COMPLETE,
+			"damage_amount": damage_amount if answer_state == SurveyQuestion.ANSWER_STATE_COMPLETE else 0.0,
+			"label_text": label_text,
+			"strong_hit": false
+		})
+	return entries
+
+func _play_wrapup_recap(state: Dictionary, snapshot_hash: String) -> void:
+	if _wrapup_stage == null:
+		return
+	_wrapup_stage.visible = true
+	_wrapup_stage.play_recap(state, _build_wrapup_projectile_entries(state), snapshot_hash)
+
+func _apply_thanks_cta_theme(primary_cta: String) -> void:
+	if primary_cta in ["export", "submit", "upload", "save"]:
+		SurveyStyle.apply_secondary_button(_thanks_review_button)
+		SurveyStyle.apply_primary_button(_thanks_export_button)
+		return
+	SurveyStyle.apply_primary_button(_thanks_review_button)
+	SurveyStyle.apply_secondary_button(_thanks_export_button)
+
+func _on_wrapup_replay_requested() -> void:
+	if survey == null:
+		return
+	var state := _final_boss_state()
+	var snapshot_hash := SURVEY_JOURNEY_BOSS_STATE.snapshot_hash(survey, answers)
+	_play_wrapup_recap(state, snapshot_hash)
+
+func _on_wrapup_recap_finished(snapshot_hash: String) -> void:
+	_boss_wrapup_played_snapshot_hash = snapshot_hash
+	if _wrapup_stage != null and _current_view == VIEW_THANKS:
+		_wrapup_stage.show_settled_state(_final_boss_state(), snapshot_hash)
+
+func _queue_projectile_free(node: Control) -> void:
+	if node != null and is_instance_valid(node):
+		node.queue_free()
 
 func _prime_gamification_trackers() -> void:
 	_gamification_completed_sections.clear()
@@ -4289,15 +4996,10 @@ func _on_gamification_profile_changed(profile: Dictionary) -> void:
 	_refresh_profile_overlay()
 
 func _build_profile_snapshot() -> Dictionary:
-	if _gamification_hub == null:
-		return SURVEY_GAMIFICATION_STORE.build_profile_snapshot({}, survey, answers)
-	return _gamification_hub.current_snapshot(survey, answers)
+	return SURVEY_SHELL_SUPPORT.build_profile_snapshot(_gamification_hub, survey, answers)
 
 func _refresh_profile_overlay() -> void:
-	if _profile_overlay == null:
-		return
-	if _profile_overlay.visible:
-		_profile_overlay.update_profile(_build_profile_snapshot())
+	SURVEY_SHELL_SUPPORT.refresh_visible_profile_overlay(_profile_overlay, _gamification_hub, survey, answers)
 
 func _refresh_lore_surface_theme(phone_layout: bool, journey_scale: float, viewport_size: Vector2) -> void:
 	if _lore_empty_panel != null:
@@ -4333,6 +5035,8 @@ func _journey_should_show_hud() -> bool:
 func _journey_should_show_focus_xp() -> bool:
 	if not _is_xp_system_enabled():
 		return false
+	if _is_boss_battle_enabled():
+		return false
 	var overlay_blocking: bool = (_overlay_menu != null and _overlay_menu.visible) or (_profile_overlay != null and _profile_overlay.visible) or (_help_overlay != null and _help_overlay.visible) or (_lore_link_prompt_overlay != null and _lore_link_prompt_overlay.visible)
 	return survey != null and _current_view == VIEW_FOCUS and not overlay_blocking
 
@@ -4363,7 +5067,7 @@ func _refresh_gamification_surfaces() -> void:
 	_refresh_profile_overlay()
 
 func _is_xp_system_enabled() -> bool:
-	return xp_system_enabled
+	return xp_system_enabled and _feature_flag_enabled("enable_gamification", true)
 
 func _refresh_focus_xp_theme() -> void:
 	if _focus_xp_stack == null:
@@ -4475,26 +5179,17 @@ func _messages_from_variant(value: Variant) -> PackedStringArray:
 	return messages
 
 func _start_trace_session() -> void:
+	if not debug_trace_logging_enabled:
+		return
 	var timestamp := Time.get_datetime_string_from_system(true)
 	var header := "\n=== SurveyJourney Session %s ===\n" % timestamp
-	_append_trace_text(header)
+	SURVEY_DEBUG_LOGGER.append_text(TRACE_LOG_PATH, header)
 
 func _trace(message: String) -> void:
-	var timestamp := Time.get_time_string_from_system()
-	_append_trace_text("[%s] %s\n" % [timestamp, message])
-
-func _append_trace_text(text: String) -> void:
-	var existing := ""
-	if FileAccess.file_exists(TRACE_LOG_PATH):
-		var read_file := FileAccess.open(TRACE_LOG_PATH, FileAccess.READ)
-		if read_file != null:
-			existing = read_file.get_as_text()
-			read_file.close()
-	var write_file := FileAccess.open(TRACE_LOG_PATH, FileAccess.WRITE)
-	if write_file == null:
+	if not debug_trace_logging_enabled:
 		return
-	write_file.store_string(existing + text)
-	write_file.close()
+	var timestamp := Time.get_time_string_from_system()
+	SURVEY_DEBUG_LOGGER.append_text(TRACE_LOG_PATH, "[%s] %s\n" % [timestamp, message])
 
 func _show_status_message(message: String, is_error: bool = false) -> void:
 	var trimmed := message.strip_edges()
