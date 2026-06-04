@@ -4,6 +4,7 @@ extends CanvasLayer
 signal start_guided_requested
 signal resume_requested
 signal export_bundle_requested
+signal export_visual_audit_requested
 signal open_tutorial_requested
 signal home_requested
 signal close_requested
@@ -37,6 +38,7 @@ var _home_actions: GridContainer
 var _start_button: Button
 var _tutorial_button: Button
 var _export_button: Button
+var _visual_audit_button: Button
 var _resume_button: Button
 var _switch_surface_button: Button
 var _tutorial_view: VBoxContainer
@@ -57,6 +59,7 @@ var _page_status_label: Label
 var _checklist_actions: HFlowContainer
 var _capture_button: Button
 var _checklist_export_button: Button
+var _checklist_visual_audit_button: Button
 var _checklist_home_button: Button
 var _items_scroll: ScrollContainer
 var _items_list: VBoxContainer
@@ -84,7 +87,7 @@ func refresh_theme() -> void:
 	for button in [_start_button, _export_button, _capture_button, _checklist_export_button]:
 		if button != null:
 			SurveyStyle.apply_primary_button(button)
-	for button in [_tutorial_button, _resume_button, _switch_surface_button, _tutorial_capture_button, _tutorial_review_button, _tutorial_download_button, _tutorial_back_button, _page_prev_button, _page_next_button, _checklist_home_button]:
+	for button in [_visual_audit_button, _checklist_visual_audit_button, _tutorial_button, _resume_button, _switch_surface_button, _tutorial_capture_button, _tutorial_review_button, _tutorial_download_button, _tutorial_back_button, _page_prev_button, _page_next_button, _checklist_home_button]:
 		if button != null:
 			SurveyStyle.apply_secondary_button(button)
 	if _page_picker != null:
@@ -245,11 +248,13 @@ func _build_home_view() -> void:
 	_start_button = _build_button("StartGuidedButton", "Start Guided Test", _on_start_guided_pressed)
 	_tutorial_button = _build_button("TutorialButton", "How To Report An Issue", _on_tutorial_pressed)
 	_export_button = _build_button("ExportBundleButton", "Export QA Bundle", _on_export_bundle_pressed)
+	_visual_audit_button = _build_button("ExportVisualAuditButton", "Export Visual Audit", _on_export_visual_audit_pressed)
 	_resume_button = _build_button("ResumeButton", "Resume Last Session", _on_resume_pressed)
 	_switch_surface_button = _build_button("SwitchSurfaceButton", "Switch Surface", _on_switch_surface_pressed)
 	_home_actions.add_child(_start_button)
 	_home_actions.add_child(_tutorial_button)
 	_home_actions.add_child(_export_button)
+	_home_actions.add_child(_visual_audit_button)
 	_home_actions.add_child(_resume_button)
 	_home_actions.add_child(_switch_surface_button)
 
@@ -326,9 +331,11 @@ func _build_checklist_view() -> void:
 
 	_capture_button = _build_button("CapturePageButton", "Capture Current Page", _on_capture_page_pressed)
 	_checklist_export_button = _build_button("ChecklistExportButton", "Export QA Bundle", _on_export_bundle_pressed)
+	_checklist_visual_audit_button = _build_button("ChecklistVisualAuditButton", "Export Visual Audit", _on_export_visual_audit_pressed)
 	_checklist_home_button = _build_button("ChecklistHomeButton", "Back To Home", _on_checklist_home_pressed)
 	_checklist_actions.add_child(_capture_button)
 	_checklist_actions.add_child(_checklist_export_button)
+	_checklist_actions.add_child(_checklist_visual_audit_button)
 	_checklist_actions.add_child(_checklist_home_button)
 
 	_items_scroll = ScrollContainer.new()
@@ -578,6 +585,9 @@ func _on_tutorial_pressed() -> void:
 
 func _on_export_bundle_pressed() -> void:
 	export_bundle_requested.emit()
+
+func _on_export_visual_audit_pressed() -> void:
+	export_visual_audit_requested.emit()
 
 func _on_resume_pressed() -> void:
 	resume_requested.emit()

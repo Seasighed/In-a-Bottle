@@ -4,6 +4,7 @@ extends Node
 const SURVEY_QA_OVERLAY = preload("res://Scripts/UI/SurveyQaOverlay.gd")
 const SURVEY_QA_CHECKLIST_CATALOG = preload("res://Scripts/QA/SurveyQaChecklistCatalog.gd")
 const SURVEY_QA_SESSION_SUPPORT = preload("res://Scripts/QA/SurveyQaSessionSupport.gd")
+const SURVEY_VISUAL_AUDIT_RUNNER = preload("res://Scripts/Tools/SurveyVisualAuditRunner.gd")
 const QUESTION_TYPE_GALLERY_SCENE = preload("res://Scenes/UI/QuestionTypeGallery.tscn")
 
 signal status_requested(message: String, is_error: bool)
@@ -26,6 +27,7 @@ var _auto_open_pending := false
 var _question_gallery_overlay: CanvasLayer
 var _question_gallery_panel: PanelContainer
 var _question_gallery_close_button: Button
+var _visual_audit_runner: SurveyVisualAuditRunner
 
 func configure(root_control: Control, surface_id: String, page_context_provider: Callable, runtime_state_provider: Callable, qa_action_callback: Callable, status_callback: Callable, download_callback: Callable, share_callback: Callable = Callable(), share_supported_callback: Callable = Callable(), feedback_controller = null, switch_surface_callback: Callable = Callable()) -> void:
 	_root_control = root_control
@@ -44,6 +46,7 @@ func configure(root_control: Control, surface_id: String, page_context_provider:
 	SURVEY_QA_SESSION_SUPPORT.save_session(_session)
 	_ensure_overlay()
 	_ensure_question_gallery_overlay()
+	_ensure_visual_audit_runner()
 	refresh_layout(_viewport_size())
 
 func refresh_layout(viewport_size: Vector2) -> void:
@@ -140,6 +143,26 @@ func export_bundle() -> void:
 		return
 	_emit_status("QA bundle export started.", false)
 
+func export_visual_audit() -> void:
+	if _download_callback.is_valid() == false:
+		_emit_status("Visual audit downloads are unavailable in this build.", true)
+		return
+	_ensure_visual_audit_runner()
+	_emit_status("Exporting the visual audit bundle...", false)
+	var bundle := await _visual_audit_runner.export_visual_audit_bundle()
+	if not bool(bundle.get("ok", false)):
+		_emit_status(str(bundle.get("message", "Unable to build the visual audit bundle.")), true)
+		return
+	var started := bool(_download_callback.call(
+		bundle.get("buffer", PackedByteArray()),
+		str(bundle.get("file_name", "survey_visual_audit.zip")),
+		"Visual audit bundle export started."
+	))
+	if not started:
+		_emit_status("Unable to start the visual audit bundle export.", true)
+		return
+	_emit_status("Visual audit bundle export started.", false)
+
 func has_open_gallery() -> bool:
 	return _question_gallery_overlay != null and _question_gallery_overlay.visible
 
@@ -166,6 +189,7 @@ func _ensure_overlay() -> void:
 	_overlay.start_guided_requested.connect(_on_start_guided_requested)
 	_overlay.resume_requested.connect(_on_resume_requested)
 	_overlay.export_bundle_requested.connect(export_bundle)
+	_overlay.export_visual_audit_requested.connect(export_visual_audit)
 	_overlay.open_tutorial_requested.connect(_on_open_tutorial_requested)
 	_overlay.home_requested.connect(_on_home_requested)
 	_overlay.close_requested.connect(_on_overlay_closed)
@@ -228,6 +252,14 @@ func _ensure_question_gallery_overlay() -> void:
 	if gallery != null:
 		gallery.name = "QuestionTypeGallery"
 		stack.add_child(gallery)
+
+func _ensure_visual_audit_runner() -> void:
+	if _visual_audit_runner != null:
+		return
+	_visual_audit_runner = SURVEY_VISUAL_AUDIT_RUNNER.new()
+	_visual_audit_runner.name = "SurveyVisualAuditRunner"
+	add_child(_visual_audit_runner)
+	_visual_audit_runner.status_changed.connect(_on_visual_audit_status_changed)
 
 func _layout_question_gallery(viewport_size: Vector2) -> void:
 	if _question_gallery_panel == null:
@@ -504,6 +536,9 @@ func _emit_status(message: String, is_error: bool) -> void:
 	status_requested.emit(trimmed, is_error)
 	if _status_callback.is_valid():
 		_status_callback.call(trimmed, is_error)
+
+func _on_visual_audit_status_changed(message: String, is_error: bool) -> void:
+	_emit_status(message, is_error)
 
 func _string_set(values: Array) -> Dictionary:
 	var resolved := {}

@@ -4,6 +4,7 @@ extends Control
 const SURVEY_BUILD_EXPORT_SUPPORT = preload("res://Scripts/Tools/SurveyBuildExportSupport.gd")
 const SURVEY_UI_FLOW_CATALOG = preload("res://Scripts/Tools/SurveyUiFlowCatalog.gd")
 const SURVEY_UI_FLOW_FIXTURES = preload("res://Scripts/Tools/SurveyUiFlowFixtures.gd")
+const SURVEY_VISUAL_AUDIT_RUNNER = preload("res://Scripts/Tools/SurveyVisualAuditRunner.gd")
 const SURVEY_APP_SCENE = preload("res://Scenes/Main.tscn")
 const SURVEY_JOURNEY_SCENE = preload("res://Scenes/SurveyJourney.tscn")
 const QUESTION_TYPE_GALLERY_SCENE = preload("res://Scenes/UI/QuestionTypeGallery.tscn")
@@ -19,6 +20,7 @@ const DEFAULT_LIGHT_PALETTE = preload("res://Themes/SurveyLightPalette.tres")
 
 var _generation_in_progress := false
 var _build_export_in_progress := false
+var _visual_audit_in_progress := false
 var _latest_graph: Dictionary = {}
 var _export_paths_by_id: Dictionary = {}
 var _build_presets: Array[Dictionary] = []
@@ -26,11 +28,13 @@ var _export_buttons: Array[Button] = []
 var _capture_placeholder_warning_emitted := false
 var _suppress_build_directory_updates := false
 var _build_folder_dialog: FileDialog
+var _visual_audit_runner: SurveyVisualAuditRunner
 
 @onready var _background: ColorRect = $Background
 @onready var _title_label: Label = $Margin/Stack/Toolbar/TitleLabel
 @onready var _generate_button: Button = $Margin/Stack/Toolbar/GenerateButton
 @onready var _open_folder_button: Button = $Margin/Stack/Toolbar/OpenFolderButton
+@onready var _visual_audit_button: Button = $Margin/Stack/Toolbar/VisualAuditButton
 @onready var _build_panel: PanelContainer = $Margin/Stack/BuildPanel
 @onready var _build_heading_label: Label = $Margin/Stack/BuildPanel/BuildStack/BuildHeadingLabel
 @onready var _build_description_label: Label = $Margin/Stack/BuildPanel/BuildStack/BuildDescriptionLabel
@@ -47,8 +51,10 @@ var _build_folder_dialog: FileDialog
 func _ready() -> void:
 	SurveyStyle.configure_palettes(dark_palette if dark_palette != null else DEFAULT_DARK_PALETTE, light_palette if light_palette != null else DEFAULT_LIGHT_PALETTE, use_dark_mode)
 	_apply_theme()
+	_ensure_visual_audit_runner()
 	_generate_button.pressed.connect(_on_generate_pressed)
 	_open_folder_button.pressed.connect(_on_open_folder_pressed)
+	_visual_audit_button.pressed.connect(_on_visual_audit_pressed)
 	_build_folder_field.text_changed.connect(_on_build_folder_text_changed)
 	_build_folder_field.text_submitted.connect(_on_build_folder_text_submitted)
 	_build_folder_field.focus_exited.connect(_on_build_folder_focus_exited)
@@ -68,7 +74,7 @@ func _ready() -> void:
 		call_deferred("regenerate_map")
 
 func build_flow_graph() -> Dictionary:
-	return SURVEY_UI_FLOW_CATALOG.build_graph()
+	return _visual_audit_runner.build_flow_graph() if _visual_audit_runner != null else SURVEY_UI_FLOW_CATALOG.build_graph()
 
 func export_directory_path() -> String:
 	var preferred_output := output_directory.strip_edges()
@@ -86,47 +92,28 @@ func preview_next_build_version() -> Dictionary:
 	return SURVEY_BUILD_EXPORT_SUPPORT.next_version_info(build_export_directory_path())
 
 func regenerate_map() -> void:
-	if _generation_in_progress:
+	if _generation_in_progress or _visual_audit_in_progress:
 		return
 	_generation_in_progress = true
-	_generate_button.disabled = true
-	_open_folder_button.disabled = true
-
-	_latest_graph = build_flow_graph()
-	var export_dir := export_directory_path()
-	_prepare_output_directory(export_dir)
-	var textures_by_id: Dictionary = {}
-	_export_paths_by_id.clear()
-
-	var node_values: Variant = _latest_graph.get("nodes", [])
-	var nodes: Array = node_values if node_values is Array else []
-	for index in range(nodes.size()):
-		if not (nodes[index] is Dictionary):
-			continue
-		var node_spec: Dictionary = (nodes[index] as Dictionary).duplicate(true)
-		var node_id := str(node_spec.get("id", "")).strip_edges()
-		if node_id.is_empty():
-			continue
-		_status_label.text = "Capturing %d of %d: %s" % [index + 1, nodes.size(), str(node_spec.get("title", node_id))]
-		var image: Image = await _capture_node(node_spec)
-		if image == null:
-			image = _placeholder_image()
-		var export_path := "%s/%s.png" % [export_dir.trim_suffix("/"), node_id]
-		var save_error := image.save_png(export_path)
-		if save_error != OK:
-			push_error("Failed to export %s to %s (error %d)." % [node_id, export_path, save_error])
-		textures_by_id[node_id] = ImageTexture.create_from_image(image)
-		_export_paths_by_id[node_id] = export_path
-
-	_write_manifest(export_dir)
-	_flow_canvas.set_graph(_latest_graph, textures_by_id, _export_paths_by_id)
-	_status_label.text = "Captured %d UI states to %s" % [_export_paths_by_id.size(), export_dir]
-	_generate_button.disabled = false
-	_open_folder_button.disabled = false
+	_update_visual_interaction_state()
+	var result := await _visual_audit_runner.generate_flow_map_assets(export_directory_path())
+	if not bool(result.get("ok", false)):
+		_status_label.text = str(result.get("message", "Unable to generate the UI flow atlas.")).strip_edges()
+		_generation_in_progress = false
+		_update_visual_interaction_state()
+		return
+	_latest_graph = result.get("graph", {}) as Dictionary
+	_export_paths_by_id = result.get("export_paths_by_id", {}) as Dictionary
+	_flow_canvas.set_graph(_latest_graph, result.get("textures_by_id", {}) as Dictionary, _export_paths_by_id)
+	_status_label.text = "Captured %d UI states to %s" % [_export_paths_by_id.size(), export_directory_path()]
 	_generation_in_progress = false
+	_update_visual_interaction_state()
 
 func _on_generate_pressed() -> void:
 	regenerate_map()
+
+func _on_visual_audit_pressed() -> void:
+	_export_visual_audit_bundle()
 
 func _on_open_folder_pressed() -> void:
 	var folder_path := export_directory_path()
@@ -136,6 +123,48 @@ func _on_open_folder_pressed() -> void:
 		return
 	var open_error := OS.shell_open(folder_path)
 	_status_label.text = "Opened %s" % folder_path if open_error == OK else "Failed to open %s" % folder_path
+
+func _ensure_visual_audit_runner() -> void:
+	if _visual_audit_runner != null:
+		_visual_audit_runner.configure_theme(dark_palette, light_palette, use_dark_mode)
+		return
+	_visual_audit_runner = SURVEY_VISUAL_AUDIT_RUNNER.new()
+	_visual_audit_runner.name = "SurveyVisualAuditRunner"
+	add_child(_visual_audit_runner)
+	_visual_audit_runner.configure_theme(dark_palette, light_palette, use_dark_mode)
+	_visual_audit_runner.status_changed.connect(_on_visual_audit_status_changed)
+
+func _update_visual_interaction_state() -> void:
+	var busy := _generation_in_progress or _visual_audit_in_progress or _build_export_in_progress
+	_generate_button.disabled = busy
+	_open_folder_button.disabled = busy
+	_visual_audit_button.disabled = busy
+
+func _on_visual_audit_status_changed(message: String, is_error: bool) -> void:
+	_status_label.text = message
+	SurveyStyle.style_body(_status_label, SurveyStyle.DANGER if is_error else SurveyStyle.TEXT_MUTED)
+
+func _export_visual_audit_bundle() -> void:
+	if _visual_audit_in_progress or _generation_in_progress:
+		return
+	_visual_audit_in_progress = true
+	_update_visual_interaction_state()
+	_status_label.text = "Exporting the visual audit bundle..."
+	var result := await _visual_audit_runner.export_visual_audit_bundle()
+	_visual_audit_in_progress = false
+	_update_visual_interaction_state()
+	if not bool(result.get("ok", false)):
+		_status_label.text = str(result.get("message", "Unable to export the visual audit bundle.")).strip_edges()
+		SurveyStyle.style_body(_status_label, SurveyStyle.DANGER)
+		return
+	var zip_absolute_path := str(result.get("zip_absolute_path", "")).strip_edges()
+	if not zip_absolute_path.is_empty():
+		_status_label.text = "Visual audit bundle exported to %s" % zip_absolute_path
+		SurveyStyle.style_body(_status_label, SurveyStyle.TEXT_MUTED)
+		OS.shell_open(zip_absolute_path.get_base_dir())
+		return
+	_status_label.text = "Visual audit bundle export finished."
+	SurveyStyle.style_body(_status_label, SurveyStyle.TEXT_MUTED)
 
 func _on_build_folder_text_changed(_new_text: String) -> void:
 	if _suppress_build_directory_updates:
@@ -443,6 +472,7 @@ func _apply_theme() -> void:
 	SurveyStyle.style_heading(_title_label, 28)
 	SurveyStyle.apply_primary_button(_generate_button)
 	SurveyStyle.apply_secondary_button(_open_folder_button)
+	SurveyStyle.apply_primary_button(_visual_audit_button)
 	SurveyStyle.apply_panel(_build_panel, SurveyStyle.SURFACE_ALT, SurveyStyle.BORDER, 18, 1)
 	SurveyStyle.style_heading(_build_heading_label, 18)
 	SurveyStyle.style_body(_build_description_label, SurveyStyle.TEXT_MUTED)
@@ -544,6 +574,7 @@ func _update_build_interaction_state() -> void:
 	_build_open_button.disabled = _build_export_in_progress
 	for button in _export_buttons:
 		button.disabled = not export_enabled
+	_update_visual_interaction_state()
 
 func _export_builds(presets: Array[Dictionary]) -> void:
 	if _build_export_in_progress:

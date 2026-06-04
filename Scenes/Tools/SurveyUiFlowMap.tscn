@@ -55,6 +55,10 @@ text = "Regenerate PNGs"
 layout_mode = 2
 text = "Open Export Folder"
 
+[node name="VisualAuditButton" type="Button" parent="Margin/Stack/Toolbar"]
+layout_mode = 2
+text = "Export Visual Audit Bundle"
+
 [node name="BuildPanel" type="PanelContainer" parent="Margin/Stack"]
 layout_mode = 2
 size_flags_horizontal = 3

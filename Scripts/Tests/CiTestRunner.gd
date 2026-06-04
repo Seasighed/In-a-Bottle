@@ -35,6 +35,8 @@ const SURVEY_JOURNEY_BOSS_BAR_SCENE := preload("res://Scenes/UI/SurveyJourneyBos
 const SURVEY_BUILD_EXPORT_SUPPORT := preload("res://Scripts/Tools/SurveyBuildExportSupport.gd")
 const SURVEY_UI_FLOW_CATALOG := preload("res://Scripts/Tools/SurveyUiFlowCatalog.gd")
 const SURVEY_UI_FLOW_FIXTURES := preload("res://Scripts/Tools/SurveyUiFlowFixtures.gd")
+const SURVEY_VISUAL_AUDIT_CATALOG := preload("res://Scripts/Tools/SurveyVisualAuditCatalog.gd")
+const SURVEY_VISUAL_AUDIT_RUNNER_SCRIPT := preload("res://Scripts/Tools/SurveyVisualAuditRunner.gd")
 const DEFAULT_THEME_CATALOG = preload("res://Themes/SurveyThemeCatalog.tres")
 const SURVEY_THEME_PALETTE_SCRIPT := preload("res://Scripts/UI/SurveyThemePalette.gd")
 const SURVEY_UI_FLOW_MAP_SCENE := preload("res://Scenes/Tools/SurveyUiFlowMap.tscn")
@@ -90,6 +92,8 @@ func _run_suite() -> void:
 	await _run_test("Playtest Feedback Export Support", _test_playtest_feedback_export_support)
 	await _run_test("QA Checklist Catalog", _test_qa_checklist_catalog)
 	await _run_test("QA Session Export Support", _test_qa_session_export_support)
+	await _run_test("Visual Audit Catalog Coverage", _test_visual_audit_catalog_coverage)
+	await _run_test("Visual Audit Bundle Export", _test_visual_audit_bundle_export)
 	await _run_test("Playtest Feedback Popup Clamps To Viewport", _test_playtest_feedback_popup_clamps_to_viewport)
 	await _run_test("Playtest Feedback Ctrl Click Reporter", _test_playtest_feedback_ctrl_click_reporter)
 	await _run_test("Playtest Feedback Armed Capture And Share Fallback", _test_playtest_feedback_armed_capture_and_share_fallback)
@@ -2282,6 +2286,73 @@ func _test_qa_session_export_support() -> void:
 	_remove_directory_tree(export_root)
 	SURVEY_QA_SESSION_SUPPORT.clear_session_file()
 
+func _test_visual_audit_catalog_coverage() -> void:
+	var specs: Array[Dictionary] = SURVEY_VISUAL_AUDIT_CATALOG.build_bundle_capture_specs()
+	_check_true(not specs.is_empty(), "The visual audit catalog should expose capture specs.")
+	var spec_lookup := {}
+	for spec in specs:
+		var spec_id := str(spec.get("id", "")).strip_edges()
+		if spec_id.is_empty():
+			continue
+		spec_lookup[spec_id] = spec
+
+	for node_id in SURVEY_VISUAL_AUDIT_CATALOG.flow_node_ids():
+		_check_true(spec_lookup.has("%s__%s" % [node_id, SURVEY_VISUAL_AUDIT_CATALOG.PHONE_VIEWPORT_ID]) or spec_lookup.has("%s__sheet" % node_id), "Every flow node should have a visual audit capture.")
+	for qa_state_id in SURVEY_VISUAL_AUDIT_CATALOG.qa_state_ids():
+		_check_true(spec_lookup.has("%s__%s" % [qa_state_id, SURVEY_VISUAL_AUDIT_CATALOG.PHONE_VIEWPORT_ID]), "QA overlay states should be captured in the visual audit catalog.")
+	for feedback_state_id in SURVEY_VISUAL_AUDIT_CATALOG.feedback_state_ids():
+		_check_true(spec_lookup.has("%s__%s" % [feedback_state_id, SURVEY_VISUAL_AUDIT_CATALOG.PHONE_VIEWPORT_ID]), "Feedback overlay states should be captured in the visual audit catalog.")
+	for family_id in SURVEY_VISUAL_AUDIT_CATALOG.question_family_ids():
+		var has_family_capture := false
+		for spec in specs:
+			if str(spec.get("group", "")).strip_edges() != "question_types":
+				continue
+			if str(spec.get("surface", "")).strip_edges() != family_id:
+				continue
+			has_family_capture = true
+			break
+		_check_true(has_family_capture, "Every gallery-defined question family should have at least one dedicated capture.")
+	for custom_scene_path in SURVEY_VISUAL_AUDIT_CATALOG.discovered_custom_scene_paths():
+		var has_custom_capture := false
+		for spec in specs:
+			if str(spec.get("group", "")).strip_edges() != "custom_views":
+				continue
+			if str(spec.get("scene_path", "")).strip_edges() != custom_scene_path:
+				continue
+			has_custom_capture = true
+			break
+		_check_true(has_custom_capture, "Every unique custom question view scene should have a visual audit capture.")
+
+func _test_visual_audit_bundle_export() -> void:
+	var audit_output_root := ProjectSettings.globalize_path(SURVEY_VISUAL_AUDIT_CATALOG.OUTPUT_DIRECTORY).replace("\\", "/")
+	var audit_zip_root := ProjectSettings.globalize_path(SURVEY_VISUAL_AUDIT_CATALOG.ZIP_EXPORT_DIR).replace("\\", "/")
+	_remove_directory_tree(audit_output_root)
+	_remove_directory_tree(audit_zip_root)
+
+	var runner: SurveyVisualAuditRunner = SURVEY_VISUAL_AUDIT_RUNNER_SCRIPT.new()
+	add_child(runner)
+	var bundle := await runner.export_visual_audit_bundle({"contract_only": true})
+	_check_true(bool(bundle.get("ok", false)), "The visual audit runner should build a contract ZIP bundle in headless CI.")
+	if bool(bundle.get("ok", false)):
+		var reader := ZIPReader.new()
+		var open_error := reader.open(str(bundle.get("zip_path", "")))
+		_check_equal(open_error, OK, "The visual audit ZIP should open for verification.")
+		if open_error == OK:
+			_check_true(not reader.read_file("flow_chart/ui_flow.png").is_empty(), "The visual audit ZIP should include a flow chart image.")
+			_check_true(not reader.read_file("flow_chart/flow_manifest.json").is_empty(), "The visual audit ZIP should include a flow chart manifest.")
+			_check_true(not reader.read_file("metadata/bundle_manifest.json").is_empty(), "The visual audit ZIP should include a bundle manifest.")
+			_check_true(not reader.read_file("metadata/coverage_report.json").is_empty(), "The visual audit ZIP should include a coverage report.")
+			_check_true(not reader.read_file("screens/journey_landing/phone_430x932.png").is_empty(), "The visual audit ZIP should include responsive screen captures.")
+			_check_true(not reader.read_file("screens/qa_home/phone_430x932.png").is_empty(), "The visual audit ZIP should include QA overlay captures.")
+			_check_true(not reader.read_file("screens/feedback_review_panel/phone_430x932.png").is_empty(), "The visual audit ZIP should include feedback overlay captures.")
+			_check_true(not reader.read_file("question_types/short_text/filled.png").is_empty(), "The visual audit ZIP should include dedicated question type captures.")
+			_check_true(not reader.read_file("features/summary_image/default.png").is_empty(), "The visual audit ZIP should include exportable feature images.")
+			reader.close()
+	runner.queue_free()
+	await _await_layout_frames()
+	_remove_directory_tree(audit_output_root)
+	_remove_directory_tree(audit_zip_root)
+
 	var survey: SurveyDefinition = SURVEY_TEMPLATE_LOADER.load_from_file(DEBUG_TEMPLATE_PATH)
 	_check_true(survey != null, "The debug survey should load for QA bundle export coverage.")
 	if survey == null:
@@ -2922,6 +2993,7 @@ func _test_ui_flow_map_catalog() -> void:
 	_check_true(flow_map.has_method("build_flow_graph"), "The UI flow map scene should expose its graph builder for automation.")
 	_check_true(flow_map.has_method("available_build_presets"), "The UI flow map scene should expose the discovered build presets for automation.")
 	_check_true(flow_map.has_method("preview_next_build_version"), "The UI flow map scene should expose the next build preview for automation.")
+	_check_true(flow_map.get_node_or_null("Margin/Stack/Toolbar/VisualAuditButton") != null, "The UI flow map scene should expose the visual audit bundle trigger.")
 	if flow_map.has_method("build_flow_graph"):
 		var scene_graph: Dictionary = flow_map.call("build_flow_graph")
 		var scene_nodes: Variant = scene_graph.get("nodes", [])
