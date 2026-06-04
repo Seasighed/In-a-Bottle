@@ -21,8 +21,10 @@ const SURVEY_GAMIFICATION_HUD_SCENE: PackedScene = preload("res://Scenes/UI/Surv
 const SURVEY_TOAST_OVERLAY_SCRIPT = preload("res://Scripts/UI/SurveyToastOverlay.gd")
 const SURVEY_THEME_DRAWER_SCRIPT = preload("res://Scripts/UI/SurveyThemeDrawer.gd")
 const SURVEY_PLAYTEST_FEEDBACK_CONTROLLER = preload("res://Scripts/UI/SurveyPlaytestFeedbackController.gd")
+const SURVEY_QA_CONTROLLER = preload("res://Scripts/UI/SurveyQaController.gd")
 const SURVEY_SHELL_SUPPORT = preload("res://Scripts/UI/SurveyShellSupport.gd")
 const SURVEY_DEBUG_LOGGER = preload("res://Scripts/UI/SurveyDebugLogger.gd")
+const SURVEY_UI_FLOW_FIXTURES = preload("res://Scripts/Tools/SurveyUiFlowFixtures.gd")
 const DEFAULT_DARK_PALETTE = preload("res://Themes/SurveyDarkPalette.tres")
 const DEFAULT_LIGHT_PALETTE = preload("res://Themes/SurveyLightPalette.tres")
 const DEFAULT_THEME_CATALOG = preload("res://Themes/SurveyThemeCatalog.tres")
@@ -45,6 +47,7 @@ const EXPORT_FORMAT_JSON := "json"
 const EXPORT_FORMAT_CSV := "csv"
 const TRACE_LOG_PATH := "user://survey_journey_trace.log"
 const SURVEY_BACKUP_DIR := "user://survey_backups"
+const SURVEY_APP_SCENE_PATH := "res://Scenes/Main.tscn"
 const VIEW_LANDING := &"landing"
 const VIEW_SURVEY_SELECTION := &"survey_selection"
 const VIEW_LORE := &"lore"
@@ -167,6 +170,7 @@ var _boss_wrapup_played_snapshot_hash := ""
 var _boss_bar_animation_count := 0
 var _boss_state_cache: Dictionary = {}
 var _playtest_feedback_controller
+var _qa_controller
 
 @onready var _background: ColorRect = $Background
 @onready var _margin: MarginContainer = $Margin
@@ -300,6 +304,7 @@ func _ready() -> void:
 	if _upload_response_text_edit != null:
 		_upload_response_text_edit.editable = false
 	_show_view(VIEW_LANDING)
+	call_deferred("_maybe_open_qa_home")
 	call_deferred("_sync_scroll_content_widths")
 	_refresh_menu_access_button()
 	set_process_input(true)
@@ -370,6 +375,9 @@ func _feature_flag_enabled(property_name: String, default_value: bool = true) ->
 	var value: Variant = flags.get(property_name)
 	return default_value if value == null else bool(value)
 
+func _qa_mode_enabled() -> bool:
+	return _feature_flag_enabled("enable_qa_mode", false)
+
 func _is_lore_enabled() -> bool:
 	return _feature_flag_enabled("enable_lore", true)
 
@@ -383,7 +391,7 @@ func _is_boss_battle_enabled() -> bool:
 	return _feature_flag_enabled("enable_boss_battle", true)
 
 func _playtest_feedback_enabled() -> bool:
-	return OS.is_debug_build()
+	return OS.is_debug_build() or _qa_mode_enabled()
 
 func _available_theme_sets() -> Array:
 	var catalog = _resolved_theme_catalog_resource(theme_catalog, DEFAULT_THEME_CATALOG)
@@ -547,6 +555,7 @@ func _ensure_optional_ui_nodes() -> void:
 		_menu_access_layer.add_child(report_button)
 		_report_access_button = report_button
 	_ensure_playtest_feedback_controller()
+	_ensure_qa_controller()
 
 func _ensure_export_details_nodes() -> void:
 	if _export_action_grid == null:
@@ -589,9 +598,35 @@ func _ensure_playtest_feedback_controller() -> void:
 			self,
 			"survey_journey",
 			Callable(self, "_playtest_feedback_page_context"),
-			Callable(self, "_download_buffer_to_browser"),
+			Callable(self, "_download_or_save_buffer"),
 			Callable(self, "_share_buffer_to_browser"),
 			Callable(self, "_supports_browser_feedback_share")
+		)
+
+func _ensure_qa_controller() -> void:
+	if not _qa_mode_enabled() or SURVEY_QA_CONTROLLER == null:
+		_qa_controller = null
+		return
+	if _qa_controller == null:
+		_qa_controller = get_node_or_null("SurveyQaController")
+	if _qa_controller == null:
+		_qa_controller = SURVEY_QA_CONTROLLER.new()
+		if _qa_controller != null:
+			_qa_controller.name = "SurveyQaController"
+			add_child(_qa_controller)
+	if _qa_controller != null:
+		_qa_controller.configure(
+			self,
+			"survey_journey",
+			Callable(self, "_playtest_feedback_page_context"),
+			Callable(self, "_qa_runtime_state"),
+			Callable(self, "_handle_qa_action"),
+			Callable(self, "_show_status_message"),
+			Callable(self, "_download_or_save_buffer"),
+			Callable(self, "_share_buffer_to_browser"),
+			Callable(self, "_supports_browser_feedback_share"),
+			_playtest_feedback_controller,
+			Callable(self, "_switch_qa_surface")
 		)
 
 func _ensure_boss_nodes() -> void:
@@ -820,6 +855,9 @@ func _connect_actions() -> void:
 		_overlay_menu.playtest_feedback_share_requested.connect(_on_playtest_feedback_share_requested)
 		_overlay_menu.playtest_feedback_download_requested.connect(_on_playtest_feedback_download_requested)
 		_overlay_menu.playtest_feedback_clear_requested.connect(_on_playtest_feedback_clear_requested)
+		_overlay_menu.qa_guide_requested.connect(_on_qa_guide_requested)
+		_overlay_menu.qa_capture_requested.connect(_on_qa_capture_requested)
+		_overlay_menu.qa_export_requested.connect(_on_qa_export_requested)
 	if _help_overlay != null:
 		_help_overlay.closed.connect(_refresh_menu_access_button)
 	if _focus_outline_toggle_button != null:
@@ -1432,6 +1470,8 @@ func _update_responsive_layout() -> void:
 		_toast_overlay.refresh_layout(viewport_size)
 	if _playtest_feedback_controller != null:
 		_playtest_feedback_controller.refresh_layout(viewport_size)
+	if _qa_controller != null:
+		_qa_controller.refresh_layout(viewport_size)
 	if _focus_boss_bar != null:
 		_focus_boss_bar.refresh_layout(viewport_size)
 	if _focus_charge_meter != null:
@@ -1440,6 +1480,116 @@ func _update_responsive_layout() -> void:
 		_wrapup_stage.refresh_layout(viewport_size)
 	_refresh_gamification_surfaces()
 	_refresh_boss_surfaces()
+
+func _maybe_open_qa_home() -> void:
+	if _qa_controller == null:
+		return
+	_qa_controller.show_intro_if_needed()
+
+func _qa_runtime_state() -> Dictionary:
+	return {
+		"survey": survey,
+		"template_path": survey_template_path,
+		"answers": answers.duplicate(true),
+		"preferences": _current_preferences(),
+		"session_state": _current_session_state(),
+		"upload_configured": _is_upload_endpoint_configured()
+	}
+
+func _handle_qa_action(command: String, payload: Dictionary) -> Dictionary:
+	match command:
+		"load_default_template":
+			var target_path := str(payload.get("path", survey_template_path)).strip_edges()
+			var ok := _load_survey_from_path(target_path, false)
+			return {
+				"ok": ok,
+				"message": "Loaded %s for the QA pass." % target_path.get_file() if ok else "Failed to load the QA template."
+			}
+		"focus_page":
+			return _focus_qa_page(str(payload.get("page_node_id", "")).strip_edges(), false)
+		"auto_page":
+			return _focus_qa_page(str(payload.get("page_node_id", "")).strip_edges(), true)
+	return {
+		"ok": false,
+		"message": "Unknown QA action: %s" % command
+	}
+
+func _qa_fill_test_answers() -> int:
+	if survey == null:
+		return 0
+	answers = SURVEY_UI_FLOW_FIXTURES.sample_complete_answers(survey)
+	_restore_response_quality_tracking({}, false)
+	if _focus_question_stage != null:
+		_focus_question_stage.sync_answers(answers)
+	_persist_current_session_cache()
+	_prime_boss_trackers()
+	_prime_gamification_trackers()
+	_refresh_all_views()
+	_refresh_boss_surfaces()
+	_refresh_gamification_surfaces()
+	return answers.size()
+
+func _focus_qa_page(page_node_id: String, use_auto_prep: bool) -> Dictionary:
+	if survey == null:
+		return {
+			"ok": false,
+			"message": "Load a survey before navigating the QA checklist."
+		}
+	if _theme_drawer != null and _theme_drawer.has_method("set_expanded") and page_node_id != "journey_theme_drawer":
+		_theme_drawer.set_expanded(false)
+	if use_auto_prep and page_node_id in ["journey_review", "journey_profile", "journey_thanks", "journey_export", "journey_upload"]:
+		_qa_fill_test_answers()
+	_close_overlay_menu()
+	_close_question_help()
+	_close_profile_overlay()
+	_close_lore_link_prompt()
+	_set_focus_outline_visible(false)
+	match page_node_id:
+		"journey_landing":
+			_show_view(VIEW_LANDING)
+		"journey_theme_drawer":
+			_show_view(VIEW_LANDING)
+			if _theme_drawer != null and _theme_drawer.has_method("set_expanded"):
+				_theme_drawer.set_expanded(true)
+		"journey_survey_selection":
+			_show_view(VIEW_SURVEY_SELECTION)
+		"journey_lore":
+			_show_view(VIEW_LORE)
+		"journey_lore_link":
+			if survey.lore_url.strip_edges().is_empty():
+				survey.lore_url = "https://example.com/lore"
+			if survey.lore_url_label.strip_edges().is_empty():
+				survey.lore_url_label = "Lore URL"
+			_refresh_all_views()
+			_show_view(VIEW_LORE)
+			_open_lore_link_prompt()
+		"journey_focus":
+			_start_focus_from_section(0, "")
+		"journey_outline":
+			_start_focus_from_section(0, "")
+			_set_focus_outline_visible(true)
+		"journey_menu":
+			_start_focus_from_section(0, "")
+			_open_overlay_menu()
+		"journey_help":
+			_start_focus_from_section(0, "")
+			_open_question_help()
+		"journey_review":
+			_open_review_view()
+		"journey_profile":
+			_start_focus_from_section(0, "")
+			_open_profile_overlay()
+		"journey_thanks":
+			_show_view(VIEW_THANKS)
+		"journey_export":
+			_open_export_overlay()
+		"journey_upload":
+			_open_export_overlay()
+			_open_upload_view()
+	return {
+		"ok": true,
+		"message": "Prepared %s for QA review." % page_node_id.replace("_", " ")
+	}
 
 func _refresh_all_views() -> void:
 	_refresh_landing_view()
@@ -1631,7 +1781,9 @@ func _playtest_feedback_page_context() -> Dictionary:
 			"current_section_title": section.display_title(section_index) if section != null else "",
 			"current_question_id": current_question_id,
 			"current_question_prompt": current_question.prompt.strip_edges() if current_question != null else "",
-			"open_overlays": _playtest_feedback_open_overlays()
+			"open_overlays": _playtest_feedback_open_overlays(),
+			"theme_drawer_expanded": _theme_drawer.is_expanded() if _theme_drawer != null and _theme_drawer.has_method("is_expanded") else false,
+			"qa_page_node_id": _current_qa_page_node_id()
 		}
 	}
 
@@ -1680,7 +1832,11 @@ func _journey_menu_options() -> Dictionary:
 		"question_debug_ids": _question_debug_ids_enabled,
 		"show_feedback_tools": _playtest_feedback_enabled() and _playtest_feedback_controller != null,
 		"show_feedback_share": _playtest_feedback_controller != null and _playtest_feedback_controller.supports_share_feedback_zip(),
-		"feedback_issue_count": _playtest_feedback_controller.issue_count() if _playtest_feedback_controller != null else 0
+		"feedback_issue_count": _playtest_feedback_controller.issue_count() if _playtest_feedback_controller != null else 0,
+		"show_qa_tools": _qa_mode_enabled() and _qa_controller != null,
+		"qa_status_text": _qa_menu_status_text(),
+		"qa_export_enabled": _qa_controller != null,
+		"qa_capture_enabled": _qa_controller != null
 	}
 
 func _on_playtest_feedback_review_requested() -> void:
@@ -1716,8 +1872,60 @@ func _on_playtest_feedback_clear_requested() -> void:
 func _on_playtest_feedback_issues_changed(_issue_count: int) -> void:
 	_refresh_overlay_menu_if_open()
 
+func _on_qa_guide_requested() -> void:
+	if _qa_controller == null:
+		return
+	_qa_controller.open_home()
+
+func _on_qa_capture_requested() -> void:
+	if _qa_controller == null:
+		return
+	_qa_controller.capture_current_page("overlay_menu_capture")
+
+func _on_qa_export_requested() -> void:
+	if _qa_controller == null:
+		return
+	_qa_controller.export_bundle()
+
 func _on_playtest_feedback_overlay_visibility_changed(_is_visible: bool) -> void:
 	_refresh_menu_access_button()
+
+func _current_qa_page_node_id() -> String:
+	var open_overlays := _playtest_feedback_open_overlays()
+	if open_overlays.has("lore_link_prompt"):
+		return "journey_lore_link"
+	if open_overlays.has("help"):
+		return "journey_help"
+	if open_overlays.has("profile"):
+		return "journey_profile"
+	if open_overlays.has("focus_outline"):
+		return "journey_outline"
+	if open_overlays.has("overlay_menu"):
+		return "journey_menu"
+	if _current_view == VIEW_LANDING and _theme_drawer != null and _theme_drawer.has_method("is_expanded") and _theme_drawer.is_expanded():
+		return "journey_theme_drawer"
+	match _current_view:
+		VIEW_LANDING:
+			return "journey_landing"
+		VIEW_SURVEY_SELECTION:
+			return "journey_survey_selection"
+		VIEW_LORE:
+			return "journey_lore"
+		VIEW_FOCUS:
+			return "journey_focus"
+		VIEW_REVIEW:
+			return "journey_review"
+		VIEW_THANKS:
+			return "journey_thanks"
+		VIEW_EXPORT:
+			return "journey_export"
+		VIEW_UPLOAD:
+			return "journey_upload"
+	return "journey_landing"
+
+func _qa_menu_status_text() -> String:
+	var feedback_count := _playtest_feedback_controller.issue_count() if _playtest_feedback_controller != null else 0
+	return "Open the QA guide to run the checklist, capture screenshots, and export the session bundle. %d issue(s) tagged so far." % feedback_count
 
 func _journey_menu_position_text() -> String:
 	if survey == null:
@@ -3790,6 +3998,28 @@ func _download_buffer_to_browser(buffer: PackedByteArray, file_name: String, suc
 	_show_status_message(success_message)
 	return true
 
+func _download_or_save_buffer(buffer: PackedByteArray, file_name: String, success_message: String) -> bool:
+	if buffer.is_empty():
+		return false
+	if _supports_browser_downloads():
+		return _download_buffer_to_browser(buffer, file_name, success_message)
+	var export_dir: String = ProjectSettings.globalize_path("user://exports")
+	var ensure_error := DirAccess.make_dir_recursive_absolute(export_dir)
+	if ensure_error != OK and not DirAccess.dir_exists_absolute(export_dir):
+		_show_status_message("Failed to prepare the local export folder.", true)
+		return false
+	var target_path := export_dir.path_join(file_name.strip_edges())
+	var file := FileAccess.open(target_path, FileAccess.WRITE)
+	if file == null:
+		_show_status_message("Failed to save %s." % file_name, true)
+		return false
+	file.store_buffer(buffer)
+	file.close()
+	SURVEY_UI_FEEDBACK.play_export()
+	_show_status_message("%s Saved to %s" % [success_message, target_path])
+	OS.shell_open(export_dir)
+	return true
+
 func _share_buffer_to_browser(buffer: PackedByteArray, file_name: String, mime_type: String, title: String, text: String, success_message: String) -> bool:
 	var share_result: Dictionary = SURVEY_TRANSFER_SUPPORT.share_buffer_to_browser(buffer, file_name, mime_type, title, text)
 	if not bool(share_result.get("ok", false)):
@@ -5198,3 +5428,8 @@ func _show_status_message(message: String, is_error: bool = false) -> void:
 	if trimmed.is_empty():
 		return
 	SurveyStyle.style_caption(_status_label, SurveyStyle.DANGER if is_error else SurveyStyle.TEXT_PRIMARY)
+
+func _switch_qa_surface(target_surface_id: String) -> void:
+	match target_surface_id:
+		"survey_app":
+			get_tree().change_scene_to_file(SURVEY_APP_SCENE_PATH)

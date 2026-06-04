@@ -157,6 +157,9 @@ func refresh_layout(viewport_size: Vector2) -> void:
 func has_themes() -> bool:
 	return not _themes.is_empty()
 
+func is_expanded() -> bool:
+	return _expanded
+
 func _build_ui() -> void:
 	if _bounds != null:
 		return

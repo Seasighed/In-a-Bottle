@@ -46,12 +46,14 @@ static func available_presets(config_path: String = PRESETS_PATH) -> Array[Dicti
 		var name := str(config.get_value(section, "name", "Preset %d" % index)).strip_edges()
 		var platform := str(config.get_value(section, "platform", "")).strip_edges()
 		var export_path := str(config.get_value(section, "export_path", "")).strip_edges()
+		var options_section := "%s.options" % section
 		presets.append({
 			"index": index,
 			"section": section,
 			"name": name,
 			"platform": platform,
 			"export_path": export_path,
+			"embed_pck": bool(config.get_value(options_section, "binary_format/embed_pck", false)),
 			"relative_export_path": relative_export_path(export_path, name, platform)
 		})
 		index += 1
@@ -118,6 +120,43 @@ static func build_export_command(preset_name: String, target_path: String, execu
 		])
 	}
 
+static func export_blocker_message(preset: Dictionary, executable_path: String = "") -> String:
+	var platform := str(preset.get("platform", "")).strip_edges().to_lower()
+	var resolved_executable := executable_path.strip_edges().to_lower()
+	if resolved_executable.is_empty():
+		resolved_executable = OS.get_executable_path().strip_edges().to_lower()
+	if platform == "web" and resolved_executable.contains("mono"):
+		return "Web exports must use a non-Mono Godot editor build. This repo vendors SeaShell C# addon files, and Godot 4 Mono will not produce a valid Web export from that setup."
+	return ""
+
+static func artifact_paths_for_export(target_path: String, preset: Dictionary) -> PackedStringArray:
+	var resolved_target := normalize_output_path(target_path)
+	var artifacts := PackedStringArray()
+	if resolved_target.is_empty():
+		return artifacts
+	artifacts.append(resolved_target)
+	var platform := str(preset.get("platform", "")).strip_edges().to_lower()
+	if platform == "web" and resolved_target.get_extension().to_lower() == "html":
+		var base_path := resolved_target.get_basename()
+		artifacts.append("%s.js" % base_path)
+		artifacts.append("%s.pck" % base_path)
+		artifacts.append("%s.wasm" % base_path)
+	elif platform == "windows desktop" and not bool(preset.get("embed_pck", false)):
+		artifacts.append("%s.pck" % resolved_target.get_basename())
+	return _dedupe_paths(artifacts)
+
+static func verify_export_artifacts(target_path: String, preset: Dictionary) -> Dictionary:
+	var artifacts := artifact_paths_for_export(target_path, preset)
+	var missing := PackedStringArray()
+	for artifact_path in artifacts:
+		if not FileAccess.file_exists(artifact_path):
+			missing.append(artifact_path)
+	return {
+		"ok": missing.is_empty(),
+		"artifacts": artifacts,
+		"missing": missing
+	}
+
 static func ensure_parent_directory(path: String) -> int:
 	var parent_directory := path.get_base_dir().strip_edges()
 	if parent_directory.is_empty():
@@ -150,6 +189,17 @@ static func relative_export_path(export_path: String, preset_name: String = "", 
 			normalized_path = "%s/%s" % [preset_slug, preset_slug]
 	return normalized_path.simplify_path()
 
+static func normalize_output_path(raw_path: String) -> String:
+	var requested_path := raw_path.strip_edges().replace("\\", "/")
+	if requested_path.is_empty():
+		return ""
+	if requested_path.begins_with("res://") or requested_path.begins_with("user://"):
+		return ProjectSettings.globalize_path(requested_path).replace("\\", "/").simplify_path()
+	if requested_path.is_absolute_path():
+		return requested_path.simplify_path()
+	var project_root := ProjectSettings.globalize_path("res://").trim_suffix("/").replace("\\", "/")
+	return ("%s/%s" % [project_root, requested_path]).simplify_path()
+
 static func sanitize_path_component(raw_text: String) -> String:
 	var sanitized := ""
 	for character in raw_text.strip_edges().to_lower():
@@ -163,3 +213,14 @@ static func sanitize_path_component(raw_text: String) -> String:
 		else:
 			sanitized += "_"
 	return sanitized.strip_edges().trim_prefix("_").trim_suffix("_")
+
+static func _dedupe_paths(paths: PackedStringArray) -> PackedStringArray:
+	var seen := {}
+	var deduped := PackedStringArray()
+	for path in paths:
+		var normalized_path := str(path).strip_edges().replace("\\", "/")
+		if normalized_path.is_empty() or seen.has(normalized_path):
+			continue
+		seen[normalized_path] = true
+		deduped.append(normalized_path)
+	return deduped

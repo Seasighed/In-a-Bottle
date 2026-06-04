@@ -65,9 +65,76 @@ jobs:
           mkdir -p build/web
           "$GODOT_BIN" --headless --path . --export-release "Web" build/web/index.html
 
+      - name: Verify Web Export Artifacts
+        run: |
+          set -euxo pipefail
+          "$GODOT_BIN" --headless --path . --script res://Scripts/Tools/VerifyExportArtifacts.gd -- "Web" "build/web/index.html"
+
       - name: Upload Web Artifact
         uses: actions/upload-artifact@v4
         with:
           name: web-build
           path: build/web
+          if-no-files-found: error
+
+  validate-windows-export:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Godot Editor
+        run: |
+          New-Item -ItemType Directory -Force -Path "$env:RUNNER_TEMP\godot" | Out-Null
+          $godotZip = "$env:RUNNER_TEMP\godot\godot.zip"
+          Invoke-WebRequest -Uri "https://github.com/godotengine/godot-builds/releases/download/$env:GODOT_VERSION/Godot_v$env:GODOT_VERSION_win64.exe.zip" -OutFile $godotZip
+          Expand-Archive -Path $godotZip -DestinationPath "$env:RUNNER_TEMP\godot" -Force
+          $godotBin = Get-ChildItem "$env:RUNNER_TEMP\godot" -Filter "Godot_v*_win64_console.exe" -Recurse | Select-Object -First 1
+          if (-not $godotBin) {
+            $godotBin = Get-ChildItem "$env:RUNNER_TEMP\godot" -Filter "Godot_v*_win64.exe" -Recurse | Select-Object -First 1
+          }
+          if (-not $godotBin) {
+            throw "Unable to locate the downloaded Godot executable."
+          }
+          "GODOT_BIN=$($godotBin.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Install Export Templates
+        run: |
+          $templatesZip = "$env:RUNNER_TEMP\godot\export_templates.zip"
+          Invoke-WebRequest -Uri "https://github.com/godotengine/godot-builds/releases/download/$env:GODOT_VERSION/Godot_v$env:GODOT_VERSION_export_templates.tpz" -OutFile $templatesZip
+          Expand-Archive -Path $templatesZip -DestinationPath "$env:RUNNER_TEMP\godot\templates" -Force
+          $templateDir = Join-Path $env:APPDATA "Godot\export_templates\$env:GODOT_VERSION_DIR"
+          New-Item -ItemType Directory -Force -Path $templateDir | Out-Null
+          Copy-Item "$env:RUNNER_TEMP\godot\templates\templates\*" $templateDir -Recurse -Force
+
+      - name: Import Project
+        run: |
+          & $env:GODOT_BIN --headless --path . --quit-after 1
+
+      - name: Check Project
+        run: |
+          & $env:GODOT_BIN --headless --path . --check-only
+
+      - name: Run Custom CI Tests
+        run: |
+          & $env:GODOT_BIN --headless --path . --script res://Scripts/Tests/CiTestBootstrap.gd
+
+      - name: Export Windows Build
+        run: |
+          if (Test-Path build/windows) {
+            Remove-Item build/windows -Recurse -Force
+          }
+          New-Item -ItemType Directory -Force -Path build/windows | Out-Null
+          & $env:GODOT_BIN --headless --path . --export-release "Windows Desktop" build/windows/InABottle.exe
+
+      - name: Verify Windows Export Artifacts
+        run: |
+          & $env:GODOT_BIN --headless --path . --script res://Scripts/Tools/VerifyExportArtifacts.gd -- "Windows Desktop" "build/windows/InABottle.exe"
+
+      - name: Upload Windows Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: build/windows
           if-no-files-found: error

@@ -34,9 +34,12 @@ const SURVEY_JOURNEY_BOSS_STATE := preload("res://Scripts/UI/SurveyJourneyBossSt
 const SURVEY_JOURNEY_BOSS_BAR_SCENE := preload("res://Scenes/UI/SurveyJourneyBossBar.tscn")
 const SURVEY_BUILD_EXPORT_SUPPORT := preload("res://Scripts/Tools/SurveyBuildExportSupport.gd")
 const SURVEY_UI_FLOW_CATALOG := preload("res://Scripts/Tools/SurveyUiFlowCatalog.gd")
+const SURVEY_UI_FLOW_FIXTURES := preload("res://Scripts/Tools/SurveyUiFlowFixtures.gd")
 const DEFAULT_THEME_CATALOG = preload("res://Themes/SurveyThemeCatalog.tres")
 const SURVEY_THEME_PALETTE_SCRIPT := preload("res://Scripts/UI/SurveyThemePalette.gd")
 const SURVEY_UI_FLOW_MAP_SCENE := preload("res://Scenes/Tools/SurveyUiFlowMap.tscn")
+const SURVEY_QA_CHECKLIST_CATALOG := preload("res://Scripts/QA/SurveyQaChecklistCatalog.gd")
+const SURVEY_QA_SESSION_SUPPORT := preload("res://Scripts/QA/SurveyQaSessionSupport.gd")
 
 const TEMPLATE_PATH := "res://Dev/SurveyTemplates/studio_feedback.json"
 const DEBUG_TEMPLATE_PATH := "res://Dev/SurveyTemplates/personal_checkin_debug.json"
@@ -82,7 +85,10 @@ func _run_suite() -> void:
 	await _run_test("Overlay Menu Clear All Button", _test_overlay_menu_clear_all_button)
 	await _run_test("Overlay Menu Preview Resolution Picker", _test_overlay_menu_preview_resolution_picker)
 	await _run_test("Overlay Menu Playtest Feedback Controls", _test_overlay_menu_playtest_feedback_controls)
+	await _run_test("Overlay Menu QA Controls", _test_overlay_menu_qa_controls)
 	await _run_test("Playtest Feedback Export Support", _test_playtest_feedback_export_support)
+	await _run_test("QA Checklist Catalog", _test_qa_checklist_catalog)
+	await _run_test("QA Session Export Support", _test_qa_session_export_support)
 	await _run_test("Playtest Feedback Popup Clamps To Viewport", _test_playtest_feedback_popup_clamps_to_viewport)
 	await _run_test("Playtest Feedback Ctrl Click Reporter", _test_playtest_feedback_ctrl_click_reporter)
 	await _run_test("Playtest Feedback Armed Capture And Share Fallback", _test_playtest_feedback_armed_capture_and_share_fallback)
@@ -2089,6 +2095,74 @@ func _test_overlay_menu_playtest_feedback_controls() -> void:
 	overlay.queue_free()
 	await get_tree().process_frame
 
+func _test_overlay_menu_qa_controls() -> void:
+	var survey: SurveyDefinition = _load_studio_feedback()
+	if survey == null:
+		return
+	var overlay: OverlayMenu = OVERLAY_MENU_SCENE.instantiate()
+	add_child(overlay)
+	await get_tree().process_frame
+
+	overlay.open_menu(
+		survey,
+		0,
+		{},
+		0.35,
+		false,
+		{
+			"show_qa_tools": true,
+			"qa_status_text": "Open the QA guide to export the bundle.",
+			"qa_export_enabled": true,
+			"qa_capture_enabled": true
+		}
+	)
+	await get_tree().process_frame
+	var qa_heading: Label = overlay.get_node_or_null("Bounds/Center/Panel/PanelScroll/Stack/QaHeadingLabel") as Label
+	var qa_status: Label = overlay.get_node_or_null("Bounds/Center/Panel/PanelScroll/Stack/QaStatusLabel") as Label
+	var guide_button: Button = overlay.get_node_or_null("Bounds/Center/Panel/PanelScroll/Stack/QaActions/QaGuideButton") as Button
+	var capture_button: Button = overlay.get_node_or_null("Bounds/Center/Panel/PanelScroll/Stack/QaActions/QaCaptureButton") as Button
+	var export_button: Button = overlay.get_node_or_null("Bounds/Center/Panel/PanelScroll/Stack/QaActions/QaExportButton") as Button
+	_check_true(qa_heading != null and qa_heading.visible, "The overlay menu should show the QA heading when QA mode is enabled.")
+	_check_true(qa_status != null and qa_status.visible and qa_status.text.contains("QA guide"), "The QA section should explain what the guided flow does.")
+	_check_true(guide_button != null and guide_button.visible and not guide_button.disabled, "The QA guide button should be visible and enabled in QA mode.")
+	_check_true(capture_button != null and capture_button.visible and not capture_button.disabled, "The QA capture button should be visible and enabled when captures are allowed.")
+	_check_true(export_button != null and export_button.visible and not export_button.disabled, "The QA export button should be visible and enabled when bundle export is allowed.")
+
+	overlay.open_menu(
+		survey,
+		0,
+		{},
+		0.35,
+		false,
+		{
+			"show_qa_tools": true,
+			"qa_export_enabled": false,
+			"qa_capture_enabled": false
+		}
+	)
+	await get_tree().process_frame
+	if capture_button != null:
+		_check_true(capture_button.disabled, "The QA capture button should disable when capture support is unavailable.")
+	if export_button != null:
+		_check_true(export_button.disabled, "The QA export button should disable when bundle export is unavailable.")
+
+	overlay.open_menu(
+		survey,
+		0,
+		{},
+		0.35,
+		false,
+		{
+			"show_qa_tools": false
+		}
+	)
+	await get_tree().process_frame
+	if qa_heading != null:
+		_check_true(not qa_heading.visible, "The QA menu section should hide when QA mode is disabled.")
+
+	overlay.queue_free()
+	await get_tree().process_frame
+
 func _test_playtest_feedback_export_support() -> void:
 	var session_manifest := SURVEY_PLAYTEST_FEEDBACK_SUPPORT.build_session_manifest("survey_app", 1700000000, "2026-05-04T16:00:00Z", 2)
 	var issues := [_sample_feedback_issue("issue_0001"), _sample_feedback_issue("issue_0002")]
@@ -2116,6 +2190,118 @@ func _test_playtest_feedback_export_support() -> void:
 		_check_true(bundle_bytes.get_string_from_utf8().contains("\"format\""), "The feedback ZIP should include the structured JSON bundle.")
 		_check_true(not screenshot_bytes.is_empty(), "The feedback ZIP should include screenshot PNG assets.")
 		reader.close()
+
+func _test_qa_checklist_catalog() -> void:
+	var journey_page_ids: Array[String] = SURVEY_QA_CHECKLIST_CATALOG.page_ids_for_surface("survey_journey", false)
+	var survey_app_page_ids: Array[String] = SURVEY_QA_CHECKLIST_CATALOG.page_ids_for_surface("survey_app", false)
+	var shared_page_ids: Array[String] = SURVEY_QA_CHECKLIST_CATALOG.page_ids_for_surface("survey_journey", true)
+	_check_equal(journey_page_ids.size(), 14, "The QA Journey surface should catalog every required Journey page.")
+	_check_equal(survey_app_page_ids.size(), 10, "The QA Survey App surface should catalog every required Survey App page.")
+	_check_true(shared_page_ids.has("question_gallery"), "The QA catalog should append the shared question gallery to surface page lists.")
+	_check_true(journey_page_ids.has("journey_upload"), "The QA Journey catalog should include the upload surface.")
+	_check_true(survey_app_page_ids.has("survey_app_help"), "The QA Survey App catalog should include the help surface.")
+
+	var upload_item := SURVEY_QA_CHECKLIST_CATALOG.find_item("survey_journey", "journey_upload::upload_guardrails")
+	_check_true(not upload_item.is_empty(), "The QA catalog should expose the Journey upload guardrails checklist item.")
+	if not upload_item.is_empty():
+		_check_equal(str(upload_item.get("conditional_key", "")), "upload_configured", "Upload QA checks should be conditional on live upload configuration.")
+		_check_equal(str(upload_item.get("auto_action_id", "")), "journey_upload", "Conditional upload checks should still focus the upload surface.")
+
+	var gallery_item := SURVEY_QA_CHECKLIST_CATALOG.find_item("survey_app", "question_gallery::gallery_coverage")
+	_check_true(not gallery_item.is_empty(), "The QA catalog should surface shared gallery checks from either shell.")
+	if not gallery_item.is_empty():
+		_check_true(str(gallery_item.get("auto_action_id", "")).is_empty(), "Manual gallery coverage checks should not advertise an auto-drive action.")
+
+func _test_qa_session_export_support() -> void:
+	var capture_root := ProjectSettings.globalize_path(SURVEY_QA_SESSION_SUPPORT.CAPTURE_ROOT_DIR).replace("\\", "/")
+	var export_root := ProjectSettings.globalize_path(SURVEY_QA_SESSION_SUPPORT.ZIP_EXPORT_DIR).replace("\\", "/")
+	_remove_directory_tree(capture_root)
+	_remove_directory_tree(export_root)
+	SURVEY_QA_SESSION_SUPPORT.clear_session_file()
+
+	var survey: SurveyDefinition = SURVEY_TEMPLATE_LOADER.load_from_file(DEBUG_TEMPLATE_PATH)
+	_check_true(survey != null, "The debug survey should load for QA bundle export coverage.")
+	if survey == null:
+		return
+
+	var session := SURVEY_QA_SESSION_SUPPORT.default_session("survey_journey", DEBUG_TEMPLATE_PATH)
+	var checklist_item := SURVEY_QA_CHECKLIST_CATALOG.find_item("survey_journey", "journey_landing::readability")
+	session = SURVEY_QA_SESSION_SUPPORT.record_check_result(session, "survey_journey", checklist_item, "pass")
+	session = SURVEY_QA_SESSION_SUPPORT.set_current_page(session, "survey_journey", "journey_landing")
+
+	var capture_paths := SURVEY_QA_SESSION_SUPPORT.build_capture_paths(str(session.get("session_id", "")), "survey_journey", "journey_landing", "manual")
+	_check_true(not capture_paths.is_empty(), "QA session export support should prepare a capture folder for stored screenshots.")
+	if capture_paths.is_empty():
+		return
+	var image := Image.create(96, 72, false, Image.FORMAT_RGBA8)
+	image.fill(Color(0.12, 0.44, 0.71, 1.0))
+	var save_error := image.save_png(str(capture_paths.get("absolute_path", "")))
+	_check_equal(save_error, OK, "QA capture fixtures should save into the QA capture folder.")
+	session = SURVEY_QA_SESSION_SUPPORT.record_capture(session, "survey_journey", {
+		"id": "journey_capture_0001",
+		"surface_id": "survey_journey",
+		"page_node_id": "journey_landing",
+		"captured_at": "2026-06-03T23:10:00Z",
+		"reason": "manual",
+		"absolute_path": str(capture_paths.get("absolute_path", "")),
+		"relative_path": str(capture_paths.get("relative_path", ""))
+	})
+	session = SURVEY_QA_SESSION_SUPPORT.record_feedback_issues(session, "survey_journey", [_sample_feedback_issue("qa_issue_0001")])
+
+	var runtime_state := {
+		"survey": survey,
+		"template_path": DEBUG_TEMPLATE_PATH,
+		"answers": SURVEY_UI_FLOW_FIXTURES.sample_complete_answers(survey),
+		"preferences": {
+			"use_dark_mode": true,
+			"sfx_volume": 0.45,
+			"survey_view_mode": "focus"
+		},
+		"session_state": {
+			"current_section_index": 0,
+			"selected_question_id": survey.sections[0].questions[0].id if not survey.sections.is_empty() and not survey.sections[0].questions.is_empty() else "",
+			"session_started_at_unix": 1700000000,
+			"first_answer_at_unix": 1700000003,
+			"last_answer_at_unix": 1700000060,
+			"answer_change_count": 8,
+			"restored_progress": false
+		}
+	}
+	var export_payload := SURVEY_QA_SESSION_SUPPORT.build_export_payload(runtime_state)
+	var bundle := SURVEY_QA_SESSION_SUPPORT.build_zip_export(session, "survey_journey", {
+		"surface_id": "survey_journey",
+		"platform_label": "Windows",
+		"page_node_id": "journey_landing",
+		"template_path": DEBUG_TEMPLATE_PATH,
+		"upload_configured": false,
+		"survey_id": survey.id,
+		"survey_title": survey.title,
+		"captured_at": "2026-06-03T23:11:00Z"
+	}, export_payload)
+	_check_true(bool(bundle.get("ok", false)), "QA session export support should build a ZIP bundle from checklist, capture, and answer data.")
+	if not bool(bundle.get("ok", false)):
+		return
+	_check_true(not (bundle.get("buffer", PackedByteArray()) as PackedByteArray).is_empty(), "QA bundle exports should produce a non-empty ZIP buffer.")
+	var reader := ZIPReader.new()
+	var open_error := reader.open(str(bundle.get("zip_path", "")))
+	_check_equal(open_error, OK, "The generated QA ZIP should open for verification.")
+	if open_error == OK:
+		_check_true(not reader.read_file("report.md").is_empty(), "The QA ZIP should include a markdown report.")
+		_check_true(not reader.read_file("session.json").is_empty(), "The QA ZIP should include the saved session payload.")
+		_check_true(not reader.read_file("checklist_results.json").is_empty(), "The QA ZIP should include checklist results.")
+		_check_true(not reader.read_file("environment.json").is_empty(), "The QA ZIP should include environment metadata.")
+		_check_true(not reader.read_file("answers.json").is_empty(), "The QA ZIP should include exported answers JSON.")
+		_check_true(not reader.read_file("answers.csv").is_empty(), "The QA ZIP should include exported answers CSV.")
+		_check_true(not reader.read_file("progress_bundle.json").is_empty(), "The QA ZIP should include a progress bundle export.")
+		_check_true(not reader.read_file("page_captures/%s" % str(capture_paths.get("relative_path", "")).replace("\\", "/")).is_empty(), "The QA ZIP should embed captured page screenshots.")
+		_check_true(not reader.read_file("issues/survey_journey/feedback_report.md").is_empty(), "The QA ZIP should nest the issue markdown report.")
+		_check_true(not reader.read_file("issues/survey_journey/feedback_bundle.json").is_empty(), "The QA ZIP should nest the issue JSON bundle.")
+		_check_true(not reader.read_file("issues/survey_journey/screenshots/qa_issue_0001.png").is_empty(), "The QA ZIP should include nested issue screenshots.")
+		reader.close()
+
+	_remove_directory_tree(capture_root)
+	_remove_directory_tree(export_root)
+	SURVEY_QA_SESSION_SUPPORT.clear_session_file()
 
 func _test_playtest_feedback_popup_clamps_to_viewport() -> void:
 	var overlay: SurveyPlaytestFeedbackOverlay = SURVEY_PLAYTEST_FEEDBACK_OVERLAY_SCRIPT.new()
@@ -2591,6 +2777,11 @@ func _test_build_export_support_versioning() -> void:
 	var first_preset: Dictionary = presets[0]
 	_check_equal(str(first_preset.get("name", "")), "Web", "The first export preset should stay aligned with the current Web export preset.")
 	_check_equal(str(first_preset.get("relative_export_path", "")), "web/index.html", "Build export support should trim the legacy build/ prefix when versioning preset outputs.")
+	var windows_preset := _find_build_preset(presets, "Windows Desktop")
+	_check_true(not windows_preset.is_empty(), "Build export support should detect the Windows Desktop preset.")
+	if not windows_preset.is_empty():
+		_check_equal(str(windows_preset.get("relative_export_path", "")), "windows/InABottle.exe", "Windows exports should route into the dedicated build/windows output path.")
+		_check_equal(bool(windows_preset.get("embed_pck", true)), false, "Windows export verification should know when the desktop build expects a sibling PCK file.")
 
 	var normalized_relative_path := SURVEY_BUILD_EXPORT_SUPPORT.normalize_directory_path("Builds/CI")
 	var project_root := ProjectSettings.globalize_path("res://").trim_suffix("/").replace("\\", "/")
@@ -2614,6 +2805,38 @@ func _test_build_export_support_versioning() -> void:
 	_check_equal(str(command.get("executable", "")), "godot.exe", "Build export support should preserve an explicitly supplied Godot executable path.")
 	_check_true(arguments.size() >= 6, "Build export support should generate the expected Godot export command arguments.")
 	_check_equal(arguments[3], "--export-release", "Build export support should export release builds from the tool panel.")
+	_check_true(
+		SURVEY_BUILD_EXPORT_SUPPORT.export_blocker_message(first_preset, "X:/Apps/Godot/Godot_v4.6-stable_mono_win64/Godot_v4.6-stable_mono_win64_console.exe").contains("non-Mono"),
+		"Build export support should warn when a Mono Godot editor tries to export the Web build."
+	)
+	_check_true(
+		SURVEY_BUILD_EXPORT_SUPPORT.export_blocker_message(first_preset, "X:/Apps/Godot/Godot_v4.6-stable_win64_console.exe").is_empty(),
+		"Build export support should allow Web exports from a non-Mono Godot editor."
+	)
+
+	var web_artifact_root := ProjectSettings.globalize_path("user://ci_build_export_artifacts").replace("\\", "/")
+	_remove_directory_tree(web_artifact_root)
+	DirAccess.make_dir_recursive_absolute(web_artifact_root)
+	SURVEY_EXPORTER.save_text_file("%s/index.html" % web_artifact_root, "<html></html>")
+	SURVEY_EXPORTER.save_text_file("%s/index.js" % web_artifact_root, "console.log('ok');")
+	SURVEY_EXPORTER.save_text_file("%s/index.pck" % web_artifact_root, "pck")
+	SURVEY_EXPORTER.save_text_file("%s/index.wasm" % web_artifact_root, "wasm")
+	var verified_web := SURVEY_BUILD_EXPORT_SUPPORT.verify_export_artifacts("%s/index.html" % web_artifact_root, first_preset)
+	_check_true(bool(verified_web.get("ok", false)), "Build export verification should accept a complete Web artifact set.")
+
+	if not windows_preset.is_empty():
+		var windows_artifact_root := ProjectSettings.globalize_path("user://ci_windows_export_artifacts").replace("\\", "/")
+		_remove_directory_tree(windows_artifact_root)
+		DirAccess.make_dir_recursive_absolute(windows_artifact_root)
+		SURVEY_EXPORTER.save_text_file("%s/InABottle.exe" % windows_artifact_root, "exe")
+		var missing_windows := SURVEY_BUILD_EXPORT_SUPPORT.verify_export_artifacts("%s/InABottle.exe" % windows_artifact_root, windows_preset)
+		_check_true(not bool(missing_windows.get("ok", true)), "Build export verification should fail when the desktop PCK artifact is missing.")
+		SURVEY_EXPORTER.save_text_file("%s/InABottle.pck" % windows_artifact_root, "pck")
+		var verified_windows := SURVEY_BUILD_EXPORT_SUPPORT.verify_export_artifacts("%s/InABottle.exe" % windows_artifact_root, windows_preset)
+		_check_true(bool(verified_windows.get("ok", false)), "Build export verification should accept a complete Windows Desktop artifact set.")
+		_remove_directory_tree(windows_artifact_root)
+
+	_remove_directory_tree(web_artifact_root)
 	_remove_directory_tree(temp_build_root)
 
 func _test_ui_flow_map_catalog() -> void:
@@ -2794,6 +3017,12 @@ func _remove_directory_tree(dir_path: String) -> void:
 			DirAccess.remove_absolute(entry_path)
 	directory.list_dir_end()
 	DirAccess.remove_absolute(normalized_path)
+
+func _find_build_preset(presets: Array[Dictionary], preset_name: String) -> Dictionary:
+	for preset in presets:
+		if str(preset.get("name", "")).strip_edges() == preset_name:
+			return preset.duplicate(true)
+	return {}
 
 func _button_normal_fill(button: Button) -> Color:
 	if button == null:

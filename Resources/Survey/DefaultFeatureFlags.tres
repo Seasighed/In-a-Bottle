@@ -5,3 +5,4 @@
 [resource]
 script = ExtResource("1")
 enable_preview_controls = false
+enable_qa_mode = true

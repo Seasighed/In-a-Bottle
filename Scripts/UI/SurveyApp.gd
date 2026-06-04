@@ -22,6 +22,7 @@ const SURVEY_GAMIFICATION_HUD_SCENE: PackedScene = preload("res://Scenes/UI/Surv
 const SURVEY_TOAST_OVERLAY_SCRIPT = preload("res://Scripts/UI/SurveyToastOverlay.gd")
 const QUESTION_VIEW_REGISTRY = preload("res://Scripts/UI/QuestionViewRegistry.gd")
 const SURVEY_PLAYTEST_FEEDBACK_CONTROLLER = preload("res://Scripts/UI/SurveyPlaytestFeedbackController.gd")
+const SURVEY_QA_CONTROLLER = preload("res://Scripts/UI/SurveyQaController.gd")
 const SURVEY_SHELL_SUPPORT = preload("res://Scripts/UI/SurveyShellSupport.gd")
 const DEFAULT_DARK_PALETTE = preload("res://Themes/SurveyDarkPalette.tres")
 const DEFAULT_LIGHT_PALETTE = preload("res://Themes/SurveyLightPalette.tres")
@@ -146,6 +147,7 @@ var _gamification_completed_sections: Dictionary = {}
 var _gamification_completed_questions: Dictionary = {}
 var _gamification_survey_completed := false
 var _playtest_feedback_controller
+var _qa_controller
 
 @onready var _background: ColorRect = $Background
 @onready var _margin: MarginContainer = $Margin
@@ -209,6 +211,7 @@ func _ensure_optional_ui_nodes() -> void:
 			add_child(toast_overlay)
 	_ensure_gamification_nodes()
 	_ensure_playtest_feedback_controller()
+	_ensure_qa_controller()
 	_settings_overlay = get_node_or_null("SettingsOverlay")
 	_summary_overlay = get_node_or_null("SummaryOverlay")
 	_export_overlay = get_node_or_null("ExportOverlay")
@@ -227,7 +230,10 @@ func _ensure_overlay_node(node_name: String, scene_resource: PackedScene) -> voi
 	add_child(overlay)
 
 func _playtest_feedback_enabled() -> bool:
-	return OS.is_debug_build()
+	return OS.is_debug_build() or _qa_mode_enabled()
+
+func _qa_mode_enabled() -> bool:
+	return _feature_flag_enabled("enable_qa_mode", false)
 
 func _ensure_playtest_feedback_controller() -> void:
 	if not _playtest_feedback_enabled() or SURVEY_PLAYTEST_FEEDBACK_CONTROLLER == null:
@@ -245,9 +251,35 @@ func _ensure_playtest_feedback_controller() -> void:
 			self,
 			"survey_app",
 			Callable(self, "_playtest_feedback_page_context"),
-			Callable(self, "_download_buffer_to_browser"),
+			Callable(self, "_download_or_save_buffer"),
 			Callable(self, "_share_buffer_to_browser"),
 			Callable(self, "_supports_browser_feedback_share")
+		)
+
+func _ensure_qa_controller() -> void:
+	if not _qa_mode_enabled() or SURVEY_QA_CONTROLLER == null:
+		_qa_controller = null
+		return
+	if _qa_controller == null:
+		_qa_controller = get_node_or_null("SurveyQaController")
+	if _qa_controller == null:
+		_qa_controller = SURVEY_QA_CONTROLLER.new()
+		if _qa_controller != null:
+			_qa_controller.name = "SurveyQaController"
+			add_child(_qa_controller)
+	if _qa_controller != null:
+		_qa_controller.configure(
+			self,
+			"survey_app",
+			Callable(self, "_playtest_feedback_page_context"),
+			Callable(self, "_qa_runtime_state"),
+			Callable(self, "_handle_qa_action"),
+			Callable(self, "_show_status_message"),
+			Callable(self, "_download_or_save_buffer"),
+			Callable(self, "_share_buffer_to_browser"),
+			Callable(self, "_supports_browser_feedback_share"),
+			_playtest_feedback_controller,
+			Callable(self, "_switch_qa_surface")
 		)
 
 func _ensure_gamification_nodes() -> void:
@@ -392,6 +424,7 @@ func _ready() -> void:
 	_apply_platform_capabilities()
 	_wire_static_feedback()
 	_load_survey()
+	call_deferred("_maybe_open_qa_home")
 	set_process_input(true)
 	set_process_unhandled_input(true)
 
@@ -520,6 +553,28 @@ func _share_buffer_to_browser(buffer: PackedByteArray, file_name: String, mime_t
 	SURVEY_UI_FEEDBACK.play_export()
 	var status_message: String = str(share_result.get("message", success_message)).strip_edges()
 	_show_status_message(status_message if not status_message.is_empty() else success_message)
+	return true
+
+func _download_or_save_buffer(buffer: PackedByteArray, file_name: String, success_message: String) -> bool:
+	if buffer.is_empty():
+		return false
+	if _supports_browser_downloads():
+		return _download_buffer_to_browser(buffer, file_name, success_message)
+	var export_dir: String = ProjectSettings.globalize_path("user://exports")
+	var ensure_error := DirAccess.make_dir_recursive_absolute(export_dir)
+	if ensure_error != OK and not DirAccess.dir_exists_absolute(export_dir):
+		_show_status_message("Failed to prepare the local export folder.", true)
+		return false
+	var target_path := export_dir.path_join(file_name.strip_edges())
+	var file := FileAccess.open(target_path, FileAccess.WRITE)
+	if file == null:
+		_show_status_message("Failed to save %s." % file_name, true)
+		return false
+	file.store_buffer(buffer)
+	file.close()
+	SURVEY_UI_FEEDBACK.play_export()
+	_show_status_message("%s Saved to %s" % [success_message, target_path])
+	OS.shell_open(export_dir)
 	return true
 
 func _apply_platform_capabilities() -> void:
@@ -811,6 +866,9 @@ func _connect_actions() -> void:
 	_overlay_menu.playtest_feedback_share_requested.connect(_on_playtest_feedback_share_requested)
 	_overlay_menu.playtest_feedback_download_requested.connect(_on_playtest_feedback_download_requested)
 	_overlay_menu.playtest_feedback_clear_requested.connect(_on_playtest_feedback_clear_requested)
+	_overlay_menu.qa_guide_requested.connect(_on_qa_guide_requested)
+	_overlay_menu.qa_capture_requested.connect(_on_qa_capture_requested)
+	_overlay_menu.qa_export_requested.connect(_on_qa_export_requested)
 	_search_overlay.navigate_requested.connect(_on_search_navigate_requested)
 	_search_overlay.close_requested.connect(_close_search_overlay)
 	_onboarding_overlay.continue_requested.connect(_on_onboarding_continue_requested)
@@ -2544,7 +2602,8 @@ func _playtest_feedback_page_context() -> Dictionary:
 			"selected_question_prompt": selected_question.prompt.strip_edges() if selected_question != null else "",
 			"focus_mode_active": _focus_mode_active,
 			"filter_query": _active_filter_query,
-			"open_overlays": _playtest_feedback_open_overlays()
+			"open_overlays": _playtest_feedback_open_overlays(),
+			"qa_page_node_id": _current_qa_page_node_id()
 		}
 	}
 
@@ -2584,7 +2643,11 @@ func _build_overlay_menu_options() -> Dictionary:
 		"question_debug_ids": _question_debug_ids_enabled,
 		"show_feedback_tools": _playtest_feedback_enabled() and _playtest_feedback_controller != null,
 		"show_feedback_share": _playtest_feedback_controller != null and _playtest_feedback_controller.supports_share_feedback_zip(),
-		"feedback_issue_count": feedback_issue_count
+		"feedback_issue_count": feedback_issue_count,
+		"show_qa_tools": _qa_mode_enabled() and _qa_controller != null,
+		"qa_status_text": _qa_menu_status_text(),
+		"qa_export_enabled": _qa_controller != null,
+		"qa_capture_enabled": _qa_controller != null
 	}
 
 func _open_overlay_menu() -> void:
@@ -2646,6 +2709,21 @@ func _on_playtest_feedback_clear_requested() -> void:
 
 func _on_playtest_feedback_issues_changed(_issue_count: int) -> void:
 	_refresh_overlay_menu_if_open()
+
+func _on_qa_guide_requested() -> void:
+	if _qa_controller == null:
+		return
+	_qa_controller.open_home()
+
+func _on_qa_capture_requested() -> void:
+	if _qa_controller == null:
+		return
+	_qa_controller.capture_current_page("overlay_menu_capture")
+
+func _on_qa_export_requested() -> void:
+	if _qa_controller == null:
+		return
+	_qa_controller.export_bundle()
 
 func _on_playtest_feedback_overlay_visibility_changed(_is_visible: bool) -> void:
 	_refresh_menu_access_button()
@@ -3905,7 +3983,115 @@ func _update_responsive_layout() -> void:
 		_gamification_hud.refresh_layout(viewport_size)
 	if _playtest_feedback_controller != null:
 		_playtest_feedback_controller.refresh_layout(viewport_size)
+	if _qa_controller != null:
+		_qa_controller.refresh_layout(viewport_size)
 	_refresh_gamification_surfaces()
+
+func _maybe_open_qa_home() -> void:
+	if _qa_controller == null:
+		return
+	_qa_controller.show_intro_if_needed()
+
+func _qa_runtime_state() -> Dictionary:
+	return {
+		"survey": survey,
+		"template_path": survey_template_path,
+		"answers": answers.duplicate(true),
+		"preferences": _current_preferences(),
+		"session_state": _current_session_state(),
+		"upload_configured": _is_upload_endpoint_configured()
+	}
+
+func _handle_qa_action(command: String, payload: Dictionary) -> Dictionary:
+	match command:
+		"load_default_template":
+			var target_path := str(payload.get("path", survey_template_path)).strip_edges()
+			var ok := _load_template_from_path(target_path, false)
+			return {
+				"ok": ok,
+				"message": "Loaded %s for the QA pass." % target_path.get_file() if ok else "Failed to load the QA template."
+			}
+		"focus_page":
+			return _focus_qa_page(str(payload.get("page_node_id", "")).strip_edges(), false)
+		"auto_page":
+			return _focus_qa_page(str(payload.get("page_node_id", "")).strip_edges(), true)
+	return {
+		"ok": false,
+		"message": "Unknown QA action: %s" % command
+	}
+
+func _focus_qa_page(page_node_id: String, use_auto_prep: bool) -> Dictionary:
+	if survey == null and page_node_id != "survey_app_onboarding":
+		return {
+			"ok": false,
+			"message": "Load a survey before navigating the QA checklist."
+		}
+	if use_auto_prep and page_node_id in ["survey_app_summary", "survey_app_export", "survey_app_profile"]:
+		_fill_test_answers()
+	_close_search_overlay()
+	_close_onboarding_overlay()
+	_close_settings_overlay()
+	_close_summary_overlay()
+	_close_export_overlay()
+	_close_profile_overlay()
+	_close_question_help()
+	_close_overlay_menu()
+	match page_node_id:
+		"survey_app_scroll":
+			_set_survey_view_mode_preference(SURVEY_VIEW_MODE_SCROLL, false)
+		"survey_app_focus":
+			_set_survey_view_mode_preference(SURVEY_VIEW_MODE_FOCUS, false)
+		"survey_app_menu":
+			_set_survey_view_mode_preference(SURVEY_VIEW_MODE_SCROLL, false)
+			_open_overlay_menu()
+		"survey_app_search":
+			_open_search_overlay()
+		"survey_app_onboarding":
+			_open_onboarding_overlay()
+		"survey_app_settings":
+			_open_settings_overlay()
+		"survey_app_summary":
+			_open_summary_overlay()
+		"survey_app_export":
+			_open_export_overlay()
+		"survey_app_profile":
+			_open_profile_overlay()
+		"survey_app_help":
+			_set_survey_view_mode_preference(SURVEY_VIEW_MODE_FOCUS, false)
+			_open_question_help()
+	return {
+		"ok": true,
+		"message": "Prepared %s for QA review." % page_node_id.replace("_", " ")
+	}
+
+func _current_qa_page_node_id() -> String:
+	var open_overlays := _playtest_feedback_open_overlays()
+	if open_overlays.has("help"):
+		return "survey_app_help"
+	if open_overlays.has("profile"):
+		return "survey_app_profile"
+	if open_overlays.has("export"):
+		return "survey_app_export"
+	if open_overlays.has("summary"):
+		return "survey_app_summary"
+	if open_overlays.has("settings"):
+		return "survey_app_settings"
+	if open_overlays.has("onboarding"):
+		return "survey_app_onboarding"
+	if open_overlays.has("search"):
+		return "survey_app_search"
+	if open_overlays.has("overlay_menu"):
+		return "survey_app_menu"
+	return "survey_app_focus" if _focus_mode_active else "survey_app_scroll"
+
+func _qa_menu_status_text() -> String:
+	var feedback_count := _playtest_feedback_controller.issue_count() if _playtest_feedback_controller != null else 0
+	return "Open the QA guide to run the checklist, capture screenshots, and export the session bundle. %d issue(s) tagged so far." % feedback_count
+
+func _switch_qa_surface(target_surface_id: String) -> void:
+	match target_surface_id:
+		"survey_journey":
+			get_tree().change_scene_to_file(SURVEY_JOURNEY_SCENE_PATH)
 
 func _sync_question_stack_width() -> void:
 	if _question_stack == null or _question_scroll == null:

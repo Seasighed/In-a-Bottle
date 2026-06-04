@@ -9,4 +9,5 @@ extends Resource
 @export var enable_boss_battle := true
 @export var enable_preview_controls := true
 @export var enable_theme_toggle := true
+@export var enable_qa_mode := false
 @export var enable_debug_trace_logging := false

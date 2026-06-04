@@ -4,6 +4,8 @@
 
 The playtest reporting tools are meant for debug or playtest builds. If you do not see a `Report` button or `Report Issue` menu action, you are probably in a normal participant build.
 
+In QA Mode, the first tutorial also teaches this system before the guided checklist starts.
+
 ## How To Capture An Issue
 
 - On desktop, hold `Ctrl` and click the place where the issue happened.
@@ -20,6 +22,7 @@ The playtest reporting tools are meant for debug or playtest builds. If you do n
 
 - Captures are session-local until you export or share them.
 - Browser builds may open a share sheet first and fall back to download if file sharing is unavailable.
+- QA bundle export includes the saved issue report automatically, so you do not need to export a separate bug-report ZIP unless someone asked for only the issue list.
 - The feature is meant to help playtests, not ordinary respondents.
 
 ## Related Notes
@@ -29,4 +32,5 @@ The playtest reporting tools are meant for debug or playtest builds. If you do n
 
 ## Change Log
 
+- 2026-06-03 23:25 - Added the QA mode tutorial and final-bundle guidance for playtest issue reporting.
 - 2026-05-30 02:53 - Added operator guidance for capturing, reviewing, and exporting playtest issue reports.

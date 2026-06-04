@@ -28,6 +28,9 @@ signal playtest_feedback_copy_requested
 signal playtest_feedback_share_requested
 signal playtest_feedback_download_requested
 signal playtest_feedback_clear_requested
+signal qa_guide_requested
+signal qa_capture_requested
+signal qa_export_requested
 
 @onready var _dimmer: ColorRect = $Dimmer
 @onready var _bounds: MarginContainer = $Bounds
@@ -81,6 +84,12 @@ var _feedback_copy_button: Button
 var _feedback_share_button: Button
 var _feedback_download_button: Button
 var _feedback_clear_button: Button
+var _qa_heading_label: Label
+var _qa_status_label: Label
+var _qa_actions: GridContainer
+var _qa_guide_button: Button
+var _qa_capture_button: Button
+var _qa_export_button: Button
 var _syncing_preview_controls := false
 
 func _ready() -> void:
@@ -88,6 +97,7 @@ func _ready() -> void:
 	visible = false
 	_ensure_preview_controls()
 	_ensure_feedback_controls()
+	_ensure_qa_controls()
 	_close_button.text = "X"
 	refresh_theme()
 	refresh_layout(get_viewport().get_visible_rect().size)
@@ -126,8 +136,14 @@ func _ready() -> void:
 		_feedback_download_button.pressed.connect(_on_feedback_download_pressed)
 	if _feedback_clear_button != null:
 		_feedback_clear_button.pressed.connect(_on_feedback_clear_pressed)
+	if _qa_guide_button != null:
+		_qa_guide_button.pressed.connect(_on_qa_guide_pressed)
+	if _qa_capture_button != null:
+		_qa_capture_button.pressed.connect(_on_qa_capture_pressed)
+	if _qa_export_button != null:
+		_qa_export_button.pressed.connect(_on_qa_export_pressed)
 
-	for button in [_close_button, _restart_button, _search_button, _onboarding_button, _template_picker_button, _settings_button, _summary_button, _profile_button, _export_button, _theme_toggle_button, _fill_test_answers_button, _section_clear_all_button, _question_chrome_toggle_button, _feedback_capture_button, _feedback_review_button, _feedback_copy_button, _feedback_share_button, _feedback_download_button, _feedback_clear_button]:
+	for button in [_close_button, _restart_button, _search_button, _onboarding_button, _template_picker_button, _settings_button, _summary_button, _profile_button, _export_button, _theme_toggle_button, _fill_test_answers_button, _section_clear_all_button, _question_chrome_toggle_button, _feedback_capture_button, _feedback_review_button, _feedback_copy_button, _feedback_share_button, _feedback_download_button, _feedback_clear_button, _qa_guide_button, _qa_capture_button, _qa_export_button]:
 		if button == null:
 			continue
 		_wire_feedback(button)
@@ -204,10 +220,24 @@ func refresh_theme() -> void:
 		if button != null:
 			SurveyStyle.apply_danger_button(button)
 			_clear_compact_button_treatment(button)
+	if _qa_heading_label != null:
+		_qa_heading_label.text = _option_text("qa_heading_text", "QA Mode")
+		SurveyStyle.style_heading(_qa_heading_label, 18)
+	if _qa_status_label != null:
+		SurveyStyle.style_caption(_qa_status_label, SurveyStyle.TEXT_PRIMARY)
+	for button in [_qa_guide_button, _qa_capture_button]:
+		if button != null:
+			SurveyStyle.apply_secondary_button(button)
+			_clear_compact_button_treatment(button)
+	for button in [_qa_export_button]:
+		if button != null:
+			SurveyStyle.apply_primary_button(button)
+			_clear_compact_button_treatment(button)
 	_refresh_preview_controls()
 	_refresh_sfx_volume_display()
 	_apply_menu_option_state()
 	_refresh_feedback_button_contexts()
+	_refresh_qa_button_contexts()
 	_apply_layout_button_treatment()
 	if _survey != null:
 		_refresh_sections()
@@ -238,6 +268,8 @@ func refresh_layout(viewport_size: Vector2) -> void:
 		_preview_resolution_row.alignment = BoxContainer.ALIGNMENT_BEGIN
 	if _feedback_actions != null:
 		_feedback_actions.columns = 1 if _compact_layout else 2
+	if _qa_actions != null:
+		_qa_actions.columns = 1 if _compact_layout else 2
 	if _survey != null:
 		_refresh_sections()
 
@@ -303,8 +335,11 @@ func _apply_menu_option_state() -> void:
 	var show_preview_controls: bool = _option_bool("show_preview_controls", false)
 	var show_feedback_tools: bool = _option_bool("show_feedback_tools", false)
 	var show_feedback_share: bool = _option_bool("show_feedback_share", false)
+	var show_qa_tools: bool = _option_bool("show_qa_tools", false)
 	var feedback_issue_count: int = _option_int("feedback_issue_count", 0)
 	var has_feedback_issues: bool = feedback_issue_count > 0
+	var qa_export_enabled: bool = _option_bool("qa_export_enabled", true)
+	var qa_capture_enabled: bool = _option_bool("qa_capture_enabled", true)
 	_position_label.visible = show_position
 	_restart_button.visible = show_restart
 	_search_button.visible = show_search
@@ -350,6 +385,21 @@ func _apply_menu_option_state() -> void:
 		_feedback_download_button.disabled = not has_feedback_issues
 	if _feedback_clear_button != null:
 		_feedback_clear_button.disabled = not has_feedback_issues
+	if _qa_heading_label != null:
+		_qa_heading_label.visible = show_qa_tools
+	if _qa_status_label != null:
+		_qa_status_label.visible = show_qa_tools
+		_qa_status_label.text = _option_text("qa_status_text", "Open the QA guide to run the guided checklist and export the session bundle.")
+	if _qa_actions != null:
+		_qa_actions.visible = show_qa_tools
+	if _qa_guide_button != null:
+		_qa_guide_button.visible = show_qa_tools
+	if _qa_capture_button != null:
+		_qa_capture_button.visible = show_qa_tools
+		_qa_capture_button.disabled = not qa_capture_enabled
+	if _qa_export_button != null:
+		_qa_export_button.visible = show_qa_tools
+		_qa_export_button.disabled = not qa_export_enabled
 	_update_feedback_status_label()
 
 func _refresh_sections() -> void:
@@ -678,6 +728,45 @@ func _ensure_feedback_button(button_name: String, button_text: String) -> Button
 	button.text = button_text
 	return button
 
+func _ensure_qa_controls() -> void:
+	if _stack == null:
+		return
+	_qa_heading_label = _stack.get_node_or_null("QaHeadingLabel") as Label
+	if _qa_heading_label == null:
+		_qa_heading_label = Label.new()
+		_qa_heading_label.name = "QaHeadingLabel"
+		_stack.add_child(_qa_heading_label)
+		_stack.move_child(_qa_heading_label, _qa_insert_index())
+	_qa_status_label = _stack.get_node_or_null("QaStatusLabel") as Label
+	if _qa_status_label == null:
+		_qa_status_label = Label.new()
+		_qa_status_label.name = "QaStatusLabel"
+		_qa_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_stack.add_child(_qa_status_label)
+		_stack.move_child(_qa_status_label, _qa_insert_index())
+	_qa_actions = _stack.get_node_or_null("QaActions") as GridContainer
+	if _qa_actions == null:
+		_qa_actions = GridContainer.new()
+		_qa_actions.name = "QaActions"
+		_qa_actions.columns = 2
+		_qa_actions.add_theme_constant_override("h_separation", 10)
+		_qa_actions.add_theme_constant_override("v_separation", 10)
+		_stack.add_child(_qa_actions)
+		_stack.move_child(_qa_actions, _qa_insert_index())
+	_qa_guide_button = _ensure_qa_button("QaGuideButton", "Open QA Guide")
+	_qa_capture_button = _ensure_qa_button("QaCaptureButton", "Capture QA Page")
+	_qa_export_button = _ensure_qa_button("QaExportButton", "Export QA Bundle")
+
+func _ensure_qa_button(button_name: String, button_text: String) -> Button:
+	var button := _qa_actions.get_node_or_null(button_name) as Button
+	if button == null:
+		button = Button.new()
+		button.name = button_name
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_qa_actions.add_child(button)
+	button.text = button_text
+	return button
+
 func _preview_insert_index() -> int:
 	if _fill_test_answers_button != null:
 		var fill_index := _stack.get_children().find(_fill_test_answers_button)
@@ -691,6 +780,9 @@ func _feedback_insert_index() -> int:
 		if fill_index != -1:
 			return fill_index
 	return _stack.get_child_count()
+
+func _qa_insert_index() -> int:
+	return _feedback_insert_index()
 
 func _refresh_preview_controls() -> void:
 	if _preview_mode_picker == null or _preview_resolution_picker == null:
@@ -770,6 +862,11 @@ func _refresh_feedback_button_contexts() -> void:
 	_set_button_feedback_context(_feedback_download_button, "download_feedback_zip", _feedback_download_button.text)
 	_set_button_feedback_context(_feedback_clear_button, "clear_feedback_issues", _feedback_clear_button.text)
 
+func _refresh_qa_button_contexts() -> void:
+	_set_button_feedback_context(_qa_guide_button, "open_qa_guide", _qa_guide_button.text)
+	_set_button_feedback_context(_qa_capture_button, "capture_qa_page", _qa_capture_button.text)
+	_set_button_feedback_context(_qa_export_button, "export_qa_bundle", _qa_export_button.text)
+
 func _set_button_feedback_context(button: Button, action_name: String, label_text: String) -> void:
 	if button == null:
 		return
@@ -820,3 +917,12 @@ func _on_feedback_download_pressed() -> void:
 
 func _on_feedback_clear_pressed() -> void:
 	playtest_feedback_clear_requested.emit()
+
+func _on_qa_guide_pressed() -> void:
+	qa_guide_requested.emit()
+
+func _on_qa_capture_pressed() -> void:
+	qa_capture_requested.emit()
+
+func _on_qa_export_pressed() -> void:
+	qa_export_requested.emit()

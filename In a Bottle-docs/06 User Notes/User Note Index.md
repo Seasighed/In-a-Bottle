@@ -13,10 +13,12 @@ Use this section for concise user-facing notes, operator instructions, onboardin
 
 - [Journey Health Bar](Journey%20Health%20Bar.md)
 - [Journey Submit And Save Answers](Journey%20Submit%20And%20Save%20Answers.md)
+- [QA Guided Test Mode](QA%20Guided%20Test%20Mode.md)
 - [Reporting Playtest Issues](Reporting%20Playtest%20Issues.md)
 
 ## Change Log
 
+- 2026-06-03 23:25 - Added the QA guided test mode note for tester handoff.
 - 2026-05-30 02:53 - Added the playtest issue reporting user note.
 - 2026-05-09 04:39 - Added the Journey submit and save answers user note.
 - 2026-05-09 03:50 - Added the Journey health bar user note.

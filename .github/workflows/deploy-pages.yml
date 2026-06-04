@@ -76,6 +76,11 @@ jobs:
           mkdir -p build/web
           "$GODOT_BIN" --headless --path . --export-release "Web" build/web/index.html
 
+      - name: Verify Web Export Artifacts
+        run: |
+          set -euxo pipefail
+          "$GODOT_BIN" --headless --path . --script res://Scripts/Tools/VerifyExportArtifacts.gd -- "Web" "build/web/index.html"
+
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v4
         with:

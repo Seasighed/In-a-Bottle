@@ -572,6 +572,10 @@ func _export_builds(presets: Array[Dictionary]) -> void:
 	var failures: Array[String] = []
 	for preset in presets:
 		var preset_name := str(preset.get("name", "Build")).strip_edges()
+		var blocker_message := SURVEY_BUILD_EXPORT_SUPPORT.export_blocker_message(preset, executable_path)
+		if not blocker_message.is_empty():
+			failures.append("%s blocked before export. %s" % [preset_name, blocker_message])
+			continue
 		var target_path := SURVEY_BUILD_EXPORT_SUPPORT.build_target_path(build_export_directory_path(), version_label, preset)
 		var ensure_target_error := SURVEY_BUILD_EXPORT_SUPPORT.ensure_parent_directory(target_path)
 		if ensure_target_error != OK:
@@ -586,7 +590,17 @@ func _export_builds(presets: Array[Dictionary]) -> void:
 			true
 		)
 		if exit_code == 0:
-			exported_paths.append(target_path)
+			var verification := SURVEY_BUILD_EXPORT_SUPPORT.verify_export_artifacts(target_path, preset)
+			if bool(verification.get("ok", false)):
+				exported_paths.append(target_path)
+				continue
+			var missing_artifacts := verification.get("missing", PackedStringArray()) as PackedStringArray
+			failures.append(
+				"%s finished without reporting an export error, but the expected artifact(s) were missing: %s" % [
+					preset_name,
+					", ".join(missing_artifacts)
+				]
+			)
 			continue
 		failures.append(_format_build_export_failure(preset_name, exit_code, output))
 
