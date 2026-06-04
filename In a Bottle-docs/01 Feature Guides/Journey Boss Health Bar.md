@@ -17,6 +17,8 @@ The bar is one rounded rectangle with one full-width layer per survey section. E
 
 Each complete question deals the same amount of total boss HP damage: `1 / survey.total_questions()`. Inside its own section layer, that same hit removes `1 / section.questions.size()` of the layer, so one question in a three-question section removes one third of that section layer.
 
+On the Journey thanks screen, the wrap-up recap turns every answered question into a short text-only projectile. Each answer gets a center-screen focus beat first so the words can be recognized quickly, then launches into its mapped boss-bar section. The recap plays one answer at a time and accelerates across the sequence instead of firing every answer in one overlapping burst.
+
 ## Important States Or Rules
 
 - Editing an answer only charges the attack visuals; it does not damage live boss HP until the respondent navigates forward.
@@ -24,6 +26,7 @@ Each complete question deals the same amount of total boss HP damage: `1 / surve
 - The focus bar status shows remaining total HP, such as `HP 87%`.
 - The focus bar detail text shows the current question's total HP value and section-layer value.
 - The wrap-up stage uses final complete answers rather than only the live committed navigation history.
+- Wrap-up attack text is answer-only, not question-prompt copy, and is aggressively shortened for instant readability.
 - Hit feedback pulses the bar scale rather than moving its layout position, so repeated projectile hits cannot push the health bar off screen.
 - Zero-health layers snap their fill visibility and fill scale to zero when depleted, preventing a minimum sliver from remaining after the last question in a section.
 
@@ -34,5 +37,6 @@ Each complete question deals the same amount of total boss HP damage: `1 / surve
 
 ## Change Log
 
+- 2026-06-04 01:16 - Documented the sequential text-only wrap-up attacks and condensed answer-summary rules.
 - 2026-05-09 04:13 - Documented the no-drift hit pulse and zero-fill depleted layer behavior.
 - 2026-05-09 03:50 - Documented the layered Journey boss health bar behavior and damage rules.

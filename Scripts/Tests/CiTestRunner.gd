@@ -78,6 +78,7 @@ func _run_suite() -> void:
 	await _run_test("Boss State Damage And Wrapup Tiers", _test_boss_state_damage_and_wrapup_tiers)
 	await _run_test("Journey Boss Navigation Heals And Recommits", _test_journey_boss_navigation_heals_and_recommits)
 	await _run_test("Journey Wrapup Replay Behavior", _test_journey_wrapup_replay_behavior)
+	await _run_test("Journey Wrapup Attack Labels And Timing", _test_journey_wrapup_attack_labels_and_timing)
 	await _run_test("Journey Launch Menu And Submit Flow", _test_journey_launch_menu_and_submit_flow)
 	await _run_test("XP Toggle Disabled Suppresses Rewards And HUD", _test_xp_toggle_disabled_suppresses_rewards_and_hud)
 	await _run_test("Journey Review Clear Actions And Survey Selection Confirmation", _test_journey_review_clear_actions_and_survey_selection_confirmation)
@@ -1572,6 +1573,7 @@ func _test_journey_wrapup_replay_behavior() -> void:
 		if not (entry_value is Dictionary):
 			continue
 		var entry: Dictionary = entry_value as Dictionary
+		_check_true(not str(entry.get("label_text", "")).strip_edges().is_empty(), "Wrap-up replay entries should keep readable attack text for every answered question.")
 		if not bool(entry.get("counts_as_damage", true)):
 			saw_partial_glancing = true
 			_check_equal(
@@ -1619,6 +1621,67 @@ func _test_journey_wrapup_replay_behavior() -> void:
 		_check_equal(export_button.text, "Save Answers", "Completed surveys without upload configured should promote saving answers.")
 		_check_equal(_button_normal_fill(export_button), SurveyStyle.ACCENT, "Completed surveys should promote Save Answers as the primary wrap-up action.")
 		_check_equal(_button_normal_fill(review_button), SurveyStyle.SURFACE_ALT, "Completed surveys should keep Review as the secondary wrap-up action.")
+
+	journey.queue_free()
+	await _await_layout_frames()
+
+func _test_journey_wrapup_attack_labels_and_timing() -> void:
+	var journey: Control = SURVEY_JOURNEY_SCENE.instantiate()
+	add_child(journey)
+	await _await_layout_frames(2)
+
+	var loaded: bool = bool(journey.call("_load_survey_from_path", TEMPLATE_PATH))
+	_check_true(loaded, "SurveyJourney should load the built-in survey for wrap-up attack text checks.")
+	if not loaded:
+		journey.queue_free()
+		await _await_layout_frames()
+		return
+
+	var survey: SurveyDefinition = journey.get("survey")
+	var display_name_question: SurveyQuestion = _find_question(survey, "display_name")
+	var matrix_question: SurveyQuestion = _find_question(survey, "topic_ratings")
+	var ranked_question: SurveyQuestion = _find_question(survey, "improvement_rank")
+	if display_name_question == null or matrix_question == null or ranked_question == null:
+		journey.queue_free()
+		await _await_layout_frames()
+		return
+
+	journey.set("answers", {
+		display_name_question.id: "I need the onboarding flow to make the starting survey feel instantly obvious even when I am tired and moving too fast.",
+		matrix_question.id: _sample_complete_answer(matrix_question),
+		ranked_question.id: _sample_complete_answer(ranked_question)
+	})
+	journey.call("_prime_boss_trackers")
+	var recap_state: Dictionary = journey.call("_final_boss_state")
+	var projectile_entries: Array = journey.call("_build_wrapup_projectile_entries", recap_state) as Array
+	var labels_by_question: Dictionary = {}
+	for entry_value in projectile_entries:
+		if not (entry_value is Dictionary):
+			continue
+		var entry: Dictionary = entry_value as Dictionary
+		var question_id := str(entry.get("question_id", "")).strip_edges()
+		var label_text := str(entry.get("label_text", "")).strip_edges()
+		_check_true(not label_text.is_empty(), "Every answered wrap-up projectile should keep readable attack text.")
+		if not question_id.is_empty():
+			labels_by_question[question_id] = label_text
+
+	var display_label := str(labels_by_question.get(display_name_question.id, ""))
+	_check_true(display_label.ends_with("..."), "Long wrap-up text attacks should truncate into an at-a-glance phrase.")
+	_check_true(display_label.length() <= 48, "Wrap-up text attacks should stay short enough to recognize in an instant.")
+	_check_true(str(labels_by_question.get(ranked_question.id, "")).contains("+"), "Ranked-choice wrap-up attacks should collapse extra items into a +N more suffix.")
+	_check_true(str(labels_by_question.get(matrix_question.id, "")).contains("+"), "Matrix wrap-up attacks should collapse extra answered rows into a +N more suffix.")
+
+	journey.call("_show_view", "thanks")
+	await _await_layout_frames(2)
+	var wrapup_stage: Node = journey.get_node_or_null("Margin/MainPanel/Stack/ThanksView/WrapupStage")
+	_check_true(wrapup_stage != null, "The Journey thanks screen should expose the wrap-up stage for timing checks.")
+	if wrapup_stage != null:
+		var early_timing: Dictionary = wrapup_stage.call("_timing_for_progress", 0.0)
+		var late_timing: Dictionary = wrapup_stage.call("_timing_for_progress", 1.0)
+		_check_true(float(late_timing.get("move_in", 0.0)) < float(early_timing.get("move_in", 0.0)), "Wrap-up move-in timing should accelerate across the sequence.")
+		_check_true(float(late_timing.get("focus_hold", 0.0)) < float(early_timing.get("focus_hold", 0.0)), "Wrap-up focus holds should shorten as the recap speeds up.")
+		_check_true(float(late_timing.get("launch", 0.0)) < float(early_timing.get("launch", 0.0)), "Wrap-up launches should accelerate across the sequence.")
+		_check_true(float(late_timing.get("gap", 0.0)) < float(early_timing.get("gap", 0.0)), "Wrap-up gaps should tighten as the sequence progresses.")
 
 	journey.queue_free()
 	await _await_layout_frames()

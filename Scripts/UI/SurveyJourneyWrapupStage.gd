@@ -3,6 +3,20 @@ extends Control
 
 const SURVEY_UI_FEEDBACK = preload("res://Scripts/UI/SurveyUiFeedback.gd")
 const BOSS_BAR_SCENE: PackedScene = preload("res://Scenes/UI/SurveyJourneyBossBar.tscn")
+const RECAP_MOVE_IN_START := 0.16
+const RECAP_MOVE_IN_END := 0.08
+const RECAP_FOCUS_HOLD_START := 0.18
+const RECAP_FOCUS_HOLD_END := 0.10
+const RECAP_LAUNCH_START := 0.28
+const RECAP_LAUNCH_END := 0.12
+const RECAP_GAP_START := 0.12
+const RECAP_GAP_END := 0.03
+const PROJECTILE_START_SCALE := 0.78
+const PROJECTILE_FOCUS_SCALE := 1.35
+const PROJECTILE_LAUNCH_SCALE := 0.96
+const PROJECTILE_MIN_WIDTH := 180.0
+const PROJECTILE_MAX_WIDTH := 460.0
+const PROJECTILE_WIDTH_PER_CHAR := 13.0
 
 signal replay_requested
 signal recap_finished(snapshot_hash: String)
@@ -73,14 +87,20 @@ func play_recap(state: Dictionary, projectile_entries: Array[Dictionary], snapsh
 	_set_result_text(state)
 	_boss_bar.configure_from_state(_full_health_state(state), false)
 	await get_tree().process_frame
-	for index in range(projectile_entries.size()):
+	var total_entries := projectile_entries.size()
+	for index in range(total_entries):
 		var entry_value: Variant = projectile_entries[index]
 		if not (entry_value is Dictionary):
 			continue
-		_active_projectiles += 1
-		_spawn_projectile(entry_value as Dictionary, float(index) * 0.035)
-	while _active_projectiles > 0:
-		await get_tree().process_frame
+		_active_projectiles = 1
+		var progress := 1.0 if total_entries <= 1 else (float(index) / float(total_entries - 1))
+		var timing := _timing_for_progress(progress)
+		await _play_projectile(entry_value as Dictionary, timing)
+		if index < total_entries - 1:
+			var gap_duration := float(timing.get("gap", 0.0))
+			if gap_duration > 0.0:
+				await get_tree().create_timer(gap_duration).timeout
+	_active_projectiles = 0
 	var result: Dictionary = state.get("wrapup_result", {})
 	if bool(result.get("is_victory", false)):
 		SURVEY_UI_FEEDBACK.play_boss_victory()
@@ -167,32 +187,47 @@ func _health_status_text(state: Dictionary) -> String:
 	var health_percent := int(round(clampf(float(state.get("health_ratio", 1.0)), 0.0, 1.0) * 100.0))
 	return "HP %d%%" % health_percent
 
-func _spawn_projectile(entry: Dictionary, delay: float) -> void:
-	call_deferred("_run_projectile", entry.duplicate(true), delay)
+func _timing_for_progress(progress: float) -> Dictionary:
+	var normalized := clampf(progress, 0.0, 1.0)
+	return {
+		"move_in": lerpf(RECAP_MOVE_IN_START, RECAP_MOVE_IN_END, normalized),
+		"focus_hold": lerpf(RECAP_FOCUS_HOLD_START, RECAP_FOCUS_HOLD_END, normalized),
+		"launch": lerpf(RECAP_LAUNCH_START, RECAP_LAUNCH_END, normalized),
+		"gap": lerpf(RECAP_GAP_START, RECAP_GAP_END, normalized)
+	}
 
-func _run_projectile(entry: Dictionary, delay: float) -> void:
-	await _play_projectile(entry, delay)
-
-func _play_projectile(entry: Dictionary, delay: float) -> void:
-	if delay > 0.0:
-		await get_tree().create_timer(delay).timeout
+func _play_projectile(entry: Dictionary, timing: Dictionary) -> void:
 	if not is_node_ready():
 		_active_projectiles = max(_active_projectiles - 1, 0)
 		return
 	var projectile := _build_projectile_node(entry)
 	_fx_layer.add_child(projectile)
 	var start_global: Vector2 = _random_edge_position()
+	var focus_global: Vector2 = _focus_lane_position()
 	var target_global: Vector2 = _boss_bar.section_target_position(int(entry.get("section_index", -1)))
 	var start_local: Vector2 = start_global - _fx_layer.global_position
+	var focus_local: Vector2 = focus_global - _fx_layer.global_position
 	var target_local: Vector2 = target_global - _fx_layer.global_position
-	projectile.position = start_local
+	var projectile_size := _resolved_projectile_size(projectile)
+	projectile.pivot_offset = projectile_size * 0.5
+	projectile.position = start_local - projectile.pivot_offset
 	projectile.modulate = Color(1, 1, 1, 0.0)
-	projectile.scale = Vector2.ONE * 0.86
-	var tween := create_tween()
-	tween.parallel().tween_property(projectile, "modulate:a", 1.0, 0.08)
-	tween.parallel().tween_property(projectile, "position", target_local, 0.42).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
-	tween.parallel().tween_property(projectile, "scale", Vector2.ONE, 0.42).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	await tween.finished
+	projectile.scale = Vector2.ONE * PROJECTILE_START_SCALE
+	var move_in_duration := float(timing.get("move_in", RECAP_MOVE_IN_START))
+	var focus_hold_duration := float(timing.get("focus_hold", RECAP_FOCUS_HOLD_START))
+	var launch_duration := float(timing.get("launch", RECAP_LAUNCH_START))
+	var focus_tween := create_tween()
+	focus_tween.parallel().tween_property(projectile, "modulate:a", 1.0, minf(0.08, move_in_duration))
+	focus_tween.parallel().tween_property(projectile, "position", focus_local - projectile.pivot_offset, move_in_duration).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	focus_tween.parallel().tween_property(projectile, "scale", Vector2.ONE * PROJECTILE_FOCUS_SCALE, move_in_duration).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	await focus_tween.finished
+	if focus_hold_duration > 0.0:
+		await get_tree().create_timer(focus_hold_duration).timeout
+	var launch_tween := create_tween()
+	launch_tween.parallel().tween_property(projectile, "position", target_local - projectile.pivot_offset, launch_duration).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	launch_tween.parallel().tween_property(projectile, "scale", Vector2.ONE * PROJECTILE_LAUNCH_SCALE, launch_duration).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	launch_tween.parallel().tween_property(projectile, "modulate:a", 0.82, launch_duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	await launch_tween.finished
 	_handle_projectile_impact(entry, target_local)
 	if projectile != null and is_instance_valid(projectile):
 		projectile.queue_free()
@@ -220,21 +255,26 @@ func _handle_projectile_impact(entry: Dictionary, target_local: Vector2) -> void
 
 func _build_projectile_node(entry: Dictionary) -> Control:
 	var label_text := str(entry.get("label_text", "")).strip_edges()
-	if label_text.is_empty():
-		var orb := PanelContainer.new()
-		orb.custom_minimum_size = Vector2(14.0, 14.0)
-		orb.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		SurveyStyle.apply_panel(orb, SurveyStyle.HIGHLIGHT_GOLD if bool(entry.get("counts_as_damage", false)) else SurveyStyle.SOFT_WHITE, Color(0, 0, 0, 0), 999, 0)
-		return orb
-	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(minf(320.0, maxf(120.0, float(label_text.length() * 6))), 0.0)
+	var attack_color := SurveyStyle.HIGHLIGHT_GOLD if bool(entry.get("counts_as_damage", false)) else Color(1, 1, 1, 0.88)
+	var attack_size := int(round(((20.0 if get_viewport_rect().size.x <= 720.0 else 22.0) * SurveyStyle.journey_mobile_scale(get_viewport_rect().size))))
+	var panel := MarginContainer.new()
+	panel.custom_minimum_size = Vector2(clampf(float(label_text.length()) * PROJECTILE_WIDTH_PER_CHAR, PROJECTILE_MIN_WIDTH, PROJECTILE_MAX_WIDTH), 0.0)
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	SurveyStyle.apply_panel(panel, SurveyStyle.SURFACE_ALT, SurveyStyle.HIGHLIGHT_GOLD if bool(entry.get("counts_as_damage", false)) else SurveyStyle.SOFT_WHITE, 16, 1)
+	panel.add_theme_constant_override("margin_left", 6)
+	panel.add_theme_constant_override("margin_right", 6)
+	panel.add_theme_constant_override("margin_top", 4)
+	panel.add_theme_constant_override("margin_bottom", 4)
 	var label := Label.new()
 	label.text = label_text
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	SurveyStyle.style_caption(label, SurveyStyle.TEXT_PRIMARY)
+	SurveyStyle.style_heading(label, attack_size, attack_color)
+	label.add_theme_color_override("font_outline_color", SurveyStyle.TEXT_OUTLINE.darkened(0.18))
+	label.add_theme_constant_override("outline_size", 4)
 	panel.add_child(label)
 	return panel
 
@@ -271,6 +311,30 @@ func _random_edge_position() -> Vector2:
 			return rect.position + Vector2(randf_range(0.0, width), height + 22.0)
 		_:
 			return rect.position + Vector2(-22.0, randf_range(0.0, height))
+
+func _focus_lane_position() -> Vector2:
+	var panel_rect := _content_panel.get_global_rect()
+	var boss_rect := _boss_bar.get_global_rect()
+	var verdict_rect := _verdict_label.get_global_rect()
+	var x_position := panel_rect.get_center().x
+	var min_y := boss_rect.end.y + 20.0
+	var max_y := verdict_rect.position.y - 20.0
+	var y_position := panel_rect.get_center().y
+	if max_y >= min_y:
+		y_position = lerpf(min_y, max_y, 0.5)
+	return Vector2(
+		clampf(x_position, panel_rect.position.x + 48.0, panel_rect.end.x - 48.0),
+		clampf(y_position, panel_rect.position.y + 48.0, panel_rect.end.y - 48.0)
+	)
+
+func _resolved_projectile_size(projectile: Control) -> Vector2:
+	if projectile == null:
+		return Vector2.ZERO
+	var resolved_size := projectile.get_combined_minimum_size()
+	resolved_size.x = maxf(resolved_size.x, projectile.custom_minimum_size.x)
+	resolved_size.y = maxf(resolved_size.y, projectile.custom_minimum_size.y)
+	projectile.size = resolved_size
+	return resolved_size
 
 func _clear_projectiles() -> void:
 	_active_projectiles = 0

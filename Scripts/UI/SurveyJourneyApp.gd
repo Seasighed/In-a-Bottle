@@ -4585,6 +4585,79 @@ func _review_answer_summary(question: SurveyQuestion, value: Variant) -> String:
 			return _truncate_text("; ".join(dict_parts), 140)
 	return _truncate_text(str(value).strip_edges(), 140)
 
+func _wrapup_attack_summary(question: SurveyQuestion, value: Variant) -> String:
+	if question == null or question.is_answer_empty(value):
+		return ""
+	match typeof(value):
+		TYPE_STRING, TYPE_STRING_NAME:
+			return _wrapup_attack_fragment(str(value), 48)
+		TYPE_BOOL:
+			return "Yes" if bool(value) else "No"
+		TYPE_INT, TYPE_FLOAT:
+			return str(value)
+		TYPE_ARRAY:
+			var items := value as Array
+			var summary_parts: Array[String] = []
+			var non_empty_count := 0
+			for item in items:
+				var text := _wrapup_attack_fragment(str(item), 18)
+				if text.is_empty():
+					continue
+				non_empty_count += 1
+				if summary_parts.size() < 2:
+					summary_parts.append(text)
+			var summary := ", ".join(summary_parts)
+			var remaining := maxi(non_empty_count - summary_parts.size(), 0)
+			if remaining > 0:
+				summary += " +%d more" % remaining
+			return _wrapup_attack_fragment(summary, 48)
+		TYPE_DICTIONARY:
+			var dict := value as Dictionary
+			if question.type == SurveyQuestion.TYPE_MATRIX:
+				var first_pair := ""
+				var answered_rows := 0
+				for row_name in question.rows:
+					var row_value := _wrapup_attack_fragment(str(dict.get(row_name, "")), 18)
+					if row_value.is_empty():
+						continue
+					answered_rows += 1
+					if first_pair.is_empty():
+						first_pair = "%s: %s" % [_wrapup_attack_fragment(row_name, 16), row_value]
+				if answered_rows <= 0:
+					return ""
+				if answered_rows > 1:
+					first_pair += " +%d more" % (answered_rows - 1)
+				return _wrapup_attack_fragment(first_pair, 48)
+			var first_entry := ""
+			var answered_pairs := 0
+			for key in dict.keys():
+				var entry_value := _wrapup_attack_fragment(str(dict.get(key, "")), 18)
+				if entry_value.is_empty():
+					continue
+				answered_pairs += 1
+				if first_entry.is_empty():
+					first_entry = "%s: %s" % [_wrapup_attack_fragment(str(key), 16), entry_value]
+			if answered_pairs <= 0:
+				return ""
+			if answered_pairs > 1:
+				first_entry += " +%d more" % (answered_pairs - 1)
+			return _wrapup_attack_fragment(first_entry, 48)
+	return _wrapup_attack_fragment(str(value), 48)
+
+func _wrapup_attack_fragment(text: String, max_length: int = 48) -> String:
+	var collapsed := _collapse_inline_text(text)
+	if collapsed.is_empty():
+		return ""
+	if collapsed.length() <= max_length:
+		return collapsed
+	if max_length <= 3:
+		return collapsed.substr(0, max_length)
+	return "%s..." % collapsed.substr(0, max_length - 3)
+
+func _collapse_inline_text(text: String) -> String:
+	var single_line := text.replace("\r", " ").replace("\n", " ").replace("\t", " ").strip_edges()
+	return " ".join(single_line.split(" ", false))
+
 func _truncate_text(text: String, max_length: int = 120) -> String:
 	var trimmed := text.strip_edges()
 	if trimmed.length() <= max_length:
@@ -5078,7 +5151,6 @@ func _build_wrapup_projectile_entries(state: Dictionary) -> Array[Dictionary]:
 	var entries: Array[Dictionary] = []
 	if survey == null:
 		return entries
-	var label_budget := 10
 	var question_section_map: Dictionary = state.get("question_section_map", {})
 	var damage_amount := float(state.get("damage_per_question", 0.0))
 	for question_id in _question_order:
@@ -5089,10 +5161,7 @@ func _build_wrapup_projectile_entries(state: Dictionary) -> Array[Dictionary]:
 		var answer_state: StringName = question.answer_completion_state(answer_value)
 		if answer_state == SurveyQuestion.ANSWER_STATE_UNANSWERED:
 			continue
-		var label_text := ""
-		if label_budget > 0:
-			label_text = _review_answer_summary(question, answer_value)
-			label_budget -= 1
+		var label_text := _wrapup_attack_summary(question, answer_value)
 		entries.append({
 			"question_id": question_id,
 			"section_index": int(question_section_map.get(question_id, -1)),
