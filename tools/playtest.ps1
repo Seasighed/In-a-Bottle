@@ -507,7 +507,7 @@ function New-GodotArguments {
 function Invoke-GodotProjectBootstrap {
     param([string]$ExecutablePath)
     Write-PlaytestLog 'Importing project metadata.'
-    Invoke-ExternalCommand -FilePath $ExecutablePath -Arguments (New-GodotArguments -Label 'bootstrap' -Arguments @('--headless', '--path', $RepoRoot, '--quit-after', '1')) | Out-Null
+    Invoke-ExternalCommand -FilePath $ExecutablePath -Arguments (New-GodotArguments -Label 'bootstrap' -Arguments @('--headless', '--path', $RepoRoot, '--import')) | Out-Null
 }
 
 function Invoke-GodotCheckOnly {
