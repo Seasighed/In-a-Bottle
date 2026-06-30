@@ -19,6 +19,7 @@ const SURVEY_PLAYTEST_FEEDBACK_OVERLAY_SCRIPT = preload("res://Scripts/UI/Survey
 const QUESTION_VIEW_REGISTRY = preload("res://Scripts/UI/QuestionViewRegistry.gd")
 const DEFAULT_DARK_PALETTE = preload("res://Themes/SurveyDarkPalette.tres")
 const DEFAULT_LIGHT_PALETTE = preload("res://Themes/SurveyLightPalette.tres")
+const PUBLIC_LAUNCH_TEMPLATE_PATH := "res://Dev/SurveyTemplates/maplestory_pulse.json"
 
 signal status_changed(message: String, is_error: bool)
 
@@ -308,17 +309,20 @@ func _capture_survey_journey_image(spec: Dictionary) -> Dictionary:
 	var viewport := _create_capture_viewport(viewport_size)
 	var journey: Control = SURVEY_JOURNEY_SCENE.instantiate()
 	journey.set("persist_selected_template", false)
-	if str(spec.get("upload_state", "")).strip_edges() == "configured":
+	var upload_state := str(spec.get("upload_state", "")).strip_edges()
+	if upload_state == "configured":
 		journey.set("upload_endpoint_url", "https://example.com/upload")
 		journey.set("upload_destination_name", "Visual Audit Intake")
 		journey.set("upload_public_repo_name", "Visual Audit Repo")
 		journey.set("upload_public_repo_url", "https://example.com/research/visual-audit")
+		journey.set("max_template_loads_per_window", 0)
 	else:
 		journey.set("upload_endpoint_url", "")
 	viewport.add_child(journey)
 	_fit_control_to_viewport(journey, viewport_size)
 	await _await_capture_frames(4)
-	journey.call("_load_survey_from_path", SURVEY_UI_FLOW_FIXTURES.default_template_path(), false)
+	var template_path := PUBLIC_LAUNCH_TEMPLATE_PATH if upload_state == "configured" else SURVEY_UI_FLOW_FIXTURES.default_template_path()
+	journey.call("_load_survey_from_path", template_path, false)
 	await _await_capture_frames(4)
 
 	match str(spec.get("state", "")).strip_edges():
