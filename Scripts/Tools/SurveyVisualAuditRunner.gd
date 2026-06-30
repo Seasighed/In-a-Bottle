@@ -10,6 +10,9 @@ const SURVEY_JOURNEY_SCENE = preload("res://Scenes/SurveyJourney.tscn")
 const QUESTION_TYPE_GALLERY_SCENE = preload("res://Scenes/UI/QuestionTypeGallery.tscn")
 const SURVEY_SUMMARY_OVERLAY_SCENE = preload("res://Scenes/UI/SurveySummaryOverlay.tscn")
 const SURVEY_PROFILE_OVERLAY_SCENE = preload("res://Scenes/UI/SurveyProfileOverlay.tscn")
+const SURVEY_ANSWER_REVIEW_OVERLAY_SCRIPT = preload("res://Scripts/UI/SurveyAnswerReviewOverlay.gd")
+const SURVEY_ANSWER_WRAPPED_CARD_SCRIPT = preload("res://Scripts/UI/SurveyAnswerWrappedCard.gd")
+const SURVEY_ANSWER_REVIEW = preload("res://Scripts/Survey/SurveyAnswerReview.gd")
 const SURVEY_QA_OVERLAY_SCRIPT = preload("res://Scripts/UI/SurveyQaOverlay.gd")
 const SURVEY_QA_CHECKLIST_CATALOG = preload("res://Scripts/QA/SurveyQaChecklistCatalog.gd")
 const SURVEY_PLAYTEST_FEEDBACK_OVERLAY_SCRIPT = preload("res://Scripts/UI/SurveyPlaytestFeedbackOverlay.gd")
@@ -112,6 +115,7 @@ func export_visual_audit_bundle(options: Dictionary = {}) -> Dictionary:
 	var capture_specs := SURVEY_VISUAL_AUDIT_CATALOG.build_bundle_capture_specs()
 	var capture_entries: Array[Dictionary] = []
 	var placeholder_ids: Array[String] = []
+	var wrapped_layout_metrics: Array[Dictionary] = []
 	var textures_for_flow_chart := {}
 	var flow_chart_paths_by_id := {}
 
@@ -122,6 +126,13 @@ func export_visual_audit_bundle(options: Dictionary = {}) -> Dictionary:
 		var image: Image = capture_result.get("image") as Image
 		if image == null:
 			image = _placeholder_image()
+		if capture_result.has("layout_metrics") and capture_result.get("layout_metrics", {}) is Dictionary:
+			var metrics: Dictionary = (capture_result.get("layout_metrics", {}) as Dictionary).duplicate(true)
+			if not metrics.is_empty():
+				metrics["capture_id"] = str(spec.get("id", "")).strip_edges()
+				metrics["variant"] = str(spec.get("variant", "")).strip_edges()
+				metrics["surface"] = str(spec.get("surface", "")).strip_edges()
+				wrapped_layout_metrics.append(metrics)
 		var relative_path := _bundle_relative_path_for_spec(spec)
 		var absolute_path := run_dir_absolute.path_join(relative_path)
 		_prepare_output_directory(absolute_path.get_base_dir())
@@ -171,7 +182,17 @@ func export_visual_audit_bundle(options: Dictionary = {}) -> Dictionary:
 
 	var coverage_report := _build_coverage_report(capture_specs, capture_entries, placeholder_ids)
 	var bundle_manifest := _build_bundle_manifest(run_dir_name, capture_entries, placeholder_ids, flow_chart_relative, coverage_report, contract_only)
+	if not wrapped_layout_metrics.is_empty():
+		bundle_manifest["wrapped_layout_metrics_path"] = "metadata/wrapped_layout_metrics.json"
+		bundle_manifest["wrapped_layout_metric_count"] = wrapped_layout_metrics.size()
 	_write_json_file(run_dir_absolute.path_join("metadata/coverage_report.json"), coverage_report)
+	if not wrapped_layout_metrics.is_empty():
+		_write_json_file(run_dir_absolute.path_join("metadata/wrapped_layout_metrics.json"), {
+			"format": "survey_wrapped_layout_metrics_v1",
+			"generated_at": Time.get_datetime_string_from_system(true),
+			"display_server": DisplayServer.get_name(),
+			"metrics": wrapped_layout_metrics
+		})
 	_write_json_file(run_dir_absolute.path_join("metadata/bundle_manifest.json"), bundle_manifest)
 
 	var export_root := visual_audit_export_root()
@@ -214,6 +235,8 @@ func _capture_spec_image(spec: Dictionary, contract_only: bool) -> Dictionary:
 			return await _capture_qa_overlay_image(spec)
 		"feedback_overlay":
 			return await _capture_feedback_overlay_image(spec)
+		"answer_review_overlay":
+			return await _capture_answer_review_overlay_image(spec)
 		"question_type":
 			return await _capture_question_type_image(spec)
 		"custom_view":
@@ -416,6 +439,28 @@ func _capture_feedback_overlay_image(spec: Dictionary) -> Dictionary:
 	await _await_capture_frames(4)
 	return await _finalize_capture(viewport)
 
+func _capture_answer_review_overlay_image(spec: Dictionary) -> Dictionary:
+	var viewport_size := _resolved_viewport_size(spec, SURVEY_UI_FLOW_CATALOG.PHONE_VIEWPORT)
+	var viewport := _create_capture_viewport(viewport_size)
+	var overlay = SURVEY_ANSWER_REVIEW_OVERLAY_SCRIPT.new()
+	viewport.add_child(overlay)
+	await _await_capture_frames(3)
+	overlay.refresh_layout(Vector2(viewport_size))
+	var review_survey: SurveyDefinition = SURVEY_UI_FLOW_FIXTURES.load_default_survey()
+	if review_survey == null:
+		return {
+			"image": _placeholder_image(),
+			"placeholder": true
+		}
+	var scan_report := _sample_answer_review_scan_report(review_survey)
+	overlay.open_review(review_survey, {
+		"folder_path": "X:/Playtests/Imported Answers",
+		"recursive": true,
+		"scrub_identifying_info": true
+	}, scan_report)
+	await _await_capture_frames(4)
+	return await _finalize_capture(viewport)
+
 func _capture_question_type_image(spec: Dictionary) -> Dictionary:
 	var viewport_size := _resolved_viewport_size(spec, SURVEY_VISUAL_AUDIT_CATALOG.QUESTION_CARD_VIEWPORT)
 	var viewport := _create_capture_viewport(viewport_size)
@@ -433,6 +478,8 @@ func _capture_question_type_image(spec: Dictionary) -> Dictionary:
 	wrapper.add_child(card)
 	card.position = Vector2(18.0, 18.0)
 	card.size = Vector2(viewport_size.x - 36, viewport_size.y - 36)
+	var question_view := card.get_meta("question_view", null) as SurveyQuestionView
+	await awaitable_refresh_question_view(question_view, card)
 	await _await_capture_frames(4)
 	if str(spec.get("surface", "")).strip_edges() == "dropdown" and str(spec.get("variant", "")).strip_edges() == "expanded":
 		var option_button := _find_first_option_button(card)
@@ -472,6 +519,8 @@ func _capture_feature_export_image(spec: Dictionary) -> Dictionary:
 		}
 	var answers := SURVEY_UI_FLOW_FIXTURES.sample_complete_answers(survey)
 	match str(spec.get("surface", "")).strip_edges():
+		"answer_wrapped_image":
+			return await _capture_answer_wrapped_card_image(spec, survey)
 		"profile_image":
 			var profile_overlay: SurveyProfileOverlay = SURVEY_PROFILE_OVERLAY_SCENE.instantiate() as SurveyProfileOverlay
 			add_child(profile_overlay)
@@ -499,6 +548,47 @@ func _capture_feature_export_image(spec: Dictionary) -> Dictionary:
 				"placeholder": summary_image == null
 			}
 
+func _capture_answer_wrapped_card_image(spec: Dictionary, survey: SurveyDefinition) -> Dictionary:
+	var viewport_size := _resolved_viewport_size(spec, SURVEY_VISUAL_AUDIT_CATALOG.WRAPPED_PHONE_VIEWPORT)
+	var viewport := _create_capture_viewport(viewport_size)
+	var card = SURVEY_ANSWER_WRAPPED_CARD_SCRIPT.new()
+	viewport.add_child(card)
+	card.custom_minimum_size = Vector2(viewport_size)
+	card.size = Vector2(viewport_size)
+	var pages_data := _sample_answer_review_pages_data(survey, str(spec.get("wrapped_theme_id", "light")))
+	var pages: Array = pages_data.get("pages", [])
+	var page_index := clampi(int(spec.get("page_index", 0)), 0, maxi(pages.size() - 1, 0))
+	var requested_page_kind := str(spec.get("page_kind", "")).strip_edges()
+	if not requested_page_kind.is_empty():
+		for index in range(pages.size()):
+			if pages[index] is Dictionary and str((pages[index] as Dictionary).get("page_kind", "")) == requested_page_kind:
+				page_index = index
+				break
+	var requested_renderer := str(spec.get("wrapped_renderer", "")).strip_edges()
+	if not requested_renderer.is_empty():
+		var found_renderer_page := false
+		for index in range(pages.size()):
+			if not (pages[index] is Dictionary):
+				continue
+			var page: Dictionary = pages[index] as Dictionary
+			for question_value in page.get("questions", []) as Array:
+				if question_value is Dictionary and str((question_value as Dictionary).get("wrapped_renderer", "")).strip_edges() == requested_renderer:
+					page_index = index
+					found_renderer_page = true
+					break
+			if found_renderer_page:
+				break
+	if not pages.is_empty() and pages[page_index] is Dictionary:
+		card.configure_page(pages[page_index] as Dictionary, pages_data)
+	else:
+		card.configure(pages_data)
+	card.refresh_layout(float(viewport_size.x))
+	await _await_capture_frames(4)
+	var layout_metrics: Dictionary = card.get_layout_metrics() if card.has_method("get_layout_metrics") else {}
+	var capture_result := await _finalize_capture(viewport)
+	capture_result["layout_metrics"] = layout_metrics
+	return capture_result
+
 func _capture_question_like_image(spec: Dictionary) -> Dictionary:
 	var viewport_size := _resolved_viewport_size(spec, SURVEY_VISUAL_AUDIT_CATALOG.QUESTION_CARD_VIEWPORT)
 	var viewport := _create_capture_viewport(viewport_size)
@@ -516,6 +606,8 @@ func _capture_question_like_image(spec: Dictionary) -> Dictionary:
 	wrapper.add_child(card)
 	card.position = Vector2(18.0, 18.0)
 	card.size = Vector2(viewport_size.x - 36, viewport_size.y - 36)
+	var question_view := card.get_meta("question_view", null) as SurveyQuestionView
+	await awaitable_refresh_question_view(question_view, card)
 	await _await_capture_frames(4)
 	return await _finalize_capture(viewport)
 
@@ -552,12 +644,12 @@ func _build_question_capture_card(spec: Dictionary) -> PanelContainer:
 
 	var question: SurveyQuestion = spec.get("question") as SurveyQuestion
 	if question == null:
-		var question_config := spec.get("question_config", {})
+		var question_config: Variant = spec.get("question_config", {})
 		if question_config is Dictionary:
 			question = SurveyQuestion.new(question_config as Dictionary)
 	if question == null:
 		return null
-	var answer_value := _duplicate_variant(spec.get("answer", question.default_value))
+	var answer_value: Variant = _duplicate_variant(spec.get("answer", question.default_value))
 	var question_view := QUESTION_VIEW_REGISTRY.instantiate_for_question(question)
 	if question_view == null:
 		return null
@@ -565,10 +657,16 @@ func _build_question_capture_card(spec: Dictionary) -> PanelContainer:
 	question_view.set_presentation_mode(SurveyQuestionView.PRESENTATION_DOCUMENT)
 	question_view.configure(question, answer_value)
 	stack.add_child(question_view)
-	awaitable_refresh_question_view(question_view, panel)
+	panel.set_meta("question_view", question_view)
 	return panel
 
 func awaitable_refresh_question_view(question_view: SurveyQuestionView, panel: PanelContainer) -> void:
+	if question_view == null or panel == null:
+		return
+	if not question_view.is_node_ready():
+		await get_tree().process_frame
+	if not question_view.is_node_ready():
+		await get_tree().process_frame
 	var width := maxf(panel.custom_minimum_size.x - 32.0, 320.0)
 	question_view.refresh_responsive_layout(Vector2(width, _resolved_root_viewport_height()))
 
@@ -842,6 +940,91 @@ func _spec_should_feed_flow_chart(spec: Dictionary) -> bool:
 		return str(spec.get("variant", "")).strip_edges() == "sheet"
 	return str(spec.get("viewport_preset", "")).strip_edges() == SURVEY_VISUAL_AUDIT_CATALOG.PHONE_VIEWPORT_ID
 
+func _sample_answer_review_scan_report(survey: SurveyDefinition) -> Dictionary:
+	var aggregate := _sample_answer_review_aggregate(survey)
+	return {
+		"survey_id": survey.id if survey != null else "",
+		"schema_hash": survey.schema_hash if survey != null else "",
+		"folder_path": "X:/Playtests/Imported Answers",
+		"recursive": true,
+		"generated_at": Time.get_datetime_string_from_system(true),
+		"records": aggregate.get("_sample_records", []),
+		"rejected_files": [
+			{
+				"path": "X:/Playtests/Imported Answers/wrong_survey.json",
+				"file_name": "wrong_survey.json",
+				"message": "Survey id did not match."
+			}
+		],
+		"warnings": ["legacy_export.json did not include a schema hash."],
+		"aggregate": aggregate,
+		"accepted_count": int(aggregate.get("respondent_count", 0)),
+		"question_count": survey.total_questions() if survey != null else 0
+	}
+
+func _sample_answer_review_summary_data(survey: SurveyDefinition) -> Dictionary:
+	return SURVEY_ANSWER_REVIEW.build_wrapped_summary_data(survey, _sample_answer_review_aggregate(survey), true)
+
+func _sample_answer_review_pages_data(survey: SurveyDefinition, theme_id: String) -> Dictionary:
+	return SURVEY_ANSWER_REVIEW.build_wrapped_pages_data(
+		survey,
+		_sample_answer_review_aggregate(survey),
+		true,
+		{
+			"profile_name": "Mushroom",
+			"fields": [
+				{"label": "Username", "value": "QA Review"},
+				{"label": "World", "value": "Bottle"},
+				{"label": "Region", "value": "NA"}
+			],
+			"show_on_wrap": true
+		},
+		theme_id
+	)
+
+func _sample_answer_review_aggregate(survey: SurveyDefinition) -> Dictionary:
+	if survey == null:
+		return {}
+	var first_answers := SURVEY_UI_FLOW_FIXTURES.sample_complete_answers(survey)
+	var second_answers := SURVEY_UI_FLOW_FIXTURES.sample_complete_answers(survey)
+	for section in survey.sections:
+		for question in section.questions:
+			match question.type:
+				SurveyQuestion.TYPE_SHORT_TEXT:
+					second_answers[question.id] = "Clearer once the second screen introduced the goal."
+				SurveyQuestion.TYPE_LONG_TEXT:
+					second_answers[question.id] = "The wrapped summary should keep the useful theme without exposing identifying details."
+				SurveyQuestion.TYPE_SINGLE_CHOICE, SurveyQuestion.TYPE_DROPDOWN:
+					if question.options.size() > 1:
+						second_answers[question.id] = question.options[question.options.size() - 1]
+				SurveyQuestion.TYPE_MULTI_CHOICE:
+					var choices: Array = []
+					for index in range(mini(question.options.size(), 2)):
+						choices.append(question.options[index])
+					second_answers[question.id] = choices
+				SurveyQuestion.TYPE_BOOLEAN:
+					second_answers[question.id] = false
+				SurveyQuestion.TYPE_SCALE, SurveyQuestion.TYPE_NPS, SurveyQuestion.TYPE_NUMBER:
+					second_answers[question.id] = clampi(question.min_value + 1, question.min_value, question.max_value)
+				SurveyQuestion.TYPE_RANKED_CHOICE:
+					var reversed_options: Array = []
+					for option_index in range(question.options.size() - 1, -1, -1):
+						reversed_options.append(question.options[option_index])
+					second_answers[question.id] = reversed_options
+				SurveyQuestion.TYPE_MATRIX:
+					var matrix_answer: Dictionary = {}
+					var option := question.options[min(1, max(question.options.size() - 1, 0))] if not question.options.is_empty() else "Yes"
+					for row_name in question.rows:
+						matrix_answer[row_name] = option
+					second_answers[question.id] = matrix_answer
+	var records: Array[Dictionary] = [
+		{"source_name": "visual_audit_a.json", "answers": first_answers},
+		{"source_name": "visual_audit_b.json", "answers": second_answers}
+	]
+	var aggregate: Dictionary = SURVEY_ANSWER_REVIEW.build_aggregate(survey, records)
+	aggregate["_sample_records"] = records
+	return aggregate
+
 func _sample_qa_home_state() -> Dictionary:
 	return {
 		"title": "QA Guide",
@@ -954,11 +1137,11 @@ func _apply_theme() -> void:
 	SurveyStyle.configure_palettes(_dark_palette, _light_palette, _use_dark_mode)
 
 func _resolved_viewport_size(spec: Dictionary, fallback: Vector2i) -> Vector2i:
-	var explicit_size := spec.get("viewport_size", Vector2i.ZERO)
+	var explicit_size: Variant = spec.get("viewport_size", Vector2i.ZERO)
 	if explicit_size is Vector2i and explicit_size != Vector2i.ZERO:
 		return explicit_size as Vector2i
 	var viewport_id := str(spec.get("viewport_preset", "")).strip_edges()
-	var preset_size := SurveyPreviewConfig.resolution_size(viewport_id)
+	var preset_size: Vector2i = SurveyPreviewConfig.resolution_size(viewport_id)
 	return preset_size if preset_size != Vector2i.ZERO else fallback
 
 func _resolved_root_viewport_height() -> float:
@@ -1019,7 +1202,7 @@ func _sanitize_variant(value: Variant) -> Variant:
 				var key := str(key_variant).strip_edges()
 				if key.is_empty():
 					continue
-				var nested_value := source.get(key_variant)
+				var nested_value: Variant = source.get(key_variant)
 				if nested_value is SurveyQuestion:
 					continue
 				resolved[key] = _sanitize_variant(nested_value)

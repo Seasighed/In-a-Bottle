@@ -23,13 +23,16 @@ const SURVEY_QUESTION := preload("res://Scripts/Survey/SurveyQuestion.gd")
 const DEFAULT_QUESTION_XP_CONFIG: SurveyQuestionXpConfig = preload("res://Resources/Survey/DefaultQuestionXpConfig.tres")
 const SURVEY_SESSION_CACHE := preload("res://Scripts/Survey/SurveySessionCache.gd")
 const SURVEY_SAVE_BUNDLE := preload("res://Scripts/Survey/SurveySaveBundle.gd")
+const SURVEY_ANSWER_REVIEW := preload("res://Scripts/Survey/SurveyAnswerReview.gd")
 const SURVEY_SESSION_STATE_SUPPORT := preload("res://Scripts/Survey/SurveySessionStateSupport.gd")
 const SURVEY_SUBMISSION_BUNDLE := preload("res://Scripts/Survey/SurveySubmissionBundle.gd")
 const SURVEY_SUMMARY_ANALYZER := preload("res://Scripts/Survey/SurveySummaryAnalyzer.gd")
 const SURVEY_TEMPLATE_LOADER := preload("res://Scripts/Survey/SurveyTemplateLoader.gd")
 const SURVEY_TRANSFER_SUPPORT := preload("res://Scripts/Survey/SurveyTransferSupport.gd")
+const SURVEY_UPLOAD_ELIGIBILITY := preload("res://Scripts/Survey/SurveyUploadEligibility.gd")
 const SURVEY_UPLOAD_AUDIT_STORE := preload("res://Scripts/Survey/SurveyUploadAuditStore.gd")
 const SURVEY_PREFERENCES_STORE := preload("res://Scripts/Survey/SurveyPreferencesStore.gd")
+const SURVEY_SHARE_PROFILE_STORE := preload("res://Scripts/Survey/SurveyShareProfileStore.gd")
 const SURVEY_JOURNEY_BOSS_STATE := preload("res://Scripts/UI/SurveyJourneyBossState.gd")
 const SURVEY_JOURNEY_BOSS_BAR_SCENE := preload("res://Scenes/UI/SurveyJourneyBossBar.tscn")
 const SURVEY_BUILD_EXPORT_SUPPORT := preload("res://Scripts/Tools/SurveyBuildExportSupport.gd")
@@ -37,6 +40,7 @@ const SURVEY_UI_FLOW_CATALOG := preload("res://Scripts/Tools/SurveyUiFlowCatalog
 const SURVEY_UI_FLOW_FIXTURES := preload("res://Scripts/Tools/SurveyUiFlowFixtures.gd")
 const SURVEY_VISUAL_AUDIT_CATALOG := preload("res://Scripts/Tools/SurveyVisualAuditCatalog.gd")
 const SURVEY_VISUAL_AUDIT_RUNNER_SCRIPT := preload("res://Scripts/Tools/SurveyVisualAuditRunner.gd")
+const SURVEY_RUNTIME_BUILD_PROFILE := preload("res://Scripts/UI/SurveyRuntimeBuildProfile.gd")
 const DEFAULT_THEME_CATALOG = preload("res://Themes/SurveyThemeCatalog.tres")
 const SURVEY_THEME_PALETTE_SCRIPT := preload("res://Scripts/UI/SurveyThemePalette.gd")
 const SURVEY_UI_FLOW_MAP_SCENE := preload("res://Scenes/Tools/SurveyUiFlowMap.tscn")
@@ -45,6 +49,7 @@ const SURVEY_QA_SESSION_SUPPORT := preload("res://Scripts/QA/SurveyQaSessionSupp
 
 const TEMPLATE_PATH := "res://Dev/SurveyTemplates/studio_feedback.json"
 const DEBUG_TEMPLATE_PATH := "res://Dev/SurveyTemplates/personal_checkin_debug.json"
+const MAPLESTORY_TEMPLATE_PATH := "res://Dev/SurveyTemplates/maplestory_pulse.json"
 
 var _passed_tests := 0
 var _failed_assertions: Array[String] = []
@@ -60,10 +65,16 @@ func _ready() -> void:
 func _run_suite() -> void:
 	await get_tree().process_frame
 	await _run_test("Template Loader And Completion States", _test_template_loader_and_completion_states)
+	await _run_test("MapleStory Pulse Public Template", _test_maplestory_pulse_public_template)
+	await _run_test("Runtime Build Profile Resolution", _test_runtime_build_profile_resolution)
+	await _run_test("Upload Eligibility Allowlist", _test_upload_eligibility_allowlist)
 	await _run_test("Save Bundle Round Trip", _test_save_bundle_round_trip)
 	await _run_test("Legacy Export Normalization", _test_legacy_export_normalization)
 	await _run_test("Exporter Output", _test_exporter_output)
 	await _run_test("Identifying Question Scrub Export And Upload", _test_identifying_question_scrub_export_and_upload)
+	await _run_test("Imported Answer Review Aggregation", _test_imported_answer_review_aggregation)
+	await _run_test("Mobile Wrapped Pages And Share Profile", _test_mobile_wrapped_pages_and_share_profile)
+	await _run_test("Imported Answer Review Journey Surface", _test_imported_answer_review_journey_surface)
 	await _run_test("Upload Audit Anti-Abuse Heuristics", _test_upload_audit_anti_abuse_heuristics)
 	await _run_test("Session And Transfer Support", _test_session_and_transfer_support)
 	await _run_test("Question XP Config Mapping", _test_question_xp_config_mapping)
@@ -182,6 +193,25 @@ func _test_template_loader_and_completion_states() -> void:
 			"Ranked choice questions should become complete once all options are ranked."
 		)
 
+func _test_maplestory_pulse_public_template() -> void:
+	var survey: SurveyDefinition = SURVEY_TEMPLATE_LOADER.load_from_file(MAPLESTORY_TEMPLATE_PATH)
+	_check_true(survey != null, "The MapleStory Pulse public survey should load without validation errors.")
+	if survey == null:
+		return
+	_check_equal(survey.id, "maplestory_pulse", "The public pulse survey should keep its stable upload id.")
+	_check_equal(survey.template_version, 2, "The public pulse survey should use the current template version.")
+	_check_equal(survey.schema_hash.length(), 64, "The public pulse survey should expose a stable schema hash.")
+	_check_equal(survey.sections.size(), 5, "The public pulse survey should cover the five launch topics.")
+	_check_true(survey.total_questions() >= 20 and survey.total_questions() <= 30, "The public pulse survey should stay broad without becoming exhausting.")
+	_check_true(survey.asks_identifying_info, "The public pulse survey should flag that optional identifying questions exist.")
+	_check_true(survey.identifying_question_count() >= 2, "Optional handle/contact questions should be clearly marked as identifying.")
+	var summary := SURVEY_TEMPLATE_LOADER.describe_template_file(MAPLESTORY_TEMPLATE_PATH)
+	_check_equal(str(summary.get("source_kind", "")), "builtin", "The public pulse survey should be bundled as a built-in template.")
+	_check_true(bool(summary.get("single_survey_mode", false)), "The public participant build should start the bundled pulse survey directly.")
+	_check_true(_find_question(survey, "progression_sentiment") != null, "The public pulse survey should include progression matrix signal.")
+	_check_true(_find_question(survey, "challenge_priorities") != null, "The public pulse survey should include ranked boss/challenge priorities.")
+	_check_true(_find_question(survey, "future_priorities") != null, "The public pulse survey should include future-poll priorities.")
+
 func _test_save_bundle_round_trip() -> void:
 	var survey: SurveyDefinition = _load_studio_feedback()
 	if survey == null:
@@ -243,6 +273,76 @@ func _test_save_bundle_round_trip() -> void:
 	_check_equal(normalized_state.get("restored_progress", false), true, "Session state should preserve the restored-progress marker.")
 	_check_equal(normalized_awards.get("display_name", -1), 2, "Answer-change XP award counts should persist in save bundles.")
 	_check_equal(normalized_awards.get("topic_ratings", -1), 1, "Answer-change XP award counts should persist for every question.")
+
+func _test_runtime_build_profile_resolution() -> void:
+	var cmdline_resolution := SURVEY_RUNTIME_BUILD_PROFILE.resolve_profile_id_from_inputs(
+		["--build-profile", "qa"],
+		SURVEY_RUNTIME_BUILD_PROFILE.PROFILE_PARTICIPANT,
+		SURVEY_RUNTIME_BUILD_PROFILE.PROFILE_PARTICIPANT
+	)
+	_check_equal(cmdline_resolution.get("id", ""), SURVEY_RUNTIME_BUILD_PROFILE.PROFILE_QA, "An explicit command-line build profile should win over the web query fallback.")
+	_check_equal(cmdline_resolution.get("source", ""), "cmdline", "Command-line profile selection should report its source.")
+	_check_true(bool(cmdline_resolution.get("is_explicit", false)), "Command-line profile selection should be marked explicit.")
+
+	var query_resolution := SURVEY_RUNTIME_BUILD_PROFILE.resolve_profile_id_from_inputs(
+		[],
+		SURVEY_RUNTIME_BUILD_PROFILE.PROFILE_PARTICIPANT,
+		SURVEY_RUNTIME_BUILD_PROFILE.PROFILE_QA
+	)
+	_check_equal(query_resolution.get("id", ""), SURVEY_RUNTIME_BUILD_PROFILE.PROFILE_PARTICIPANT, "A web query build profile should resolve when no command-line override is present.")
+	_check_equal(query_resolution.get("source", ""), "web_query", "Web query profile selection should report its source.")
+	_check_true(bool(query_resolution.get("is_explicit", false)), "Web query profile selection should be marked explicit.")
+
+	var default_resolution := SURVEY_RUNTIME_BUILD_PROFILE.resolve_profile_id_from_inputs([], "", SURVEY_RUNTIME_BUILD_PROFILE.PROFILE_PARTICIPANT)
+	_check_equal(default_resolution.get("id", ""), SURVEY_RUNTIME_BUILD_PROFILE.PROFILE_PARTICIPANT, "The runtime profile should fall back to participant mode when no override is supplied.")
+	_check_equal(default_resolution.get("source", ""), "default", "Fallback build profiles should report the default source.")
+	_check_true(not bool(default_resolution.get("is_explicit", true)), "Fallback build profiles should not be marked explicit.")
+
+	var qa_definition := SURVEY_RUNTIME_BUILD_PROFILE.definition_for_id(SURVEY_RUNTIME_BUILD_PROFILE.PROFILE_QA)
+	_check_equal(qa_definition.get("template_path", ""), SURVEY_RUNTIME_BUILD_PROFILE.QA_TEMPLATE_PATH, "The QA build profile should point at the debug playtest template.")
+	var participant_definition := SURVEY_RUNTIME_BUILD_PROFILE.definition_for_id(SURVEY_RUNTIME_BUILD_PROFILE.PROFILE_PARTICIPANT)
+	_check_equal(participant_definition.get("template_path", ""), SURVEY_RUNTIME_BUILD_PROFILE.PARTICIPANT_TEMPLATE_PATH, "The participant build profile should point at the respondent-facing template.")
+	_check_equal(participant_definition.get("template_path", ""), MAPLESTORY_TEMPLATE_PATH, "The participant build profile should launch the MapleStory Pulse survey.")
+
+	var base_flags := SurveyFeatureFlags.new()
+	base_flags.enable_qa_mode = true
+	base_flags.enable_theme_toggle = false
+	base_flags.enable_preview_controls = false
+	base_flags.enable_playful_copy = true
+	var participant_flags := SURVEY_RUNTIME_BUILD_PROFILE.build_feature_flags(base_flags, SURVEY_RUNTIME_BUILD_PROFILE.PROFILE_PARTICIPANT)
+	_check_true(not participant_flags.enable_qa_mode, "Participant mode should override repo defaults and hide QA tooling.")
+	_check_true(not participant_flags.enable_theme_toggle, "Runtime build profiles should preserve unrelated feature flags.")
+	_check_true(participant_flags.enable_playful_copy, "Participant mode should keep playful copy enabled by default.")
+	var qa_flags := SURVEY_RUNTIME_BUILD_PROFILE.build_feature_flags(base_flags, SURVEY_RUNTIME_BUILD_PROFILE.PROFILE_QA)
+	_check_true(qa_flags.enable_qa_mode, "QA mode should force QA tooling back on.")
+	_check_true(not qa_flags.enable_preview_controls, "QA mode should keep unrelated feature-flag values intact.")
+	_check_true(not qa_flags.enable_playful_copy, "QA mode should disable playful copy for serious verification passes.")
+
+	var template_summaries: Array[Dictionary] = [
+		{"path": SURVEY_RUNTIME_BUILD_PROFILE.PARTICIPANT_TEMPLATE_PATH, "title": "Participant"},
+		{"path": SURVEY_RUNTIME_BUILD_PROFILE.QA_TEMPLATE_PATH, "title": "QA"}
+	]
+	var reordered := SURVEY_RUNTIME_BUILD_PROFILE.reorder_template_summaries(template_summaries, SURVEY_RUNTIME_BUILD_PROFILE.QA_TEMPLATE_PATH)
+	_check_equal(reordered[0].get("path", ""), SURVEY_RUNTIME_BUILD_PROFILE.QA_TEMPLATE_PATH, "Preferred runtime templates should be promoted to the top of selection lists.")
+	_check_equal(reordered[1].get("path", ""), SURVEY_RUNTIME_BUILD_PROFILE.PARTICIPANT_TEMPLATE_PATH, "Reordering should keep the rest of the template list intact.")
+
+func _test_upload_eligibility_allowlist() -> void:
+	var pulse: SurveyDefinition = SURVEY_TEMPLATE_LOADER.load_from_file(MAPLESTORY_TEMPLATE_PATH)
+	_check_true(pulse != null, "Upload eligibility tests should load the public pulse survey.")
+	if pulse == null:
+		return
+	var allowed := SURVEY_UPLOAD_ELIGIBILITY.eligibility_for_survey(pulse, MAPLESTORY_TEMPLATE_PATH)
+	_check_true(bool(allowed.get("ok", false)), "The allowlisted built-in public survey should be upload eligible.")
+	_check_equal(str(allowed.get("survey_id", "")), "maplestory_pulse", "Eligibility should preserve the allowlisted survey id.")
+	_check_equal(str(allowed.get("identity_key", "")), SURVEY_UPLOAD_ELIGIBILITY.identity_key(pulse.id, pulse.template_version, pulse.schema_hash), "Eligibility should key uploads by id, version, and schema hash.")
+	var imported := SURVEY_UPLOAD_ELIGIBILITY.eligibility_for_survey(pulse, "user://survey_templates/maplestory_pulse.json")
+	_check_true(not bool(imported.get("ok", true)), "Imported/custom copies of the public survey should not be upload eligible.")
+	_check_equal(str(imported.get("reason", "")), "custom_survey", "Imported survey rejection should explain that it is custom.")
+	var studio: SurveyDefinition = _load_studio_feedback()
+	if studio != null:
+		var studio_eligibility := SURVEY_UPLOAD_ELIGIBILITY.eligibility_for_survey(studio, TEMPLATE_PATH)
+		_check_true(not bool(studio_eligibility.get("ok", true)), "Non-allowlisted built-in surveys should not upload from public builds.")
+		_check_equal(str(studio_eligibility.get("reason", "")), "not_allowlisted", "Non-allowlisted built-ins should fail for the allowlist reason.")
 
 func _test_legacy_export_normalization() -> void:
 	var survey: SurveyDefinition = _load_studio_feedback()
@@ -377,6 +477,481 @@ func _test_identifying_question_scrub_export_and_upload() -> void:
 			if question_id == "display_name" or question_id == "email":
 				uploaded_identifying_response = true
 	_check_true(not uploaded_identifying_response, "Scrubbed upload bundles should omit identifying responses.")
+
+func _test_imported_answer_review_aggregation() -> void:
+	var fixture := _build_answer_review_fixture("aggregation")
+	var review_survey: SurveyDefinition = fixture.get("survey", null)
+	var root_path := str(fixture.get("root_path", "")).strip_edges()
+	if review_survey == null or root_path.is_empty():
+		_fail("Imported answer review aggregation fixture should be available.")
+		return
+
+	var nonrecursive_report: Dictionary = SURVEY_ANSWER_REVIEW.scan_folder(review_survey, root_path, false)
+	_check_equal(nonrecursive_report.get("accepted_count", -1), 2, "Non-recursive scans should ignore nested answer JSON files.")
+	_check_equal((nonrecursive_report.get("rejected_files", []) as Array).size(), 4, "Non-recursive scans should reject invalid, duplicate, wrong-survey, and wrong-schema files.")
+	var nonrecursive_number: Dictionary = _answer_review_question_aggregate(nonrecursive_report.get("aggregate", {}) as Dictionary, "q_number")
+	_check_equal(float((nonrecursive_number.get("numeric_stats", {}) as Dictionary).get("average", -1.0)), 15.0, "Non-recursive aggregation should average only top-level numeric answers.")
+
+	var recursive_report: Dictionary = SURVEY_ANSWER_REVIEW.scan_folder(review_survey, root_path, true)
+	_check_equal(recursive_report.get("survey_id", ""), review_survey.id, "Scan reports should carry the active survey id.")
+	_check_equal(recursive_report.get("schema_hash", ""), review_survey.schema_hash, "Scan reports should carry the active survey schema hash.")
+	_check_equal(recursive_report.get("question_count", -1), review_survey.total_questions(), "Scan reports should expose the reviewed survey question count.")
+	_check_equal(recursive_report.get("accepted_count", -1), 3, "Recursive scans should include compatible nested answer JSON files.")
+	_check_equal((recursive_report.get("rejected_files", []) as Array).size(), 4, "Recursive scans should keep rejected file details without counting them.")
+	_check_true((recursive_report.get("warnings", []) as Array).size() >= 1, "Accepted files that omit a schema hash should add a warning instead of being rejected.")
+
+	var aggregate: Dictionary = recursive_report.get("aggregate", {}) as Dictionary
+	_check_equal(aggregate.get("respondent_count", -1), 3, "Aggregates should count one record per compatible respondent bundle.")
+	var respondents: Array = aggregate.get("respondents", []) as Array
+	_check_equal(respondents.size(), 3, "Aggregates should expose stable respondent metadata for wrapped exports.")
+	if not respondents.is_empty() and respondents[0] is Dictionary:
+		var first_respondent: Dictionary = respondents[0] as Dictionary
+		_check_equal(first_respondent.get("respondent_number", -1), 1, "Respondent metadata should number imported answers for scanning.")
+		_check_true(not str(first_respondent.get("respondent_id", "")).is_empty(), "Respondent metadata should include a stable id.")
+		_check_true(not str(first_respondent.get("default_color", "")).is_empty(), "Respondent metadata should include a default wrapped color.")
+	_check_equal(aggregate.get("total_question_count", -1), review_survey.total_questions(), "Aggregates should keep the survey question count.")
+	var text_question: Dictionary = _answer_review_question_aggregate(aggregate, "q_text")
+	_check_equal(text_question.get("answer_count", -1), 3, "Text answers should be collected across every compatible record.")
+	_check_equal((text_question.get("text_answers", []) as Array).size(), 3, "Text answers should keep the custom answer list for review.")
+	_check_equal((text_question.get("individual_answers", []) as Array).size(), 3, "Text aggregates should preserve numbered individual answer metadata.")
+	_check_equal((text_question.get("distinct_answer_tallies", []) as Array).size(), 3, "Distinct text answers should be tallied for wrapped samples.")
+	_check_true((text_question.get("word_tallies", []) as Array).size() > 0, "Text aggregates should include word tallies for larger wrapped summaries.")
+	var single_question: Dictionary = _answer_review_question_aggregate(aggregate, "q_single")
+	var single_counts: Dictionary = single_question.get("option_counts", {}) as Dictionary
+	_check_equal(single_counts.get("Red", -1), 2, "Single-choice aggregation should tally preset options.")
+	_check_equal(single_counts.get("Blue", -1), 1, "Single-choice aggregation should tally every selected option.")
+	var dropdown_question: Dictionary = _answer_review_question_aggregate(aggregate, "q_dropdown")
+	_check_equal((dropdown_question.get("option_counts", {}) as Dictionary).get("Web", -1), 2, "Dropdown aggregation should tally selected options.")
+	var multi_question: Dictionary = _answer_review_question_aggregate(aggregate, "q_multi")
+	var multi_counts: Dictionary = multi_question.get("option_counts", {}) as Dictionary
+	_check_equal(multi_counts.get("A", -1), 2, "Multi-choice aggregation should count each selected preset.")
+	_check_equal(multi_counts.get("B", -1), 2, "Multi-choice aggregation should count shared selected presets.")
+	_check_equal(multi_counts.get("C", -1), 1, "Multi-choice aggregation should preserve low-count options.")
+	var boolean_question: Dictionary = _answer_review_question_aggregate(aggregate, "q_boolean")
+	var boolean_counts: Dictionary = boolean_question.get("option_counts", {}) as Dictionary
+	_check_equal(boolean_counts.get("Yes", -1), 2, "Boolean aggregation should tally true answers as Yes.")
+	_check_equal(boolean_counts.get("No", -1), 1, "Boolean aggregation should tally false answers as No.")
+	var number_question: Dictionary = _answer_review_question_aggregate(aggregate, "q_number")
+	var number_stats: Dictionary = number_question.get("numeric_stats", {}) as Dictionary
+	_check_equal(float(number_stats.get("average", -1.0)), 20.0, "Number aggregation should compute averages.")
+	_check_equal(float(number_stats.get("min", -1.0)), 10.0, "Number aggregation should compute minimums.")
+	_check_equal(float(number_stats.get("max", -1.0)), 30.0, "Number aggregation should compute maximums.")
+	var scale_question: Dictionary = _answer_review_question_aggregate(aggregate, "q_scale")
+	_check_equal(float((scale_question.get("numeric_stats", {}) as Dictionary).get("average", -1.0)), 4.0, "Scale aggregation should compute numeric stats.")
+	var nps_question: Dictionary = _answer_review_question_aggregate(aggregate, "q_nps")
+	_check_equal(float((nps_question.get("numeric_stats", {}) as Dictionary).get("average", -1.0)), 8.33, "NPS aggregation should compute decimal averages.")
+	var matrix_question: Dictionary = _answer_review_question_aggregate(aggregate, "q_matrix")
+	var onboarding_row: Dictionary = _find_matrix_row(matrix_question.get("matrix_rows", []) as Array, "Onboarding")
+	_check_equal((onboarding_row.get("option_counts", {}) as Dictionary).get("Good", -1), 2, "Matrix aggregation should tally each row option.")
+	var ranked_question: Dictionary = _answer_review_question_aggregate(aggregate, "q_rank")
+	var speed_rank: Dictionary = _find_ranked_option(ranked_question.get("ranked_options", []) as Array, "Speed")
+	_check_equal(float(speed_rank.get("average_rank", -1.0)), 1.33, "Ranked-choice aggregation should compute average rank by option.")
+
+	var scrubbed_summary: Dictionary = SURVEY_ANSWER_REVIEW.build_wrapped_summary_data(review_survey, aggregate, true)
+	var scrubbed_email: Dictionary = _answer_review_summary_question(scrubbed_summary, "q_email")
+	_check_true(bool(scrubbed_email.get("scrubbed", false)), "Wrapped summary data should mark identifying questions as scrubbed.")
+	_check_equal((scrubbed_email.get("text_samples", []) as Array).size(), 0, "Scrubbed wrapped summary data should omit identifying text samples.")
+	var visible_text: Dictionary = _answer_review_summary_question(scrubbed_summary, "q_text")
+	_check_true((visible_text.get("text_samples", []) as Array).size() > 0, "Scrubbed wrapped summary data should keep non-identifying text samples.")
+	_check_equal(visible_text.get("wrapped_renderer", ""), "text_individual_answers", "Small distinct text sets should render as numbered answer samples.")
+
+	var settings_saved := SURVEY_ANSWER_REVIEW.save_review_settings(review_survey.id, {
+		"folder_path": root_path,
+		"recursive": true,
+		"scrub_identifying_info": false,
+		"wrapped_gradient_preset_id": SURVEY_ANSWER_REVIEW.WRAP_GRADIENT_MINT,
+		"respondent_color_overrides": {"r_demo": "ff00aa"},
+		"last_scan_at": "2026-06-27T21:55:00Z",
+		"last_accepted_count": 3,
+		"last_rejected_count": 4
+	})
+	_check_true(settings_saved, "Answer review source settings should save per survey.")
+	var loaded_settings: Dictionary = SURVEY_ANSWER_REVIEW.load_review_settings(review_survey.id)
+	_check_equal(loaded_settings.get("folder_path", ""), root_path, "Answer review source settings should restore the folder path.")
+	_check_equal(loaded_settings.get("recursive", false), true, "Answer review source settings should restore recursive scan preference.")
+	_check_equal(loaded_settings.get("scrub_identifying_info", true), false, "Answer review source settings should restore scrub preference.")
+	_check_equal(loaded_settings.get("wrapped_theme_id", ""), SURVEY_ANSWER_REVIEW.WRAP_THEME_LIGHT, "Answer review source settings should default to the light wrapped theme.")
+	_check_equal(loaded_settings.get("wrapped_gradient_preset_id", ""), SURVEY_ANSWER_REVIEW.WRAP_GRADIENT_MINT, "Answer review source settings should persist the wrapped gradient preset.")
+	_check_equal((loaded_settings.get("respondent_color_overrides", {}) as Dictionary).get("r_demo", ""), "ff00aa", "Answer review source settings should persist respondent color overrides.")
+	_remove_directory_tree(root_path)
+
+func _test_mobile_wrapped_pages_and_share_profile() -> void:
+	var fixture := _build_answer_review_fixture("wrapped_pages")
+	var review_survey: SurveyDefinition = fixture.get("survey", null)
+	var root_path := str(fixture.get("root_path", "")).strip_edges()
+	if review_survey == null or root_path.is_empty():
+		_fail("Wrapped pages fixture should be available.")
+		return
+	var scan_report: Dictionary = SURVEY_ANSWER_REVIEW.scan_folder(review_survey, root_path, true)
+	var aggregate: Dictionary = scan_report.get("aggregate", {}) as Dictionary
+	var respondent_overrides: Dictionary = {}
+	var aggregate_respondents: Array = aggregate.get("respondents", []) as Array
+	if not aggregate_respondents.is_empty() and aggregate_respondents[0] is Dictionary:
+		respondent_overrides[str((aggregate_respondents[0] as Dictionary).get("respondent_id", ""))] = "ff00aa"
+	var wrap_options := {
+		"gradient_preset_id": SURVEY_ANSWER_REVIEW.WRAP_GRADIENT_MINT,
+		"respondent_color_overrides": respondent_overrides,
+		"text_summary_mode": SURVEY_ANSWER_REVIEW.WRAP_TEXT_SUMMARY_AUTO
+	}
+	var profile := {
+		"profile_name": "Mushroom",
+		"fields": [
+			{"label": "Username", "value": "Captain Very Long Name That Should Be Trimmed Down To Fit On A Phone Card"},
+			{"label": "World", "value": "Bottled Sea"},
+			{"label": "Region", "value": "NA East"}
+		],
+		"show_on_wrap": true,
+		"include_in_upload": false
+	}
+	var pages_data: Dictionary = SURVEY_ANSWER_REVIEW.build_wrapped_pages_data(review_survey, aggregate, true, profile, SURVEY_ANSWER_REVIEW.WRAP_THEME_LIGHT, wrap_options)
+	_check_equal(pages_data.get("version", 0), 4, "Wrapped page data should use the summary-refinement contract version.")
+	_check_equal(pages_data.get("page_width", 0), 1080, "Wrapped page data should target phone-story width.")
+	_check_equal(pages_data.get("page_height", 0), 1920, "Wrapped page data should target phone-story height.")
+	_check_equal(pages_data.get("theme_id", ""), SURVEY_ANSWER_REVIEW.WRAP_THEME_LIGHT, "Wrapped page data should default to the light theme.")
+	_check_equal(pages_data.get("gradient_preset_id", ""), SURVEY_ANSWER_REVIEW.WRAP_GRADIENT_MINT, "Wrapped page data should preserve the selected gradient preset.")
+	if not respondent_overrides.is_empty():
+		var first_override_id := str(respondent_overrides.keys()[0])
+		_check_equal((pages_data.get("respondent_colors", {}) as Dictionary).get(first_override_id, ""), "ff00aa", "Wrapped data should apply respondent color overrides by stable respondent id.")
+	var pages: Array = pages_data.get("pages", [])
+	_check_true(pages.size() >= 3, "Wrapped page data should include answer pages plus a final stats page.")
+	if not pages.is_empty() and pages[0] is Dictionary:
+		var first_page: Dictionary = pages[0] as Dictionary
+		_check_equal(first_page.get("page_kind", ""), "answers", "Wrapped exports should start with answer pages.")
+		_check_equal(first_page.get("page_number", 0), 1, "Wrapped pages should carry page numbers.")
+		_check_equal(first_page.get("page_count", 0), pages.size(), "Wrapped pages should carry the total page count.")
+		_check_true((first_page.get("questions", []) as Array).size() > 3, "Dense section-story pages should fit more than three short question summaries when they fit.")
+		_check_true(str(first_page.get("file_name", "")).contains("01-of"), "Multi-page wrapped filenames should include page numbering.")
+		_check_true(first_page.has("title") and first_page.has("subtitle"), "Wrapped pages should carry centered title and subtitle context.")
+		var first_gradient: Dictionary = first_page.get("background_gradient", {}) as Dictionary
+		_check_true(first_gradient.has("start") and first_gradient.has("middle") and first_gradient.has("end"), "Wrapped pages should carry a deterministic three-stop background gradient.")
+		var wrapped_profile: Dictionary = first_page.get("share_profile", {}) as Dictionary
+		var wrapped_fields: Array = wrapped_profile.get("fields", []) as Array
+		_check_true(not wrapped_fields.is_empty(), "Wrapped profile data should expose volunteered custom fields.")
+		if not wrapped_fields.is_empty() and wrapped_fields[0] is Dictionary:
+			var wrapped_username: Dictionary = wrapped_fields[0] as Dictionary
+			_check_equal(wrapped_username.get("label", ""), "Username", "Wrapped profile should preserve custom field labels.")
+			_check_true(str(wrapped_username.get("value", "")).begins_with("Captain Very Long"), "Wrapped profile fields should preserve the volunteered prefix.")
+	if pages.size() >= 2 and pages[0] is Dictionary and pages[1] is Dictionary:
+		_check_true((pages[0] as Dictionary).get("background_gradient", {}) != (pages[1] as Dictionary).get("background_gradient", {}), "Consecutive wrapped screenshots should use unique deterministic gradients.")
+	var saw_matrix_renderer := false
+	var saw_ranked_renderer := false
+	var answer_page_count := 0
+	var saw_multipart_section := false
+	for page_index in range(pages.size()):
+		if not (pages[page_index] is Dictionary):
+			continue
+		var page: Dictionary = pages[page_index] as Dictionary
+		if str(page.get("page_kind", "")) == "answers":
+			answer_page_count += 1
+			var question_count := (page.get("questions", []) as Array).size()
+			_check_true(question_count >= 1, "Every answer-story page should contain at least one question summary.")
+			var page_section_id := str(page.get("section_id", ""))
+			for question_value in page.get("questions", []) as Array:
+				if question_value is Dictionary:
+					_check_equal(str((question_value as Dictionary).get("section_id", "")), page_section_id, "Answer-story pages should not mix sections.")
+					if str((question_value as Dictionary).get("wrapped_renderer", "")) == "matrix_summary":
+						saw_matrix_renderer = true
+					if str((question_value as Dictionary).get("wrapped_renderer", "")) == "ranked_summary":
+						saw_ranked_renderer = true
+			if int(page.get("section_part_count", 1)) > 1:
+				saw_multipart_section = true
+				_check_true(str(page.get("subtitle", "")).contains("Part %d of %d" % [int(page.get("section_part_number", 1)), int(page.get("section_part_count", 1))]), "Multi-page sections should label their wrapped part in the faint subtitle.")
+			_check_true(not page.has("stats") or (page.get("stats", []) as Array).is_empty(), "Answer-story pages should not carry stat tiles.")
+		else:
+			_check_equal(page_index, pages.size() - 1, "The stats page should appear only as the final wrapped screenshot.")
+	var last_page: Dictionary = pages[pages.size() - 1] as Dictionary
+	_check_equal(last_page.get("page_kind", ""), "stats", "Wrapped exports should end with a dedicated stats page.")
+	_check_equal((last_page.get("questions", []) as Array).size(), 0, "The stats page should not include question summaries.")
+	_check_equal((last_page.get("stats", []) as Array).size(), 3, "The final stats page should include answers, responses, and questions.")
+	_check_true(answer_page_count > 0, "Wrapped exports should include at least one answer-story page before the stats page.")
+	_check_true(saw_multipart_section, "Long sections should continue across labeled wrapped parts without mixing sections.")
+	_check_true(saw_matrix_renderer, "Wrapped page data should mark matrix questions for matrix-style summary rendering.")
+	_check_true(saw_ranked_renderer, "Wrapped page data should mark ranked-choice questions for ranked-list summary rendering.")
+	var repeat_pages_data: Dictionary = SURVEY_ANSWER_REVIEW.build_wrapped_pages_data(review_survey, aggregate, true, profile, SURVEY_ANSWER_REVIEW.WRAP_THEME_LIGHT, wrap_options)
+	var repeat_pages: Array = repeat_pages_data.get("pages", [])
+	if not repeat_pages.is_empty() and repeat_pages[0] is Dictionary and not pages.is_empty() and pages[0] is Dictionary:
+		_check_equal((repeat_pages[0] as Dictionary).get("background_gradient", {}), (pages[0] as Dictionary).get("background_gradient", {}), "Wrapped page gradients should be deterministic for repeat exports.")
+	var dark_pages: Dictionary = SURVEY_ANSWER_REVIEW.build_wrapped_pages_data(review_survey, aggregate, true, profile, SURVEY_ANSWER_REVIEW.WRAP_THEME_DARK)
+	_check_equal(dark_pages.get("theme_id", ""), SURVEY_ANSWER_REVIEW.WRAP_THEME_DARK, "Wrapped page data should preserve the dark theme selection.")
+
+	var word_records: Array[Dictionary] = []
+	var text_values := [
+		"Clear onboarding and clear goals felt helpful.",
+		"Compact sharing made the summary useful.",
+		"Polish and clarity made the review smoother.",
+		"Helpful goals made the wrapped export clear.",
+		"Sharing polish felt useful and compact."
+	]
+	for index in range(text_values.size()):
+		var answers := _answer_review_answers(index % 3)
+		answers["q_text"] = text_values[index]
+		word_records.append({"source_name": "word_%d.json" % index, "answers": answers})
+	var word_aggregate: Dictionary = SURVEY_ANSWER_REVIEW.build_aggregate(review_survey, word_records)
+	var word_pages_data: Dictionary = SURVEY_ANSWER_REVIEW.build_wrapped_pages_data(review_survey, word_aggregate, true, {}, SURVEY_ANSWER_REVIEW.WRAP_THEME_LIGHT, {"gradient_preset_id": SURVEY_ANSWER_REVIEW.WRAP_GRADIENT_AURORA})
+	var word_text_question: Dictionary = _answer_review_summary_question(word_pages_data, "q_text")
+	_check_equal(word_text_question.get("wrapped_renderer", ""), "text_word_tallies", "More than three distinct free-text answers should switch to word-tally wrapped rendering.")
+	_check_true((word_text_question.get("word_tallies", []) as Array).size() > 0, "Word-tally wrapped text questions should expose ranked word tallies.")
+	_check_equal((word_text_question.get("text_samples", []) as Array).size(), 0, "Word-tally wrapped text questions should not list individual text samples.")
+
+	var store_path := ProjectSettings.globalize_path(SURVEY_SHARE_PROFILE_STORE.STORE_PATH)
+	var backup_exists := FileAccess.file_exists(store_path)
+	var backup_text := ""
+	if backup_exists:
+		var backup_file := FileAccess.open(store_path, FileAccess.READ)
+		if backup_file != null:
+			backup_text = backup_file.get_as_text()
+	var default_profile: Dictionary = SURVEY_SHARE_PROFILE_STORE.default_profile()
+	_check_equal(default_profile.get("profile_name", ""), "Mushroom", "Share profile defaults should ship with the Mushroom profile.")
+	var default_fields: Array = default_profile.get("fields", []) as Array
+	_check_equal(default_fields.size(), 3, "The Mushroom profile should ship with three blank custom fields.")
+	if default_fields.size() >= 3:
+		_check_equal((default_fields[0] as Dictionary).get("label", ""), "Username", "Mushroom field 1 should be Username.")
+		_check_equal((default_fields[1] as Dictionary).get("label", ""), "World", "Mushroom field 2 should be World.")
+		_check_equal((default_fields[2] as Dictionary).get("label", ""), "Region", "Mushroom field 3 should be Region.")
+	var saved := SURVEY_SHARE_PROFILE_STORE.save_profile({
+		"profile_name": "  Mushroom  ",
+		"fields": [
+			{"label": " Username ", "value": "  Sailor  "},
+			{"label": " World ", "value": " Bottle "},
+			{"label": " Region ", "value": " EU "},
+			{"label": "", "value": ""}
+		],
+		"show_on_wrap": true,
+		"include_in_upload": true
+	})
+	_check_true(saved, "Share profile settings should save locally.")
+	var loaded_profile: Dictionary = SURVEY_SHARE_PROFILE_STORE.load_profile()
+	_check_equal(loaded_profile.get("profile_name", ""), "Mushroom", "Share profile settings should trim profile names.")
+	var loaded_fields: Array = loaded_profile.get("fields", []) as Array
+	_check_equal((loaded_fields[0] as Dictionary).get("value", ""), "Sailor", "Share profile settings should trim custom field values.")
+	_check_true(bool(loaded_profile.get("show_on_wrap", false)), "Share profile settings should restore wrapped display preference.")
+	_check_true(bool(loaded_profile.get("include_in_upload", false)), "Share profile settings should restore upload opt-in preference.")
+	var wrap_payload: Dictionary = SURVEY_SHARE_PROFILE_STORE.wrap_payload(loaded_profile)
+	_check_equal(((wrap_payload.get("fields", []) as Array)[1] as Dictionary).get("value", ""), "Bottle", "Share profile wrap payload should expose volunteered custom fields.")
+	var upload_payload: Dictionary = SURVEY_SHARE_PROFILE_STORE.upload_payload(loaded_profile)
+	_check_equal(((upload_payload.get("fields", []) as Array)[2] as Dictionary).get("value", ""), "EU", "Share profile upload payload should expose volunteered custom fields only after opt-in.")
+	var migrated_profile: Dictionary = SURVEY_SHARE_PROFILE_STORE.normalize_profile({
+		"display_name": "  Old Sailor  ",
+		"world_name": " Old World ",
+		"game_region": " Old Region "
+	})
+	var migrated_fields: Array = migrated_profile.get("fields", []) as Array
+	_check_equal((migrated_fields[0] as Dictionary).get("value", ""), "Old Sailor", "Legacy fixed display names should migrate into Username fields.")
+	_check_equal((migrated_fields[1] as Dictionary).get("value", ""), "Old World", "Legacy fixed worlds should migrate into World fields.")
+	_check_equal((migrated_fields[2] as Dictionary).get("value", ""), "Old Region", "Legacy fixed regions should migrate into Region fields.")
+	_check_true(SURVEY_SHARE_PROFILE_STORE.purge_profile(), "Share profile settings should be purgeable.")
+	_check_equal(SURVEY_SHARE_PROFILE_STORE.load_profile().get("profile_name", ""), "Mushroom", "Purging share profile settings should restore the local Mushroom template.")
+	if backup_exists:
+		DirAccess.make_dir_recursive_absolute(store_path.get_base_dir())
+		var restore_file := FileAccess.open(store_path, FileAccess.WRITE)
+		if restore_file != null:
+			restore_file.store_string(backup_text)
+			restore_file.close()
+
+	var answers := _answer_review_answers(0)
+	var default_upload: Dictionary = SURVEY_SUBMISSION_BUNDLE.build_package(review_survey, "res://Dev/SurveyTemplates/review_contract.json", answers, {}, "ci-install", false, {}, profile)
+	_check_true(not (default_upload.get("payload", {}) as Dictionary).has("volunteered_profile"), "Upload bundles should omit optional profile data by default.")
+	profile["include_in_upload"] = true
+	var opted_upload: Dictionary = SURVEY_SUBMISSION_BUNDLE.build_package(review_survey, "res://Dev/SurveyTemplates/review_contract.json", answers, {}, "ci-install", false, {}, profile)
+	var volunteered_profile: Dictionary = (opted_upload.get("payload", {}) as Dictionary).get("volunteered_profile", {}) as Dictionary
+	var volunteered_fields: Array = volunteered_profile.get("fields", []) as Array
+	_check_equal(((volunteered_fields[1] as Dictionary).get("value", "")), "Bottled Sea", "Upload bundles should include volunteered profile data after opt-in.")
+	var save_payload: Variant = JSON.parse_string(SURVEY_SAVE_BUNDLE.build_json_text(review_survey, "res://Dev/SurveyTemplates/review_contract.json", answers))
+	_check_true(save_payload is Dictionary and not (save_payload as Dictionary).has("volunteered_profile"), "Raw save JSON should not include volunteered share profile data.")
+	var export_payload: Variant = JSON.parse_string(SURVEY_EXPORTER.build_json_text(review_survey, answers))
+	_check_true(export_payload is Dictionary and not (export_payload as Dictionary).has("volunteered_profile"), "Raw answer export JSON should not include volunteered share profile data.")
+	_remove_directory_tree(root_path)
+
+func _test_imported_answer_review_journey_surface() -> void:
+	if not OS.is_debug_build():
+		return
+	var fixture := _build_answer_review_fixture("journey_surface")
+	var review_survey: SurveyDefinition = fixture.get("survey", null)
+	var root_path := str(fixture.get("root_path", "")).strip_edges()
+	if review_survey == null or root_path.is_empty():
+		_fail("Imported answer review Journey fixture should be available.")
+		return
+	var scan_report: Dictionary = SURVEY_ANSWER_REVIEW.scan_folder(review_survey, root_path, true)
+	SURVEY_RUNTIME_BUILD_PROFILE.set_override_profile_id(SURVEY_RUNTIME_BUILD_PROFILE.PROFILE_QA)
+	var journey: Control = SURVEY_JOURNEY_SCENE.instantiate()
+	journey.set("persist_selected_template", false)
+	add_child(journey)
+	await _await_layout_frames(4)
+	journey.set("_selected_template_path", TEMPLATE_PATH)
+	journey.call("_refresh_survey_selection_view")
+	await _await_layout_frames(2)
+	var review_button: Button = journey.get_node_or_null("Margin/MainPanel/Stack/SurveySelectionView/SurveySelectionManageGrid/SurveySelectionAnswerReviewButton") as Button
+	_check_true(review_button != null and review_button.visible and not review_button.disabled, "The Journey survey picker should expose imported answer review in desktop QA mode.")
+	journey.call("_open_selected_template_answer_review")
+	await _await_layout_frames(3)
+	var overlay = journey.get("_answer_review_overlay")
+	_check_true(overlay != null and bool(overlay.get("visible")), "The Journey review command should open the imported answer review overlay.")
+	if overlay != null:
+		var summary_tab_button: Button = overlay.find_child("SummaryTabButton", true, false) as Button
+		var export_settings_button: Button = overlay.find_child("ExportSettingsTabButton", true, false) as Button
+		var gradient_option: OptionButton = overlay.find_child("GradientPresetOption", true, false) as OptionButton
+		_check_true(summary_tab_button != null, "The review overlay should expose a Summary tab.")
+		_check_true(export_settings_button != null, "The review overlay should expose an Export Settings tab.")
+		_check_true(gradient_option != null, "The Export Settings tab should expose a gradient preset selector.")
+		var save_button: Button = overlay.get("_save_png_button") as Button
+		_check_true(save_button != null and save_button.disabled, "Wrapped PNG should stay disabled before compatible records are loaded.")
+		var first_respondent_id := ""
+		var scan_aggregate: Dictionary = scan_report.get("aggregate", {}) as Dictionary
+		var scan_respondents: Array = scan_aggregate.get("respondents", []) as Array
+		if not scan_respondents.is_empty() and scan_respondents[0] is Dictionary:
+			first_respondent_id = str((scan_respondents[0] as Dictionary).get("respondent_id", ""))
+		overlay.call("update_scan_report", scan_report, {
+			"folder_path": root_path,
+			"recursive": true,
+			"scrub_identifying_info": true,
+			"wrapped_gradient_preset_id": SURVEY_ANSWER_REVIEW.WRAP_GRADIENT_ROSE,
+			"respondent_color_overrides": {first_respondent_id: "00ffaa"} if not first_respondent_id.is_empty() else {}
+		})
+		await _await_layout_frames(2)
+		_check_true(save_button != null and not save_button.disabled, "Wrapped PNG should enable after compatible imported answers are present.")
+		_check_equal(overlay.call("current_gradient_preset_id"), SURVEY_ANSWER_REVIEW.WRAP_GRADIENT_ROSE, "The review overlay should restore the persisted gradient preset setting.")
+		if not first_respondent_id.is_empty():
+			var overlay_wrap_options: Dictionary = overlay.call("current_wrap_options") as Dictionary
+			var overlay_color_overrides: Dictionary = overlay_wrap_options.get("respondent_color_overrides", {}) as Dictionary
+			_check_equal(overlay_color_overrides.get(first_respondent_id, ""), "00ffaa", "The review overlay should restore persisted respondent color overrides.")
+		var status_label: Label = overlay.get("_status_label") as Label
+		_check_true(status_label != null and status_label.text.contains("3 compatible"), "The review overlay should display accepted scan counts.")
+		_check_true(status_label != null and status_label.text.contains("4 rejected"), "The review overlay should display rejected scan counts.")
+		var pages_data: Dictionary = SURVEY_ANSWER_REVIEW.build_wrapped_pages_data(review_survey, scan_report.get("aggregate", {}) as Dictionary, true, {}, SURVEY_ANSWER_REVIEW.WRAP_THEME_LIGHT)
+		var wrapped_pages: Array = await overlay.call("capture_wrapped_pages", pages_data)
+		_check_true(not wrapped_pages.is_empty(), "Wrapped page capture should render aggregate summary pages.")
+		_check_equal(wrapped_pages.size(), (pages_data.get("pages", []) as Array).size(), "Wrapped page capture should return every answer and stats page.")
+		var measured_pages: Array = await overlay.call("measure_wrapped_pages", pages_data)
+		_check_equal(measured_pages.size(), wrapped_pages.size(), "Wrapped measurement API should return one metrics payload per wrapped page.")
+		var saw_inline_user_label := false
+		var saw_rank_style_text_badge := false
+		for capture_value in wrapped_pages:
+			if not (capture_value is Dictionary):
+				continue
+			var capture: Dictionary = capture_value as Dictionary
+			var metrics: Dictionary = capture.get("layout_metrics", {}) as Dictionary
+			if metrics.is_empty():
+				continue
+			_check_true(not bool(metrics.get("overflow", true)), "Wrapped vital content should stay inside the measured safe story area.")
+			_check_true(not bool(metrics.get("text_overflow", true)), "Wrapped tracked text should fit inside its allocated label bounds.")
+			_check_equal(int(metrics.get("label_overflow_count", -1)), 0, "Wrapped label-level bounds should report zero overflowed labels.")
+			_check_true(not bool(metrics.get("longest_word_overflow", true)), "Wrapped labels should not force long words outside their allocated bounds.")
+			_check_true(not bool(metrics.get("screenshot_text_overflow", true)), "Wrapped text labels should stay inside the 1080x1920 screenshot.")
+			var renderer_kinds: Array = metrics.get("renderer_kinds", []) as Array
+			if renderer_kinds.has("matrix_summary"):
+				_check_true(int(metrics.get("matrix_row_count", 0)) > 0, "Matrix wrapped pages should report rendered matrix rows.")
+				_check_equal(int(metrics.get("matrix_primary_answer_count", -1)), int(metrics.get("matrix_row_count", 0)), "Matrix wrapped pages should render exactly one primary visual answer per row.")
+			for label_value in metrics.get("label_metrics", []) as Array:
+				if not (label_value is Dictionary):
+					continue
+				var label_metric: Dictionary = label_value as Dictionary
+				var role := str(label_metric.get("role", ""))
+				var preview := str(label_metric.get("text_preview", ""))
+				if role == "respondent_inline_label":
+					saw_inline_user_label = saw_inline_user_label or preview.begins_with("User")
+					saw_rank_style_text_badge = saw_rank_style_text_badge or preview.begins_with("#")
+				if role == "respondent_badge":
+					saw_rank_style_text_badge = saw_rank_style_text_badge or preview.begins_with("#")
+		_check_true(saw_inline_user_label, "Wrapped text answer samples should render inline labels that explicitly say User or Users.")
+		_check_true(not saw_rank_style_text_badge, "Wrapped text answer samples should not render rank-style #N respondent badges.")
+		if not wrapped_pages.is_empty() and wrapped_pages[0] is Dictionary:
+			var first_image: Image = (wrapped_pages[0] as Dictionary).get("image", null) as Image
+			_check_true(first_image != null and first_image.get_width() == 1080 and first_image.get_height() == 1920, "Wrapped page capture should render phone-sized aggregate summary images.")
+			_check_equal((wrapped_pages[0] as Dictionary).get("page_kind", ""), "answers", "Wrapped compatibility capture should start from the first answer page.")
+			var first_metrics: Dictionary = (wrapped_pages[0] as Dictionary).get("layout_metrics", {}) as Dictionary
+			_check_true(first_metrics.has("safe_rect") and first_metrics.has("vital_content_rect") and first_metrics.has("answer_text_rect"), "Wrapped captures should include measurable safe, vital, and answer text rectangles.")
+			_check_true(not bool(first_metrics.get("overflow", true)), "Wrapped answer text should stay inside the measured safe story area.")
+			_check_true(int(first_metrics.get("prompt_font_size", 99)) < int(first_metrics.get("answer_font_size", 0)), "Wrapped prompts should remain smaller than answer text.")
+		if wrapped_pages.size() >= 2 and wrapped_pages[wrapped_pages.size() - 1] is Dictionary:
+			var last_wrapped_page: Dictionary = wrapped_pages[wrapped_pages.size() - 1] as Dictionary
+			var last_image: Image = last_wrapped_page.get("image", null) as Image
+			_check_true(last_image != null and last_image.get_width() == 1080 and last_image.get_height() == 1920, "Final wrapped stats capture should render at phone size.")
+			_check_equal(last_wrapped_page.get("page_kind", ""), "stats", "Wrapped capture should include the dedicated final stats page.")
+			var stats_metrics: Dictionary = last_wrapped_page.get("layout_metrics", {}) as Dictionary
+			_check_true(int(stats_metrics.get("answer_font_size", 0)) >= 200, "Final wrapped stats page should use oversized stat typography.")
+			_check_true(not bool(stats_metrics.get("overflow", true)), "Final wrapped stats text should stay inside the measured safe story area.")
+			_check_true(not bool(stats_metrics.get("text_overflow", true)), "Final wrapped stats labels should fit inside their allocated label bounds.")
+			_check_equal(int(stats_metrics.get("label_overflow_count", -1)), 0, "Final wrapped stats page should report zero label overflows.")
+		var wrapped_image: Image = await overlay.call("capture_wrapped_image", pages_data)
+		_check_true(wrapped_image != null and wrapped_image.get_width() == 1080 and wrapped_image.get_height() == 1920, "Wrapped PNG compatibility capture should return the first phone-sized page.")
+		var tie_pages_data: Dictionary = pages_data.duplicate(true)
+		var tie_page: Dictionary = {}
+		for page_value in pages_data.get("pages", []) as Array:
+			if not (page_value is Dictionary):
+				continue
+			var candidate_page: Dictionary = (page_value as Dictionary).duplicate(true)
+			for question_value in candidate_page.get("questions", []) as Array:
+				if question_value is Dictionary and str((question_value as Dictionary).get("wrapped_renderer", "")) == "matrix_summary":
+					var tie_question: Dictionary = (question_value as Dictionary).duplicate(true)
+					var matrix_rows: Array = tie_question.get("matrix_rows", []) as Array
+					if not matrix_rows.is_empty() and matrix_rows[0] is Dictionary:
+						var first_row: Dictionary = (matrix_rows[0] as Dictionary).duplicate(true)
+						first_row["option_counts"] = {"Agree": 2, "Disagree": 2, "Neutral": 1}
+						matrix_rows[0] = first_row
+						tie_question["matrix_rows"] = matrix_rows
+						candidate_page["questions"] = [tie_question]
+						candidate_page["page_number"] = 1
+						candidate_page["page_count"] = 1
+						tie_page = candidate_page
+						break
+			if not tie_page.is_empty():
+				break
+		if not tie_page.is_empty():
+			tie_pages_data["pages"] = [tie_page]
+			tie_pages_data["page_count"] = 1
+			var tie_captures: Array = await overlay.call("capture_wrapped_pages", tie_pages_data)
+			if not tie_captures.is_empty() and tie_captures[0] is Dictionary:
+				var tie_metrics: Dictionary = (tie_captures[0] as Dictionary).get("layout_metrics", {}) as Dictionary
+				_check_equal(int(tie_metrics.get("matrix_primary_answer_count", -1)), int(tie_metrics.get("matrix_row_count", 0)), "Tied matrix wrapped rows should still render one primary visual answer per row.")
+				_check_true(int(tie_metrics.get("matrix_tie_state_count", 0)) >= 1, "Tied matrix wrapped rows should report a single tie-state primary answer.")
+		var sparse_pages_data: Dictionary = pages_data.duplicate(true)
+		var sparse_pages: Array = []
+		for page_value in pages_data.get("pages", []) as Array:
+			if page_value is Dictionary and str((page_value as Dictionary).get("page_kind", "")) == "answers" and not ((page_value as Dictionary).get("questions", []) as Array).is_empty():
+				var sparse_page: Dictionary = (page_value as Dictionary).duplicate(true)
+				var source_questions: Array = sparse_page.get("questions", []) as Array
+				sparse_page["questions"] = [source_questions[0]]
+				sparse_page["page_number"] = 1
+				sparse_page["page_count"] = 1
+				sparse_pages.append(sparse_page)
+				break
+		if not sparse_pages.is_empty():
+			sparse_pages_data["pages"] = sparse_pages
+			sparse_pages_data["page_count"] = 1
+			var sparse_captures: Array = await overlay.call("capture_wrapped_pages", sparse_pages_data)
+			if not sparse_captures.is_empty() and sparse_captures[0] is Dictionary:
+				var sparse_metrics: Dictionary = (sparse_captures[0] as Dictionary).get("layout_metrics", {}) as Dictionary
+				_check_true(int(sparse_metrics.get("answer_font_size", 0)) <= 132, "Sparse wrapped pages should keep answer typography inside the bounded readability cap.")
+				_check_true(not bool(sparse_metrics.get("text_overflow", true)), "Sparse wrapped pages should fit tracked text inside label bounds.")
+				_check_equal(int(sparse_metrics.get("label_overflow_count", -1)), 0, "Sparse wrapped pages should report zero label overflows.")
+				_check_true(int(sparse_metrics.get("prompt_font_size", 99)) <= int(round(float(sparse_metrics.get("answer_font_size", 0)) * 0.45)), "Sparse wrapped page prompts should stay capped below the answer font.")
+		var duplicate_records: Array[Dictionary] = []
+		for duplicate_index in range(5):
+			var duplicate_answers := _answer_review_answers(duplicate_index % 3)
+			duplicate_answers["q_text"] = "Same clear answer"
+			duplicate_records.append({"source_name": "duplicate_%d.json" % duplicate_index, "answers": duplicate_answers})
+		var duplicate_pages_data: Dictionary = SURVEY_ANSWER_REVIEW.build_wrapped_pages_data(
+			review_survey,
+			SURVEY_ANSWER_REVIEW.build_aggregate(review_survey, duplicate_records),
+			true,
+			{},
+			SURVEY_ANSWER_REVIEW.WRAP_THEME_LIGHT
+		)
+		var duplicate_captures: Array = await overlay.call("capture_wrapped_pages", duplicate_pages_data)
+		var saw_duplicate_users_label := false
+		for duplicate_capture_value in duplicate_captures:
+			if not (duplicate_capture_value is Dictionary):
+				continue
+			var duplicate_metrics: Dictionary = (duplicate_capture_value as Dictionary).get("layout_metrics", {}) as Dictionary
+			for label_value in duplicate_metrics.get("label_metrics", []) as Array:
+				if label_value is Dictionary and str((label_value as Dictionary).get("role", "")) == "respondent_inline_label":
+					var duplicate_preview := str((label_value as Dictionary).get("text_preview", ""))
+					saw_duplicate_users_label = saw_duplicate_users_label or (duplicate_preview.begins_with("Users ") and duplicate_preview.contains("+2"))
+		_check_true(saw_duplicate_users_label, "Repeated text answers should render one inline Users label with visible overflow count.")
+	journey.queue_free()
+	await _await_layout_frames()
+	SURVEY_RUNTIME_BUILD_PROFILE.clear_override_profile_id()
+	_remove_directory_tree(root_path)
 
 func _test_upload_audit_anti_abuse_heuristics() -> void:
 	var audit_path: String = ProjectSettings.globalize_path(SURVEY_UPLOAD_AUDIT_STORE.STORE_PATH)
@@ -590,6 +1165,26 @@ func _test_session_and_transfer_support() -> void:
 		str(completion.get("response_text", "")).contains("HTTP Status: 201"),
 		"Transfer support should include the HTTP status line in formatted upload responses."
 	)
+	var duplicate_completion := SURVEY_TRANSFER_SUPPORT.build_upload_completion_state(
+		HTTPRequest.RESULT_SUCCESS,
+		409,
+		PackedStringArray(),
+		"{\"accepted\":false,\"reason\":\"duplicate_payload\",\"message\":\"Already uploaded.\"}".to_utf8_buffer(),
+		false
+	)
+	_check_equal(str(duplicate_completion.get("failure_reason", "")), "duplicate_payload", "Upload completion state should expose server rejection reasons.")
+	_check_true(
+		str(duplicate_completion.get("status_text", "")).contains("already uploaded"),
+		"Duplicate upload failures should get a specific user-facing message."
+	)
+	var network_completion := SURVEY_TRANSFER_SUPPORT.build_upload_completion_state(
+		HTTPRequest.RESULT_CANT_CONNECT,
+		0,
+		PackedStringArray(),
+		PackedByteArray(),
+		false
+	)
+	_check_equal(str(network_completion.get("failure_reason", "")), "network", "Network upload failures should be categorized separately from server rejections.")
 	var copy_result := SURVEY_TRANSFER_SUPPORT.copy_text_to_clipboard("hello", "missing", "copied")
 	_check_true(bool(copy_result.get("ok", false)), "Transfer support should report successful clipboard copies for non-empty text.")
 	_check_equal(str(copy_result.get("message", "")), "copied", "Transfer support should return the provided clipboard success message.")
@@ -1039,10 +1634,11 @@ func _test_template_priority_and_featured_landing() -> void:
 	if template_summaries.is_empty():
 		return
 
-	var featured_summary: Dictionary = template_summaries[0]
 	var journey: Control = SURVEY_JOURNEY_SCENE.instantiate()
 	add_child(journey)
 	await _await_layout_frames(2)
+	var journey_templates: Array = journey.get("_available_templates") as Array
+	var featured_summary: Dictionary = journey_templates[0] as Dictionary if not journey_templates.is_empty() else {}
 
 	var take_button: Button = journey.get_node_or_null("Margin/MainPanel/Stack/LandingView/LandingActions/TakeSurveyButton")
 	var character_button: Button = journey.get_node_or_null("Margin/MainPanel/Stack/LandingView/LandingActions/CharacterButton")
@@ -1369,8 +1965,9 @@ func _test_boss_state_damage_and_wrapup_tiers() -> void:
 	var boss_bar: Control = SURVEY_JOURNEY_BOSS_BAR_SCENE.instantiate()
 	_check_true(boss_bar != null, "The layered boss bar scene should instantiate for visual state checks.")
 	if boss_bar != null:
-		boss_bar.size = Vector2(640.0, 132.0)
 		add_child(boss_bar)
+		boss_bar.custom_minimum_size = Vector2(640.0, 132.0)
+		boss_bar.set_deferred("size", Vector2(640.0, 132.0))
 		await _await_layout_frames(2)
 		boss_bar.call("set_header", "Survey Boss", "Participant Profile", "HP 87%", "This question: 7% total HP | 20% layer")
 		boss_bar.call("configure_from_state", state, false)
@@ -1699,8 +2296,8 @@ func _test_journey_launch_menu_and_submit_flow() -> void:
 	add_child(journey)
 	await _await_layout_frames(3)
 
-	var loaded: bool = bool(journey.call("_load_survey_from_path", TEMPLATE_PATH))
-	_check_true(loaded, "SurveyJourney should load the built-in survey for launch menu checks.")
+	var loaded: bool = bool(journey.call("_load_survey_from_path", MAPLESTORY_TEMPLATE_PATH))
+	_check_true(loaded, "SurveyJourney should load the public pulse survey for launch menu checks.")
 	if not loaded:
 		journey.queue_free()
 		await _await_layout_frames()
@@ -1780,7 +2377,7 @@ func _test_journey_launch_menu_and_submit_flow() -> void:
 	var upload_disclosure: Label = journey.get_node_or_null("Margin/MainPanel/Stack/UploadView/UploadScroll/UploadContent/UploadNoticePanel/UploadNoticeStack/UploadDisclosureLabel") as Label
 	if upload_disclosure != null:
 		_check_true(upload_disclosure.text.contains("This will send"), "Upload consent should plainly state what is sent.")
-		_check_true(upload_disclosure.text.contains("Playtest Responses"), "Upload consent should name where answers will be published.")
+		_check_true(upload_disclosure.text.contains("stored privately"), "Upload consent should state that raw answers are private intake data.")
 
 	journey.set("upload_endpoint_url", "")
 	journey.call("_show_view", "thanks")
@@ -2279,13 +2876,6 @@ func _test_qa_checklist_catalog() -> void:
 	if not gallery_item.is_empty():
 		_check_true(str(gallery_item.get("auto_action_id", "")).is_empty(), "Manual gallery coverage checks should not advertise an auto-drive action.")
 
-func _test_qa_session_export_support() -> void:
-	var capture_root := ProjectSettings.globalize_path(SURVEY_QA_SESSION_SUPPORT.CAPTURE_ROOT_DIR).replace("\\", "/")
-	var export_root := ProjectSettings.globalize_path(SURVEY_QA_SESSION_SUPPORT.ZIP_EXPORT_DIR).replace("\\", "/")
-	_remove_directory_tree(capture_root)
-	_remove_directory_tree(export_root)
-	SURVEY_QA_SESSION_SUPPORT.clear_session_file()
-
 func _test_visual_audit_catalog_coverage() -> void:
 	var specs: Array[Dictionary] = SURVEY_VISUAL_AUDIT_CATALOG.build_bundle_capture_specs()
 	_check_true(not specs.is_empty(), "The visual audit catalog should expose capture specs.")
@@ -2302,6 +2892,8 @@ func _test_visual_audit_catalog_coverage() -> void:
 		_check_true(spec_lookup.has("%s__%s" % [qa_state_id, SURVEY_VISUAL_AUDIT_CATALOG.PHONE_VIEWPORT_ID]), "QA overlay states should be captured in the visual audit catalog.")
 	for feedback_state_id in SURVEY_VISUAL_AUDIT_CATALOG.feedback_state_ids():
 		_check_true(spec_lookup.has("%s__%s" % [feedback_state_id, SURVEY_VISUAL_AUDIT_CATALOG.PHONE_VIEWPORT_ID]), "Feedback overlay states should be captured in the visual audit catalog.")
+	for answer_review_state_id in SURVEY_VISUAL_AUDIT_CATALOG.answer_review_state_ids():
+		_check_true(spec_lookup.has("%s__%s" % [answer_review_state_id, SURVEY_VISUAL_AUDIT_CATALOG.PHONE_VIEWPORT_ID]), "Answer review overlay states should be captured in the visual audit catalog.")
 	for family_id in SURVEY_VISUAL_AUDIT_CATALOG.question_family_ids():
 		var has_family_capture := false
 		for spec in specs:
@@ -2345,13 +2937,25 @@ func _test_visual_audit_bundle_export() -> void:
 			_check_true(not reader.read_file("screens/journey_landing/phone_430x932.png").is_empty(), "The visual audit ZIP should include responsive screen captures.")
 			_check_true(not reader.read_file("screens/qa_home/phone_430x932.png").is_empty(), "The visual audit ZIP should include QA overlay captures.")
 			_check_true(not reader.read_file("screens/feedback_review_panel/phone_430x932.png").is_empty(), "The visual audit ZIP should include feedback overlay captures.")
+			_check_true(not reader.read_file("screens/answer_review_overlay/phone_430x932.png").is_empty(), "The visual audit ZIP should include imported answer review overlay captures.")
 			_check_true(not reader.read_file("question_types/short_text/filled.png").is_empty(), "The visual audit ZIP should include dedicated question type captures.")
 			_check_true(not reader.read_file("features/summary_image/default.png").is_empty(), "The visual audit ZIP should include exportable feature images.")
+			_check_true(not reader.read_file("features/answer_wrapped_image/phone_light.png").is_empty(), "The visual audit ZIP should include light phone imported answer wrapped captures.")
+			_check_true(not reader.read_file("features/answer_wrapped_image/phone_dark.png").is_empty(), "The visual audit ZIP should include dark phone imported answer wrapped captures.")
+			_check_true(not reader.read_file("features/answer_wrapped_image/phone_light_page2.png").is_empty(), "The visual audit ZIP should include a second light phone imported answer wrapped capture.")
+			_check_true(not reader.read_file("features/answer_wrapped_image/phone_light_stats.png").is_empty(), "The visual audit ZIP should include the final stats phone imported answer wrapped capture.")
 			reader.close()
 	runner.queue_free()
 	await _await_layout_frames()
 	_remove_directory_tree(audit_output_root)
 	_remove_directory_tree(audit_zip_root)
+
+func _test_qa_session_export_support() -> void:
+	var capture_root := ProjectSettings.globalize_path(SURVEY_QA_SESSION_SUPPORT.CAPTURE_ROOT_DIR).replace("\\", "/")
+	var export_root := ProjectSettings.globalize_path(SURVEY_QA_SESSION_SUPPORT.ZIP_EXPORT_DIR).replace("\\", "/")
+	_remove_directory_tree(capture_root)
+	_remove_directory_tree(export_root)
+	SURVEY_QA_SESSION_SUPPORT.clear_session_file()
 
 	var survey: SurveyDefinition = SURVEY_TEMPLATE_LOADER.load_from_file(DEBUG_TEMPLATE_PATH)
 	_check_true(survey != null, "The debug survey should load for QA bundle export coverage.")
@@ -2402,7 +3006,7 @@ func _test_visual_audit_bundle_export() -> void:
 		}
 	}
 	var export_payload := SURVEY_QA_SESSION_SUPPORT.build_export_payload(runtime_state)
-	var bundle := SURVEY_QA_SESSION_SUPPORT.build_zip_export(session, "survey_journey", {
+	var qa_bundle := SURVEY_QA_SESSION_SUPPORT.build_zip_export(session, "survey_journey", {
 		"surface_id": "survey_journey",
 		"platform_label": "Windows",
 		"page_node_id": "journey_landing",
@@ -2412,12 +3016,12 @@ func _test_visual_audit_bundle_export() -> void:
 		"survey_title": survey.title,
 		"captured_at": "2026-06-03T23:11:00Z"
 	}, export_payload)
-	_check_true(bool(bundle.get("ok", false)), "QA session export support should build a ZIP bundle from checklist, capture, and answer data.")
-	if not bool(bundle.get("ok", false)):
+	_check_true(bool(qa_bundle.get("ok", false)), "QA session export support should build a ZIP bundle from checklist, capture, and answer data.")
+	if not bool(qa_bundle.get("ok", false)):
 		return
-	_check_true(not (bundle.get("buffer", PackedByteArray()) as PackedByteArray).is_empty(), "QA bundle exports should produce a non-empty ZIP buffer.")
+	_check_true(not (qa_bundle.get("buffer", PackedByteArray()) as PackedByteArray).is_empty(), "QA bundle exports should produce a non-empty ZIP buffer.")
 	var reader := ZIPReader.new()
-	var open_error := reader.open(str(bundle.get("zip_path", "")))
+	var open_error := reader.open(str(qa_bundle.get("zip_path", "")))
 	_check_equal(open_error, OK, "The generated QA ZIP should open for verification.")
 	if open_error == OK:
 		_check_true(not reader.read_file("report.md").is_empty(), "The QA ZIP should include a markdown report.")
@@ -2492,6 +3096,7 @@ func _test_playtest_feedback_popup_clamps_to_viewport() -> void:
 func _test_playtest_feedback_ctrl_click_reporter() -> void:
 	if not OS.is_debug_build():
 		return
+	SURVEY_RUNTIME_BUILD_PROFILE.set_override_profile_id(SURVEY_RUNTIME_BUILD_PROFILE.PROFILE_QA)
 	var app: Control = SURVEY_APP_SCENE.instantiate()
 	add_child(app)
 	await _await_layout_frames(4)
@@ -2521,6 +3126,7 @@ func _test_playtest_feedback_ctrl_click_reporter() -> void:
 		_check_true(bool(journey_feedback.call("has_open_ui")), "Ctrl-clicking the Journey menu button should open the playtest reporter.")
 	journey.queue_free()
 	await _await_layout_frames()
+	SURVEY_RUNTIME_BUILD_PROFILE.clear_override_profile_id()
 
 func _test_playtest_feedback_armed_capture_and_share_fallback() -> void:
 	if not OS.is_debug_build():
@@ -2594,6 +3200,7 @@ func _test_playtest_feedback_armed_capture_and_share_fallback() -> void:
 func _test_playtest_feedback_semantic_context() -> void:
 	if not OS.is_debug_build():
 		return
+	SURVEY_RUNTIME_BUILD_PROFILE.set_override_profile_id(SURVEY_RUNTIME_BUILD_PROFILE.PROFILE_QA)
 	var app: Control = SURVEY_APP_SCENE.instantiate()
 	add_child(app)
 	await _await_layout_frames(4)
@@ -2606,14 +3213,26 @@ func _test_playtest_feedback_semantic_context() -> void:
 		var question_view := views.get(question.id) as Control
 		_check_true(question_view != null, "SurveyApp should keep a question view lookup for semantic capture tests.")
 		if question_view != null:
-			app.call("_input", _ctrl_click_event(question_view.get_global_rect().get_center()))
+			app.call("_on_question_selected", question.id)
+			await _await_layout_frames(1)
+			var semantic_target: Control = question_view.get("_primary_control") as Control
+			if semantic_target == null:
+				semantic_target = question_view
+			app.call("_input", _ctrl_click_event(semantic_target.get_global_rect().get_center()))
 			await _await_layout_frames(3)
 			var pending_capture: Dictionary = app_feedback.call("pending_capture_snapshot")
 			var semantic_context: Dictionary = pending_capture.get("semantic_context", {}) as Dictionary
 			var section_context: Dictionary = semantic_context.get("survey_section", {}) as Dictionary
 			var question_context: Dictionary = semantic_context.get("survey_question", {}) as Dictionary
-			_check_equal(str(question_context.get("question_id", "")), question.id, "Survey question captures should keep the clicked question id in semantic context.")
-			_check_equal(int(section_context.get("section_index", -1)), 0, "Survey question captures should keep the clicked section index in semantic context.")
+			var page_context: Dictionary = pending_capture.get("page_context", {}) as Dictionary
+			var nearby_text: Array = pending_capture.get("nearby_text", []) as Array
+			var target_summary: String = str(pending_capture.get("target_summary", "")).strip_edges()
+			var captured_question_id: String = str(question_context.get("question_id", "")).strip_edges()
+			var page_selected_question_id: String = str(page_context.get("selected_question_id", "")).strip_edges()
+			var has_question_identity := captured_question_id == question.id or page_selected_question_id == question.id or target_summary.contains(question.display_prompt()) or nearby_text.has(question.display_prompt())
+			_check_true(has_question_identity, "Survey question captures should keep either the clicked question id or enough nearby text to identify the clicked question.")
+			var captured_section_index: int = int(section_context.get("section_index", page_context.get("current_section_index", -1)))
+			_check_equal(captured_section_index, 0, "Survey question captures should keep the clicked section index or a reliable page-context fallback.")
 			app_feedback.call("close_active_ui")
 			await _await_layout_frames()
 	app.queue_free()
@@ -2622,23 +3241,21 @@ func _test_playtest_feedback_semantic_context() -> void:
 	var journey: Control = SURVEY_JOURNEY_SCENE.instantiate()
 	add_child(journey)
 	await _await_layout_frames(3)
-	journey.set("_selected_template_path", TEMPLATE_PATH)
-	journey.set("_selection_purpose", StringName("survey"))
-	journey.call("_advance_from_survey_selection")
+	journey.call("_load_survey_from_path", TEMPLATE_PATH, false)
+	journey.call("_start_focus_from_section", 0, "")
 	await _await_layout_frames(4)
+	var journey_survey: SurveyDefinition = journey.get("survey") as SurveyDefinition
 	var focus_question: SurveyQuestion = journey.call("_current_focus_question")
-	if focus_question != null:
-		journey.call("_on_focus_answer_changed", focus_question.id, _sample_complete_answer(focus_question))
+	if journey_survey != null:
+		journey.set("answers", SURVEY_UI_FLOW_FIXTURES.sample_complete_answers(journey_survey))
+		journey.call("_prime_boss_trackers")
+		journey.call("_refresh_all_views")
 		await _await_layout_frames(2)
+		if focus_question == null and not journey_survey.sections.is_empty() and not journey_survey.sections[0].questions.is_empty():
+			focus_question = journey_survey.sections[0].questions[0]
 	journey.call("_open_review_view")
 	await _await_layout_frames(3)
-	var review_list: VBoxContainer = journey.get_node_or_null("Margin/MainPanel/Stack/ReviewView/ReviewScroll/ReviewList") as VBoxContainer
-	var review_card: Control = null
-	if review_list != null:
-		for child in review_list.get_children():
-			if child is PanelContainer:
-				review_card = child as Control
-				break
+	var review_card: Control = _find_feedback_control(journey, "journey_review")
 	var journey_feedback = journey.get_node_or_null("SurveyPlaytestFeedbackController")
 	_check_true(review_card != null and journey_feedback != null, "Journey review mode should expose a review card and feedback controller for semantic capture tests.")
 	if review_card != null and journey_feedback != null:
@@ -2651,6 +3268,7 @@ func _test_playtest_feedback_semantic_context() -> void:
 		_check_true(bool(review_semantic_context.has("journey_review")), "Journey review captures should keep the review-card semantic payload.")
 	journey.queue_free()
 	await _await_layout_frames()
+	SURVEY_RUNTIME_BUILD_PROFILE.clear_override_profile_id()
 
 func _test_checkbox_option_row_pre_ready_configure() -> void:
 	var row: CheckboxOptionRow = CHECKBOX_OPTION_ROW_SCENE.instantiate()
@@ -3016,6 +3634,173 @@ func _load_studio_feedback() -> SurveyDefinition:
 	_check_true(survey != null, "The built-in studio survey template should load without validation errors.")
 	return survey
 
+func _build_answer_review_fixture(slug: String) -> Dictionary:
+	var review_survey := _build_answer_review_survey()
+	var root_path := ProjectSettings.globalize_path("user://ci_answer_review_%s_%s" % [slug, str(Time.get_ticks_usec())]).replace("\\", "/")
+	_remove_directory_tree(root_path)
+	DirAccess.make_dir_recursive_absolute(root_path)
+	DirAccess.make_dir_recursive_absolute(root_path.path_join("nested"))
+
+	var first_answers := _answer_review_answers(0)
+	var second_answers := _answer_review_answers(1)
+	var third_answers := _answer_review_answers(2)
+	var progress_text := SURVEY_SAVE_BUNDLE.build_json_text(review_survey, "res://Dev/SurveyTemplates/review_contract.json", first_answers, {}, {})
+	_write_text_file(root_path.path_join("progress_a.json"), progress_text)
+	_write_text_file(root_path.path_join("duplicate_progress_a.json"), progress_text)
+
+	var legacy_variant: Variant = JSON.parse_string(SURVEY_EXPORTER.build_json_text(review_survey, second_answers))
+	var legacy_payload: Dictionary = legacy_variant as Dictionary if legacy_variant is Dictionary else {}
+	legacy_payload.erase("schema_hash")
+	_write_text_file(root_path.path_join("legacy_no_schema_b.json"), JSON.stringify(legacy_payload, "\t"))
+
+	var upload_package: Dictionary = SURVEY_SUBMISSION_BUNDLE.build_package(review_survey, "res://Dev/SurveyTemplates/review_contract.json", third_answers, {}, "ci-review-install")
+	_write_text_file(root_path.path_join("nested").path_join("submission_c.json"), str(upload_package.get("json", "")))
+
+	var wrong_survey_variant: Variant = JSON.parse_string(SURVEY_SAVE_BUNDLE.build_json_text(review_survey, "res://Dev/SurveyTemplates/review_contract.json", first_answers, {}, {}))
+	var wrong_survey_payload: Dictionary = wrong_survey_variant as Dictionary if wrong_survey_variant is Dictionary else {}
+	if wrong_survey_payload.has("survey") and wrong_survey_payload.get("survey") is Dictionary:
+		(wrong_survey_payload.get("survey") as Dictionary)["id"] = "other_survey"
+	_write_text_file(root_path.path_join("wrong_survey.json"), JSON.stringify(wrong_survey_payload, "\t"))
+
+	var wrong_schema_variant: Variant = JSON.parse_string(SURVEY_SAVE_BUNDLE.build_json_text(review_survey, "res://Dev/SurveyTemplates/review_contract.json", first_answers, {}, {}))
+	var wrong_schema_payload: Dictionary = wrong_schema_variant as Dictionary if wrong_schema_variant is Dictionary else {}
+	if wrong_schema_payload.has("survey") and wrong_schema_payload.get("survey") is Dictionary:
+		(wrong_schema_payload.get("survey") as Dictionary)["schema_hash"] = "different-schema-hash"
+	_write_text_file(root_path.path_join("wrong_schema.json"), JSON.stringify(wrong_schema_payload, "\t"))
+	_write_text_file(root_path.path_join("invalid.json"), "{not valid json")
+
+	return {
+		"survey": review_survey,
+		"root_path": root_path
+	}
+
+func _build_answer_review_survey() -> SurveyDefinition:
+	return SurveyDefinition.new({
+		"id": "answer_review_contract",
+		"title": "Answer Review Contract",
+		"subtitle": "CI fixture for aggregate review.",
+		"schema_hash": "review-contract-schema",
+		"asks_identifying_info": true,
+		"sections": [
+			{
+				"id": "basics",
+				"title": "Basics",
+				"questions": [
+					{"id": "q_text", "prompt": "What stood out?", "type": "short_text"},
+					{"id": "q_long", "prompt": "Any identifying context?", "type": "long_text", "asks_identifying_info": true},
+					{"id": "q_email", "prompt": "Email", "type": "email", "asks_identifying_info": true},
+					{"id": "q_date", "prompt": "Visit date", "type": "date"},
+					{"id": "q_single", "prompt": "Pick a color", "type": "single_choice", "options": ["Red", "Blue"]},
+					{"id": "q_dropdown", "prompt": "Pick a channel", "type": "dropdown", "options": ["Web", "Desktop"]},
+					{"id": "q_multi", "prompt": "Pick tags", "type": "multi_choice", "options": ["A", "B", "C"]},
+					{"id": "q_boolean", "prompt": "Recommend it?", "type": "boolean"}
+				]
+			},
+			{
+				"id": "metrics",
+				"title": "Metrics",
+				"questions": [
+					{"id": "q_scale", "prompt": "How polished?", "type": "scale", "min_value": 1, "max_value": 5},
+					{"id": "q_nps", "prompt": "NPS", "type": "nps", "min_value": 0, "max_value": 10},
+					{"id": "q_number", "prompt": "How many minutes?", "type": "number", "min_value": 0, "max_value": 100},
+					{"id": "q_rank", "prompt": "Rank priorities", "type": "ranked_choice", "options": ["Speed", "Clarity", "Polish"]},
+					{"id": "q_matrix", "prompt": "Rate areas", "type": "matrix", "rows": ["Onboarding", "Navigation"], "options": ["Poor", "Okay", "Good"]}
+				]
+			}
+		]
+	})
+
+func _answer_review_answers(index: int) -> Dictionary:
+	var fixtures: Array[Dictionary] = [
+		{
+			"q_text": "Loved clarity",
+			"q_long": "Call me Alex for follow-up",
+			"q_email": "alex@example.com",
+			"q_date": "2026-06-01",
+			"q_single": "Red",
+			"q_dropdown": "Web",
+			"q_multi": ["A", "B"],
+			"q_boolean": true,
+			"q_scale": 5,
+			"q_nps": 9,
+			"q_number": 10,
+			"q_rank": ["Speed", "Clarity", "Polish"],
+			"q_matrix": {"Onboarding": "Good", "Navigation": "Okay"}
+		},
+		{
+			"q_text": "Needs more polish",
+			"q_long": "Lives near Toronto",
+			"q_email": "bee@example.com",
+			"q_date": "2026-06-02",
+			"q_single": "Blue",
+			"q_dropdown": "Desktop",
+			"q_multi": ["B", "C"],
+			"q_boolean": false,
+			"q_scale": 3,
+			"q_nps": 6,
+			"q_number": 20,
+			"q_rank": ["Clarity", "Speed", "Polish"],
+			"q_matrix": {"Onboarding": "Good", "Navigation": "Good"}
+		},
+		{
+			"q_text": "Compact sharing",
+			"q_long": "Personal note",
+			"q_email": "cee@example.com",
+			"q_date": "2026-06-03",
+			"q_single": "Red",
+			"q_dropdown": "Web",
+			"q_multi": ["A"],
+			"q_boolean": true,
+			"q_scale": 4,
+			"q_nps": 10,
+			"q_number": 30,
+			"q_rank": ["Speed", "Polish", "Clarity"],
+			"q_matrix": {"Onboarding": "Okay", "Navigation": "Poor"}
+		}
+	]
+	return fixtures[clampi(index, 0, fixtures.size() - 1)].duplicate(true)
+
+func _write_text_file(path: String, text: String) -> void:
+	var normalized_path := path.replace("\\", "/")
+	DirAccess.make_dir_recursive_absolute(normalized_path.get_base_dir())
+	var file := FileAccess.open(normalized_path, FileAccess.WRITE)
+	if file == null:
+		_fail("Expected to write fixture file %s." % normalized_path)
+		return
+	file.store_string(text)
+	file.close()
+
+func _answer_review_question_aggregate(aggregate: Dictionary, question_id: String) -> Dictionary:
+	var questions_by_id: Dictionary = aggregate.get("questions_by_id", {}) as Dictionary
+	if questions_by_id.has(question_id) and questions_by_id.get(question_id) is Dictionary:
+		return (questions_by_id.get(question_id) as Dictionary)
+	_fail("Expected imported answer aggregate for question '%s'." % question_id)
+	return {}
+
+func _answer_review_summary_question(summary_data: Dictionary, question_id: String) -> Dictionary:
+	for section_value in summary_data.get("sections", []) as Array:
+		if not (section_value is Dictionary):
+			continue
+		for question_value in (section_value as Dictionary).get("questions", []) as Array:
+			if question_value is Dictionary and str((question_value as Dictionary).get("question_id", "")) == question_id:
+				return question_value as Dictionary
+	_fail("Expected wrapped summary question '%s'." % question_id)
+	return {}
+
+func _find_matrix_row(rows: Array, row_name: String) -> Dictionary:
+	for row_value in rows:
+		if row_value is Dictionary and str((row_value as Dictionary).get("row", "")) == row_name:
+			return row_value as Dictionary
+	_fail("Expected matrix row '%s' in imported answer aggregate." % row_name)
+	return {}
+
+func _find_ranked_option(options: Array, option_name: String) -> Dictionary:
+	for option_value in options:
+		if option_value is Dictionary and str((option_value as Dictionary).get("option", "")) == option_name:
+			return option_value as Dictionary
+	_fail("Expected ranked option '%s' in imported answer aggregate." % option_name)
+	return {}
+
 func _load_default_question_xp_config() -> SurveyQuestionXpConfig:
 	return DEFAULT_QUESTION_XP_CONFIG as SurveyQuestionXpConfig
 
@@ -3257,6 +4042,21 @@ func _touch_event(position: Vector2) -> InputEventScreenTouch:
 	event.pressed = true
 	event.index = 0
 	return event
+
+func _find_feedback_control(node: Node, required_key: String) -> Control:
+	if node == null:
+		return null
+	if node is Control:
+		var control: Control = node as Control
+		if control.has_meta("feedback_context"):
+			var context_variant: Variant = control.get_meta("feedback_context")
+			if context_variant is Dictionary and (context_variant as Dictionary).has(required_key):
+				return control
+	for child in node.get_children():
+		var found := _find_feedback_control(child, required_key)
+		if found != null:
+			return found
+	return null
 
 func _test_feedback_page_context_stub() -> Dictionary:
 	return {

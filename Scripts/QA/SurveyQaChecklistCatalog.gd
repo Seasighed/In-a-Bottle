@@ -210,8 +210,8 @@ static func items_for_page(page_node_id: String) -> Array[Dictionary]:
 			]
 		"question_gallery":
 			return [
-				_item(page_node_id, "gallery_coverage", "The question gallery shows every supported question family.", "The gallery should render every mapped question type so the tester can visually confirm coverage.", true, false),
-				_item(page_node_id, "gallery_readability", "Gallery cards stay readable and scroll cleanly.", "Question gallery headings, scenes, and examples should remain legible without broken layout.", true, false)
+				_item(page_node_id, "gallery_coverage", "The question gallery shows every supported question family.", "The gallery should render every mapped question type so the tester can visually confirm coverage.", false, false, true, "normal", "Gallery coverage still needs a human visual scan of the rendered question cards."),
+				_item(page_node_id, "gallery_readability", "Gallery cards stay readable and scroll cleanly.", "Question gallery headings, scenes, and examples should remain legible without broken layout.", false, false, true, "normal", "Readability checks still need a human pass across the scrolled gallery.")
 			]
 	return []
 

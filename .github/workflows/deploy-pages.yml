@@ -54,37 +54,16 @@ jobs:
           mkdir -p "$HOME/.local/share/godot/export_templates/${GODOT_VERSION_DIR}"
           cp -R "$RUNNER_TEMP/godot/templates/templates/." "$HOME/.local/share/godot/export_templates/${GODOT_VERSION_DIR}/"
 
-      - name: Import Project
-        run: |
-          set -euxo pipefail
-          "$GODOT_BIN" --headless --path . --quit-after 1
+      - name: Repo Validation
+        run: pwsh ./tools/playtest.ps1 test -GodotPath "$GODOT_BIN"
 
-      - name: Check Project
-        run: |
-          set -euxo pipefail
-          "$GODOT_BIN" --headless --path . --check-only
-
-      - name: Run Custom CI Tests
-        run: |
-          set -euxo pipefail
-          timeout --preserve-status 180s "$GODOT_BIN" --headless --path . --script res://Scripts/Tests/CiTestBootstrap.gd
-
-      - name: Export Web Build
-        run: |
-          set -euxo pipefail
-          rm -rf build/web
-          mkdir -p build/web
-          "$GODOT_BIN" --headless --path . --export-release "Web" build/web/index.html
-
-      - name: Verify Web Export Artifacts
-        run: |
-          set -euxo pipefail
-          "$GODOT_BIN" --headless --path . --script res://Scripts/Tools/VerifyExportArtifacts.gd -- "Web" "build/web/index.html"
+      - name: Package Participant And QA Web Builds
+        run: pwsh ./tools/playtest.ps1 build -GodotPath "$GODOT_BIN" -Targets web -Profiles participant,qa -OutputRoot build/playtest/pages
 
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v4
         with:
-          path: build/web
+          path: build/playtest/pages/web/participant
 
   deploy:
     needs: build

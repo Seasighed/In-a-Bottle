@@ -43,38 +43,23 @@ jobs:
           mkdir -p "$HOME/.local/share/godot/export_templates/${GODOT_VERSION_DIR}"
           cp -R "$RUNNER_TEMP/godot/templates/templates/." "$HOME/.local/share/godot/export_templates/${GODOT_VERSION_DIR}/"
 
-      - name: Import Project
-        run: |
-          set -euxo pipefail
-          "$GODOT_BIN" --headless --path . --quit-after 1
+      - name: Doctor
+        run: pwsh ./tools/playtest.ps1 doctor -GodotPath "$GODOT_BIN" -OutputRoot build/playtest/ci-linux
 
-      - name: Check Project
-        run: |
-          set -euxo pipefail
-          "$GODOT_BIN" --headless --path . --check-only
+      - name: Repo Validation
+        run: pwsh ./tools/playtest.ps1 test -GodotPath "$GODOT_BIN"
 
-      - name: Run Custom CI Tests
-        run: |
-          set -euxo pipefail
-          timeout --preserve-status 180s "$GODOT_BIN" --headless --path . --script res://Scripts/Tests/CiTestBootstrap.gd
+      - name: Package Web Playtest Builds
+        run: pwsh ./tools/playtest.ps1 build -GodotPath "$GODOT_BIN" -Targets web -Profiles participant,qa -OutputRoot build/playtest/ci-linux
 
-      - name: Export Web Build
-        run: |
-          set -euxo pipefail
-          rm -rf build/web
-          mkdir -p build/web
-          "$GODOT_BIN" --headless --path . --export-release "Web" build/web/index.html
-
-      - name: Verify Web Export Artifacts
-        run: |
-          set -euxo pipefail
-          "$GODOT_BIN" --headless --path . --script res://Scripts/Tools/VerifyExportArtifacts.gd -- "Web" "build/web/index.html"
+      - name: Contract Audit ZIP
+        run: pwsh ./tools/playtest.ps1 audit -GodotPath "$GODOT_BIN" -Profiles qa -OutputRoot build/playtest/ci-linux -ContractOnly
 
       - name: Upload Web Artifact
         uses: actions/upload-artifact@v4
         with:
           name: web-build
-          path: build/web
+          path: build/playtest/ci-linux/web
           if-no-files-found: error
 
   validate-windows-export:
@@ -108,33 +93,18 @@ jobs:
           New-Item -ItemType Directory -Force -Path $templateDir | Out-Null
           Copy-Item "$env:RUNNER_TEMP\godot\templates\templates\*" $templateDir -Recurse -Force
 
-      - name: Import Project
-        run: |
-          & $env:GODOT_BIN --headless --path . --quit-after 1
+      - name: Doctor
+        run: pwsh ./tools/playtest.ps1 doctor -GodotPath "$env:GODOT_BIN" -OutputRoot build/playtest/ci-windows
 
-      - name: Check Project
-        run: |
-          & $env:GODOT_BIN --headless --path . --check-only
+      - name: Repo Validation
+        run: pwsh ./tools/playtest.ps1 test -GodotPath "$env:GODOT_BIN"
 
-      - name: Run Custom CI Tests
-        run: |
-          & $env:GODOT_BIN --headless --path . --script res://Scripts/Tests/CiTestBootstrap.gd
-
-      - name: Export Windows Build
-        run: |
-          if (Test-Path build/windows) {
-            Remove-Item build/windows -Recurse -Force
-          }
-          New-Item -ItemType Directory -Force -Path build/windows | Out-Null
-          & $env:GODOT_BIN --headless --path . --export-release "Windows Desktop" build/windows/InABottle.exe
-
-      - name: Verify Windows Export Artifacts
-        run: |
-          & $env:GODOT_BIN --headless --path . --script res://Scripts/Tools/VerifyExportArtifacts.gd -- "Windows Desktop" "build/windows/InABottle.exe"
+      - name: Package Windows Playtest Builds
+        run: pwsh ./tools/playtest.ps1 build -GodotPath "$env:GODOT_BIN" -Targets windows -Profiles participant,qa -OutputRoot build/playtest/ci-windows
 
       - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-build
-          path: build/windows
+          path: build/playtest/ci-windows/windows
           if-no-files-found: error

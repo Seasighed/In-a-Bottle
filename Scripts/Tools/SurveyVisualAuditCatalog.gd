@@ -13,8 +13,11 @@ const PHONE_VIEWPORT_ID := "phone_430x932"
 const DESKTOP_VIEWPORT_ID := "desktop_1600x900"
 const QUESTION_CARD_VIEWPORT := Vector2i(760, 940)
 const FEATURE_IMAGE_VIEWPORT := Vector2i(1280, 720)
+const FEATURE_IMAGE_NARROW_VIEWPORT := Vector2i(720, 960)
+const WRAPPED_PHONE_VIEWPORT := Vector2i(1080, 1920)
 const QA_STATES := ["qa_home", "qa_tutorial", "qa_checklist"]
 const FEEDBACK_STATES := ["feedback_armed_capture", "feedback_report_popup", "feedback_review_panel"]
+const ANSWER_REVIEW_STATES := ["answer_review_overlay"]
 
 static func build_flow_graph() -> Dictionary:
 	return SURVEY_UI_FLOW_CATALOG.build_graph()
@@ -53,6 +56,7 @@ static func build_bundle_capture_specs() -> Array[Dictionary]:
 	specs.append_array(_main_screen_specs())
 	specs.append_array(_qa_overlay_specs())
 	specs.append_array(_feedback_overlay_specs())
+	specs.append_array(_answer_review_overlay_specs())
 	specs.append_array(_question_type_specs())
 	specs.append_array(_custom_view_specs())
 	specs.append_array(_feature_export_specs())
@@ -90,10 +94,19 @@ static func discovered_custom_scene_paths() -> PackedStringArray:
 	return paths
 
 static func qa_state_ids() -> Array[String]:
-	return QA_STATES.duplicate()
+	var ids: Array[String] = []
+	ids.append_array(QA_STATES)
+	return ids
 
 static func feedback_state_ids() -> Array[String]:
-	return FEEDBACK_STATES.duplicate()
+	var ids: Array[String] = []
+	ids.append_array(FEEDBACK_STATES)
+	return ids
+
+static func answer_review_state_ids() -> Array[String]:
+	var ids: Array[String] = []
+	ids.append_array(ANSWER_REVIEW_STATES)
+	return ids
 
 static func _main_screen_specs() -> Array[Dictionary]:
 	var specs: Array[Dictionary] = []
@@ -206,14 +219,33 @@ static func _feedback_overlay_specs() -> Array[Dictionary]:
 			})
 	return specs
 
+static func _answer_review_overlay_specs() -> Array[Dictionary]:
+	var specs: Array[Dictionary] = []
+	for state_id in ANSWER_REVIEW_STATES:
+		for viewport_id in [PHONE_VIEWPORT_ID, DESKTOP_VIEWPORT_ID]:
+			specs.append({
+				"id": "%s__%s" % [state_id, viewport_id],
+				"group": "screens",
+				"surface": state_id,
+				"variant": viewport_id,
+				"viewport_preset": viewport_id,
+				"viewport_size": _viewport_size_for_capture(viewport_id, SURVEY_UI_FLOW_CATALOG.PHONE_VIEWPORT),
+				"entry_route": "answer_review_overlay",
+				"state_tags": ["answer_review", "aggregate", "phone" if viewport_id == PHONE_VIEWPORT_ID else "desktop"],
+				"include_in_flow_chart": false,
+				"source_node_id": "",
+				"title": "Imported Answer Review"
+			})
+	return specs
+
 static func _question_type_specs() -> Array[Dictionary]:
 	var specs: Array[Dictionary] = []
 	for definition in QUESTION_VIEW_REGISTRY.gallery_definitions():
 		var family_id := _slug(str(definition.get("type", "")))
 		if family_id.is_empty():
 			continue
-		var base_question_config := _duplicate_variant(definition.get("question_config", {}))
-		var answered_value := _duplicate_variant(definition.get("answer", null))
+		var base_question_config: Variant = _duplicate_variant(definition.get("question_config", {}))
+		var answered_value: Variant = _duplicate_variant(definition.get("answer", null))
 		var title := str(definition.get("title", family_id)).strip_edges()
 		match family_id:
 			"dropdown":
@@ -275,6 +307,96 @@ static func _custom_view_specs() -> Array[Dictionary]:
 
 static func _feature_export_specs() -> Array[Dictionary]:
 	return [
+		{
+			"id": "answer_wrapped_image__phone_light",
+			"group": "features",
+			"surface": "answer_wrapped_image",
+			"variant": "phone_light",
+			"viewport_preset": "wrapped_phone",
+			"viewport_size": WRAPPED_PHONE_VIEWPORT,
+			"entry_route": "feature_export",
+			"state_tags": ["answer_review", "wrapped", "exportable_image", "phone", "light"],
+			"include_in_flow_chart": false,
+			"source_node_id": "",
+			"title": "Imported Answer Wrapped Page Light",
+			"wrapped_theme_id": "light",
+			"page_index": 0
+		},
+		{
+			"id": "answer_wrapped_image__phone_dark",
+			"group": "features",
+			"surface": "answer_wrapped_image",
+			"variant": "phone_dark",
+			"viewport_preset": "wrapped_phone",
+			"viewport_size": WRAPPED_PHONE_VIEWPORT,
+			"entry_route": "feature_export",
+			"state_tags": ["answer_review", "wrapped", "exportable_image", "phone", "dark"],
+			"include_in_flow_chart": false,
+			"source_node_id": "",
+			"title": "Imported Answer Wrapped Page Dark",
+			"wrapped_theme_id": "dark",
+			"page_index": 0
+		},
+		{
+			"id": "answer_wrapped_image__phone_light_page2",
+			"group": "features",
+			"surface": "answer_wrapped_image",
+			"variant": "phone_light_page2",
+			"viewport_preset": "wrapped_phone",
+			"viewport_size": WRAPPED_PHONE_VIEWPORT,
+			"entry_route": "feature_export",
+			"state_tags": ["answer_review", "wrapped", "exportable_image", "phone", "light", "unique_gradient"],
+			"include_in_flow_chart": false,
+			"source_node_id": "",
+			"title": "Imported Answer Wrapped Page Light 2",
+			"wrapped_theme_id": "light",
+			"page_index": 1
+		},
+		{
+			"id": "answer_wrapped_image__phone_light_matrix",
+			"group": "features",
+			"surface": "answer_wrapped_image",
+			"variant": "phone_light_matrix",
+			"viewport_preset": "wrapped_phone",
+			"viewport_size": WRAPPED_PHONE_VIEWPORT,
+			"entry_route": "feature_export",
+			"state_tags": ["answer_review", "wrapped", "exportable_image", "phone", "light", "matrix"],
+			"include_in_flow_chart": false,
+			"source_node_id": "",
+			"title": "Imported Answer Wrapped Matrix",
+			"wrapped_theme_id": "light",
+			"wrapped_renderer": "matrix_summary"
+		},
+		{
+			"id": "answer_wrapped_image__phone_light_ranked",
+			"group": "features",
+			"surface": "answer_wrapped_image",
+			"variant": "phone_light_ranked",
+			"viewport_preset": "wrapped_phone",
+			"viewport_size": WRAPPED_PHONE_VIEWPORT,
+			"entry_route": "feature_export",
+			"state_tags": ["answer_review", "wrapped", "exportable_image", "phone", "light", "ranked_choice"],
+			"include_in_flow_chart": false,
+			"source_node_id": "",
+			"title": "Imported Answer Wrapped Ranked Choice",
+			"wrapped_theme_id": "light",
+			"wrapped_renderer": "ranked_summary"
+		},
+		{
+			"id": "answer_wrapped_image__phone_light_stats",
+			"group": "features",
+			"surface": "answer_wrapped_image",
+			"variant": "phone_light_stats",
+			"viewport_preset": "wrapped_phone",
+			"viewport_size": WRAPPED_PHONE_VIEWPORT,
+			"entry_route": "feature_export",
+			"state_tags": ["answer_review", "wrapped", "exportable_image", "phone", "light", "stats"],
+			"include_in_flow_chart": false,
+			"source_node_id": "",
+			"title": "Imported Answer Wrapped Final Stats",
+			"wrapped_theme_id": "light",
+			"page_kind": "stats"
+		},
 		{
 			"id": "summary_image__default",
 			"group": "features",
