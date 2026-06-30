@@ -55,6 +55,11 @@ func refresh_layout(viewport_size: Vector2) -> void:
 	if _question_gallery_overlay != null:
 		_layout_question_gallery(viewport_size)
 
+func _viewport_size() -> Vector2:
+	if _root_control == null or _root_control.get_viewport() == null:
+		return Vector2.ZERO
+	return _root_control.get_viewport().get_visible_rect().size
+
 func open_home() -> void:
 	if _overlay == null:
 		return
@@ -313,7 +318,7 @@ func _build_home_state() -> Dictionary:
 	}
 
 func _build_tutorial_state() -> Dictionary:
-	var can_export_feedback_zip := _feedback_controller != null and _feedback_controller.has_issues()
+	var can_export_feedback_zip: bool = _feedback_controller != null and _feedback_controller.has_issues()
 	return {
 		"title": "How To Report An Issue",
 		"subtitle": "Teach the feedback system first",

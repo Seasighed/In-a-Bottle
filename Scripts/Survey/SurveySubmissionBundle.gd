@@ -8,8 +8,12 @@ const MAX_LONG_TEXT_LENGTH := 4000
 const MAX_EMAIL_LENGTH := 254
 const MAX_DATE_LENGTH := 32
 const MAX_OPTION_LENGTH := 160
+const MAX_PROFILE_NAME_LENGTH := 48
+const MAX_PROFILE_FIELD_LABEL_LENGTH := 48
+const MAX_PROFILE_FIELD_VALUE_LENGTH := 96
+const MAX_PROFILE_FIELDS := 12
 
-static func build_package(survey: SurveyDefinition, template_path: String, answers: Dictionary, summary_data: Dictionary = {}, install_id: String = "", scrub_identifying_info: bool = false, session_metadata: Dictionary = {}) -> Dictionary:
+static func build_package(survey: SurveyDefinition, template_path: String, answers: Dictionary, summary_data: Dictionary = {}, install_id: String = "", scrub_identifying_info: bool = false, session_metadata: Dictionary = {}, volunteered_profile: Dictionary = {}) -> Dictionary:
 	if survey == null:
 		return {}
 
@@ -115,6 +119,9 @@ static func build_package(survey: SurveyDefinition, template_path: String, answe
 	var quality_payload: Dictionary = _sanitize_session_metadata(session_metadata)
 	if not quality_payload.is_empty():
 		payload["quality"] = quality_payload
+	var volunteered_profile_payload: Dictionary = _sanitize_volunteered_profile(volunteered_profile)
+	if not volunteered_profile_payload.is_empty():
+		payload["volunteered_profile"] = volunteered_profile_payload
 	if not dropped_question_ids.is_empty():
 		payload["dropped_question_ids"] = dropped_question_ids
 	if not scrubbed_question_ids.is_empty():
@@ -177,6 +184,54 @@ static func _sanitize_session_metadata(session_metadata: Dictionary) -> Dictiona
 	if session_metadata.has("restored_progress"):
 		payload["restored_progress"] = bool(session_metadata.get("restored_progress", false))
 	return payload
+
+static func _sanitize_volunteered_profile(profile: Dictionary) -> Dictionary:
+	if profile.is_empty() or not bool(profile.get("include_in_upload", false)):
+		return {}
+	var fields := _sanitize_profile_fields(profile)
+	if fields.is_empty():
+		return {}
+	var profile_name := _limited_profile_text(profile.get("profile_name", "Mushroom"), MAX_PROFILE_NAME_LENGTH)
+	var payload := {
+		"profile_name": profile_name if not profile_name.is_empty() else "Mushroom",
+		"fields": fields
+	}
+	payload["volunteered_at"] = Time.get_datetime_string_from_system(true)
+	return payload
+
+static func _sanitize_profile_fields(profile: Dictionary) -> Array[Dictionary]:
+	var source: Array = []
+	if profile.has("fields") and profile.get("fields") is Array:
+		source = profile.get("fields", []) as Array
+	else:
+		source = [
+			{"label": "Username", "value": profile.get("display_name", "")},
+			{"label": "World", "value": profile.get("world_name", "")},
+			{"label": "Region", "value": profile.get("game_region", "")}
+		]
+	var fields: Array[Dictionary] = []
+	for field_value in source:
+		if not (field_value is Dictionary):
+			continue
+		var field: Dictionary = field_value as Dictionary
+		var label := _limited_profile_text(field.get("label", ""), MAX_PROFILE_FIELD_LABEL_LENGTH)
+		var value := _limited_profile_text(field.get("value", ""), MAX_PROFILE_FIELD_VALUE_LENGTH)
+		if label.is_empty() or value.is_empty():
+			continue
+		fields.append({
+			"label": label,
+			"value": value
+		})
+		if fields.size() >= MAX_PROFILE_FIELDS:
+			break
+	return fields
+
+static func _limited_profile_text(value: Variant, limit: int) -> String:
+	var text := str(value).strip_edges().replace("\t", " ")
+	text = " ".join(text.split("\n", false))
+	while text.contains("  "):
+		text = text.replace("  ", " ")
+	return text.substr(0, mini(text.length(), limit))
 
 static func _normalize_answer(question: SurveyQuestion, raw_value: Variant) -> Dictionary:
 	match question.type:

@@ -5,11 +5,14 @@ const SAMPLE_SURVEY = preload("res://Scripts/Survey/SampleSurvey.gd")
 const SURVEY_TEMPLATE_LOADER = preload("res://Scripts/Survey/SurveyTemplateLoader.gd")
 const SURVEY_EXPORTER = preload("res://Scripts/Survey/SurveyExporter.gd")
 const SURVEY_SAVE_BUNDLE = preload("res://Scripts/Survey/SurveySaveBundle.gd")
+const SURVEY_ANSWER_REVIEW = preload("res://Scripts/Survey/SurveyAnswerReview.gd")
 const SURVEY_SESSION_STATE_SUPPORT = preload("res://Scripts/Survey/SurveySessionStateSupport.gd")
 const SURVEY_SUMMARY_ANALYZER = preload("res://Scripts/Survey/SurveySummaryAnalyzer.gd")
 const SURVEY_TRANSFER_SUPPORT = preload("res://Scripts/Survey/SurveyTransferSupport.gd")
+const SURVEY_UPLOAD_ELIGIBILITY = preload("res://Scripts/Survey/SurveyUploadEligibility.gd")
 const SURVEY_UPLOAD_AUDIT_STORE = preload("res://Scripts/Survey/SurveyUploadAuditStore.gd")
 const SURVEY_PREFERENCES_STORE = preload("res://Scripts/Survey/SurveyPreferencesStore.gd")
+const SURVEY_SHARE_PROFILE_STORE = preload("res://Scripts/Survey/SurveyShareProfileStore.gd")
 const SURVEY_SESSION_CACHE = preload("res://Scripts/Survey/SurveySessionCache.gd")
 const SURVEY_UI_FEEDBACK = preload("res://Scripts/UI/SurveyUiFeedback.gd")
 const SURVEY_ICON_LIBRARY = preload("res://Scripts/UI/SurveyIconLibrary.gd")
@@ -17,6 +20,7 @@ const OVERLAY_MENU_SCENE: PackedScene = preload("res://Scenes/UI/OverlayMenu.tsc
 const QUESTION_HELP_OVERLAY_SCENE: PackedScene = preload("res://Scenes/UI/QuestionHelpOverlay.tscn")
 const SECTION_OUTLINE_PANEL_SCENE: PackedScene = preload("res://Scenes/UI/SectionOutlinePanel.tscn")
 const SURVEY_PROFILE_OVERLAY_SCENE: PackedScene = preload("res://Scenes/UI/SurveyProfileOverlay.tscn")
+const SURVEY_ANSWER_REVIEW_OVERLAY_SCRIPT = preload("res://Scripts/UI/SurveyAnswerReviewOverlay.gd")
 const SURVEY_GAMIFICATION_HUD_SCENE: PackedScene = preload("res://Scenes/UI/SurveyGamificationHud.tscn")
 const SURVEY_TOAST_OVERLAY_SCRIPT = preload("res://Scripts/UI/SurveyToastOverlay.gd")
 const SURVEY_THEME_DRAWER_SCRIPT = preload("res://Scripts/UI/SurveyThemeDrawer.gd")
@@ -25,6 +29,7 @@ const SURVEY_QA_CONTROLLER = preload("res://Scripts/UI/SurveyQaController.gd")
 const SURVEY_SHELL_SUPPORT = preload("res://Scripts/UI/SurveyShellSupport.gd")
 const SURVEY_DEBUG_LOGGER = preload("res://Scripts/UI/SurveyDebugLogger.gd")
 const SURVEY_UI_FLOW_FIXTURES = preload("res://Scripts/Tools/SurveyUiFlowFixtures.gd")
+const SURVEY_RUNTIME_BUILD_PROFILE = preload("res://Scripts/UI/SurveyRuntimeBuildProfile.gd")
 const DEFAULT_DARK_PALETTE = preload("res://Themes/SurveyDarkPalette.tres")
 const DEFAULT_LIGHT_PALETTE = preload("res://Themes/SurveyLightPalette.tres")
 const DEFAULT_THEME_CATALOG = preload("res://Themes/SurveyThemeCatalog.tres")
@@ -59,7 +64,7 @@ const VIEW_UPLOAD := &"upload"
 const PURPOSE_SURVEY := &"survey"
 const PURPOSE_LORE := &"lore"
 
-@export_file("*.json") var survey_template_path := "res://Dev/SurveyTemplates/studio_feedback.json"
+@export_file("*.json") var survey_template_path := "res://Dev/SurveyTemplates/maplestory_pulse.json"
 @export var dark_palette: Resource = DEFAULT_DARK_PALETTE
 @export var light_palette: Resource = DEFAULT_LIGHT_PALETTE
 @export var theme_catalog: Resource = DEFAULT_THEME_CATALOG
@@ -75,8 +80,8 @@ const PURPOSE_LORE := &"lore"
 @export var upload_destination_name := "Configured upload endpoint"
 @export var upload_public_repo_name := "Configured public repository"
 @export var upload_public_repo_url := ""
-@export_multiline var upload_usage_summary := "Submitted answers are used to preserve legitimate survey responses and support aggregate review."
-@export_multiline var upload_reason_summary := "Uploads help move completed answers into a Supabase-backed collection flow for analysis and follow-up."
+@export_multiline var upload_usage_summary := "Submitted answers are stored privately for moderation, duplicate checks, and aggregate community summaries."
+@export_multiline var upload_reason_summary := "Uploads are limited to allowlisted built-in surveys. Public sharing comes from curated summaries and wrapped exports, not raw response rows."
 @export var upload_request_headers: PackedStringArray = PackedStringArray()
 @export var require_upload_consent := true
 @export_range(0, 100, 1) var minimum_answered_questions_for_upload := 3
@@ -113,6 +118,7 @@ var _feedback_hub
 var _save_dialog: FileDialog
 var _load_dialog: FileDialog
 var _template_dialog: FileDialog
+var _answer_review_folder_dialog: FileDialog
 var _pending_save_text := ""
 var _pending_save_image: Image = null
 var _pending_save_extension := ""
@@ -149,6 +155,15 @@ var _pending_upload_payload_hash := ""
 var _last_upload_response_text := ""
 var _last_upload_status_text := ""
 var _last_upload_status_is_error := false
+var _share_profile: Dictionary = {}
+var _upload_share_profile_checkbox: CheckBox
+var _upload_share_profile_summary_label: Label
+var _upload_profile_name_field: LineEdit
+var _upload_profile_fields_list: VBoxContainer
+var _upload_profile_add_field_button: Button
+var _upload_profile_field_rows: Array[Dictionary] = []
+var _upload_profile_purge_button: Button
+var _updating_upload_profile_controls := false
 var _response_session_started_at_unix := 0
 var _response_first_answer_at_unix := 0
 var _response_last_answer_at_unix := 0
@@ -171,6 +186,12 @@ var _boss_bar_animation_count := 0
 var _boss_state_cache: Dictionary = {}
 var _playtest_feedback_controller
 var _qa_controller
+var _runtime_build_profile: Dictionary = {}
+var _answer_review_overlay
+var _answer_review_survey: SurveyDefinition
+var _answer_review_template_path := ""
+var _answer_review_settings: Dictionary = {}
+var _answer_review_scan_report: Dictionary = {}
 
 @onready var _background: ColorRect = $Background
 @onready var _margin: MarginContainer = $Margin
@@ -195,6 +216,7 @@ var _qa_controller
 @onready var _survey_selection_manage_grid: GridContainer = $Margin/MainPanel/Stack/SurveySelectionView/SurveySelectionManageGrid
 @onready var _survey_selection_import_button: Button = $Margin/MainPanel/Stack/SurveySelectionView/SurveySelectionManageGrid/SurveySelectionImportButton
 @onready var _survey_selection_export_button: Button = $Margin/MainPanel/Stack/SurveySelectionView/SurveySelectionManageGrid/SurveySelectionExportButton
+@onready var _survey_selection_answer_review_button: Button = $Margin/MainPanel/Stack/SurveySelectionView/SurveySelectionManageGrid/SurveySelectionAnswerReviewButton
 @onready var _survey_selection_clear_button: Button = $Margin/MainPanel/Stack/SurveySelectionView/SurveySelectionManageGrid/SurveySelectionClearButton
 @onready var _survey_selection_action_spacer: Control = $Margin/MainPanel/Stack/SurveySelectionView/SurveySelectionActionRow/SurveySelectionActionSpacer
 @onready var _survey_selection_next_button: Button = $Margin/MainPanel/Stack/SurveySelectionView/SurveySelectionActionRow/SurveySelectionNextButton
@@ -284,16 +306,19 @@ var _export_copy_details_button: Button
 var _export_copy_details_open := false
 
 func _ready() -> void:
+	_apply_runtime_build_profile()
 	debug_trace_logging_enabled = debug_trace_logging_enabled or _feature_flag_enabled("enable_debug_trace_logging", false)
 	_question_modifiers_enabled = _feature_flag_enabled("enable_question_modifiers", true)
 	_start_trace_session()
 	_prime_preferences_from_store()
+	_share_profile = SURVEY_SHARE_PROFILE_STORE.load_profile()
 	_apply_selected_theme_palette()
 	_configure_feedback_hub()
 	_ensure_upload_request()
 	_configure_file_dialogs()
 	_ensure_optional_ui_nodes()
 	_ensure_export_details_nodes()
+	_ensure_answer_review_overlay()
 	_prepare_survey_selection_shell()
 	_connect_actions()
 	_load_available_templates()
@@ -338,6 +363,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if _profile_overlay != null and _profile_overlay.visible:
 		_close_profile_overlay()
+		return
+	if _answer_review_overlay != null and _answer_review_overlay.visible:
+		_close_answer_review_overlay()
 		return
 	if _overlay_menu != null and _overlay_menu.visible:
 		_close_overlay_menu()
@@ -392,6 +420,9 @@ func _is_boss_battle_enabled() -> bool:
 
 func _playtest_feedback_enabled() -> bool:
 	return OS.is_debug_build() or _qa_mode_enabled()
+
+func _answer_review_enabled() -> bool:
+	return _qa_mode_enabled() and not _is_web_platform()
 
 func _available_theme_sets() -> Array:
 	var catalog = _resolved_theme_catalog_resource(theme_catalog, DEFAULT_THEME_CATALOG)
@@ -506,6 +537,7 @@ func _ensure_optional_ui_nodes() -> void:
 			_confirmation_dialog.add_child(option_checkbox)
 			_confirmation_option_checkbox = option_checkbox
 	_ensure_gamification_nodes()
+	_ensure_upload_share_profile_nodes()
 	_toast_overlay = get_node_or_null("SurveyToastOverlay")
 	if _menu_access_layer == null:
 		var access_layer := Control.new()
@@ -525,6 +557,15 @@ func _ensure_optional_ui_nodes() -> void:
 		access_button.tooltip_text = "Open menu"
 		access_button.set_anchors_preset(Control.PRESET_TOP_LEFT)
 		access_button.mouse_filter = Control.MOUSE_FILTER_STOP
+		access_button.set_meta("feedback_context", {
+			"kind": "floating_menu_button",
+			"summary": "Open menu",
+			"menu_action": {
+				"menu": "floating",
+				"action": "open_menu",
+				"label": "Menu"
+			}
+		})
 		_menu_access_layer.add_child(access_button)
 		_menu_access_button = access_button
 	if _help_access_button == null and _menu_access_layer != null:
@@ -556,6 +597,141 @@ func _ensure_optional_ui_nodes() -> void:
 		_report_access_button = report_button
 	_ensure_playtest_feedback_controller()
 	_ensure_qa_controller()
+
+func _ensure_upload_share_profile_nodes() -> void:
+	if _upload_notice_panel == null:
+		return
+	var notice_stack := _upload_notice_panel.get_node_or_null("UploadNoticeStack") as VBoxContainer
+	if notice_stack == null or _upload_share_profile_checkbox != null:
+		return
+	_upload_share_profile_checkbox = CheckBox.new()
+	_upload_share_profile_checkbox.name = "UploadShareProfileCheckBox"
+	_upload_share_profile_checkbox.text = "Include optional profile fields in this upload"
+	_upload_share_profile_checkbox.toggled.connect(_on_upload_share_profile_toggled)
+	notice_stack.add_child(_upload_share_profile_checkbox)
+
+	_upload_share_profile_summary_label = Label.new()
+	_upload_share_profile_summary_label.name = "UploadShareProfileSummaryLabel"
+	_upload_share_profile_summary_label.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	notice_stack.add_child(_upload_share_profile_summary_label)
+
+	var profile_row := HBoxContainer.new()
+	profile_row.name = "UploadShareProfileNameRow"
+	profile_row.add_theme_constant_override("separation", 8)
+	notice_stack.add_child(profile_row)
+	var profile_label := Label.new()
+	profile_label.text = "Profile"
+	profile_label.custom_minimum_size = Vector2(92, 0)
+	SurveyStyle.style_caption(profile_label, SurveyStyle.TEXT_MUTED)
+	profile_row.add_child(profile_label)
+	_upload_profile_name_field = LineEdit.new()
+	_upload_profile_name_field.name = "UploadShareProfileNameField"
+	_upload_profile_name_field.placeholder_text = "Mushroom"
+	_upload_profile_name_field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_upload_profile_name_field.text_changed.connect(_on_upload_profile_text_changed)
+	SurveyStyle.style_line_edit(_upload_profile_name_field)
+	profile_row.add_child(_upload_profile_name_field)
+
+	_upload_profile_fields_list = VBoxContainer.new()
+	_upload_profile_fields_list.name = "UploadShareProfileFields"
+	_upload_profile_fields_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_upload_profile_fields_list.add_theme_constant_override("separation", 6)
+	notice_stack.add_child(_upload_profile_fields_list)
+
+	_upload_profile_add_field_button = Button.new()
+	_upload_profile_add_field_button.name = "UploadShareProfileAddFieldButton"
+	_upload_profile_add_field_button.text = "Add Profile Field"
+	_upload_profile_add_field_button.tooltip_text = "Add a custom profile label and value."
+	_upload_profile_add_field_button.pressed.connect(_on_upload_profile_add_field_pressed)
+	SurveyStyle.apply_secondary_button(_upload_profile_add_field_button)
+	notice_stack.add_child(_upload_profile_add_field_button)
+
+	_upload_profile_purge_button = Button.new()
+	_upload_profile_purge_button.name = "UploadShareProfilePurgeButton"
+	_upload_profile_purge_button.text = "Purge Share Profile"
+	_upload_profile_purge_button.tooltip_text = "Remove the optional share profile stored on this device."
+	_upload_profile_purge_button.pressed.connect(_on_upload_profile_purge_pressed)
+	notice_stack.add_child(_upload_profile_purge_button)
+	_apply_upload_profile_controls()
+
+func _add_upload_profile_field_row(field_data: Dictionary = {}) -> void:
+	if _upload_profile_fields_list == null:
+		return
+	var row := HBoxContainer.new()
+	row.name = "UploadShareProfileFieldRow"
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_theme_constant_override("separation", 6)
+	var label_field := LineEdit.new()
+	label_field.placeholder_text = "Field"
+	label_field.text = str(field_data.get("label", ""))
+	label_field.custom_minimum_size = Vector2(150, 0)
+	label_field.text_changed.connect(_on_upload_profile_text_changed)
+	row.add_child(label_field)
+	var value_field := LineEdit.new()
+	value_field.placeholder_text = "Value"
+	value_field.text = str(field_data.get("value", ""))
+	value_field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	value_field.text_changed.connect(_on_upload_profile_text_changed)
+	row.add_child(value_field)
+	var remove_button := Button.new()
+	remove_button.text = "Remove"
+	remove_button.tooltip_text = "Remove this profile field."
+	row.add_child(remove_button)
+	var row_data := {
+		"container": row,
+		"label_field": label_field,
+		"value_field": value_field,
+		"remove_button": remove_button
+	}
+	remove_button.pressed.connect(func() -> void: _remove_upload_profile_field_row(row_data))
+	_upload_profile_field_rows.append(row_data)
+	_upload_profile_fields_list.add_child(row)
+	SurveyStyle.style_line_edit(label_field)
+	SurveyStyle.style_line_edit(value_field)
+	SurveyStyle.apply_secondary_button(remove_button)
+
+func _remove_upload_profile_field_row(row_data: Dictionary) -> void:
+	if _updating_upload_profile_controls:
+		return
+	var container: Node = row_data.get("container", null) as Node
+	_upload_profile_field_rows.erase(row_data)
+	if container != null and container.get_parent() != null:
+		container.get_parent().remove_child(container)
+		container.queue_free()
+	_save_upload_profile_from_controls()
+	if _upload_consent_checkbox != null:
+		_upload_consent_checkbox.set_pressed_no_signal(false)
+	_refresh_upload_view()
+
+func _style_upload_profile_field_rows() -> void:
+	for row_value in _upload_profile_field_rows:
+		if not (row_value is Dictionary):
+			continue
+		var row: Dictionary = row_value as Dictionary
+		var label_field: LineEdit = row.get("label_field", null) as LineEdit
+		var value_field: LineEdit = row.get("value_field", null) as LineEdit
+		var remove_button: Button = row.get("remove_button", null) as Button
+		if label_field != null:
+			SurveyStyle.style_line_edit(label_field)
+		if value_field != null:
+			SurveyStyle.style_line_edit(value_field)
+		if remove_button != null:
+			SurveyStyle.apply_secondary_button(remove_button)
+
+func _ensure_answer_review_overlay() -> void:
+	if _answer_review_overlay != null or SURVEY_ANSWER_REVIEW_OVERLAY_SCRIPT == null:
+		return
+	var overlay_instance = SURVEY_ANSWER_REVIEW_OVERLAY_SCRIPT.new()
+	if overlay_instance == null:
+		return
+	overlay_instance.name = "AnswerReviewOverlay"
+	add_child(overlay_instance)
+	_answer_review_overlay = overlay_instance
+	_answer_review_overlay.close_requested.connect(_close_answer_review_overlay)
+	_answer_review_overlay.choose_folder_requested.connect(_open_answer_review_folder_picker)
+	_answer_review_overlay.rescan_requested.connect(_rescan_answer_review_folder)
+	_answer_review_overlay.settings_changed.connect(_on_answer_review_settings_changed)
+	_answer_review_overlay.save_wrapped_png_requested.connect(_save_answer_review_wrapped_png)
 
 func _ensure_export_details_nodes() -> void:
 	if _export_action_grid == null:
@@ -777,8 +953,15 @@ func _configure_file_dialogs() -> void:
 	_template_dialog.canceled.connect(_on_template_dialog_canceled)
 	add_child(_template_dialog)
 
+	_answer_review_folder_dialog = FileDialog.new()
+	_answer_review_folder_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	_answer_review_folder_dialog.file_mode = FileDialog.FILE_MODE_OPEN_DIR
+	_answer_review_folder_dialog.title = "Choose Answer Review Folder"
+	_answer_review_folder_dialog.dir_selected.connect(_on_answer_review_folder_selected)
+	add_child(_answer_review_folder_dialog)
+
 func _connect_actions() -> void:
-	for button in [_take_survey_button, _get_lore_button, _character_button, _browse_surveys_button, _survey_selection_back_button, _survey_selection_import_button, _survey_selection_export_button, _survey_selection_clear_button, _survey_selection_next_button, _lore_back_button, _lore_link_button, _lore_take_survey_button, _lore_link_prompt_close_button, _lore_link_prompt_copy_button, _lore_link_prompt_open_button, _focus_back_button, _review_back_button, _thanks_review_button, _thanks_export_button, _export_back_button, _export_json_button, _export_upload_answers_button, _export_copy_details_button, _export_copy_json_button, _export_copy_csv_button, _export_csv_button, _upload_back_button, _upload_scrub_checkbox, _upload_consent_checkbox, _upload_submit_button, _upload_copy_response_button]:
+	for button in [_take_survey_button, _get_lore_button, _character_button, _browse_surveys_button, _survey_selection_back_button, _survey_selection_import_button, _survey_selection_export_button, _survey_selection_answer_review_button, _survey_selection_clear_button, _survey_selection_next_button, _lore_back_button, _lore_link_button, _lore_take_survey_button, _lore_link_prompt_close_button, _lore_link_prompt_copy_button, _lore_link_prompt_open_button, _focus_back_button, _review_back_button, _thanks_review_button, _thanks_export_button, _export_back_button, _export_json_button, _export_upload_answers_button, _export_copy_details_button, _export_copy_json_button, _export_copy_csv_button, _export_csv_button, _upload_back_button, _upload_scrub_checkbox, _upload_consent_checkbox, _upload_submit_button, _upload_copy_response_button]:
 		_wire_button_feedback(button)
 	for button in [_focus_previous_button, _focus_next_button]:
 		_wire_button_hover_feedback(button)
@@ -795,6 +978,7 @@ func _connect_actions() -> void:
 	_survey_selection_back_button.pressed.connect(_show_view.bind(VIEW_LANDING))
 	_survey_selection_import_button.pressed.connect(_open_template_import_workflow)
 	_survey_selection_export_button.pressed.connect(_open_template_export_workflow)
+	_survey_selection_answer_review_button.pressed.connect(_open_selected_template_answer_review)
 	_survey_selection_clear_button.pressed.connect(_confirm_clear_selected_template_answers)
 	_survey_selection_next_button.pressed.connect(_advance_from_survey_selection)
 	_lore_back_button.pressed.connect(_on_lore_back_pressed)
@@ -1091,7 +1275,10 @@ func _on_focus_next_button_feedback() -> void:
 	SURVEY_UI_FEEDBACK.play_navigation_next()
 
 func _load_available_templates() -> void:
-	_available_templates = SURVEY_TEMPLATE_LOADER.list_available_templates()
+	_available_templates = SURVEY_RUNTIME_BUILD_PROFILE.reorder_template_summaries(
+		SURVEY_TEMPLATE_LOADER.list_available_templates(),
+		_runtime_profile_template_path()
+	)
 
 func _featured_template_summary() -> Dictionary:
 	if _available_templates.is_empty():
@@ -1132,6 +1319,9 @@ func _resolve_startup_template_path() -> String:
 		root.remove_meta("survey_journey_template_path")
 		if not handed_off_path.is_empty():
 			return handed_off_path
+	var explicit_profile_path := _explicit_runtime_profile_template_path()
+	if not explicit_profile_path.is_empty() and FileAccess.file_exists(explicit_profile_path):
+		return explicit_profile_path
 	var featured_path := _featured_template_path()
 	if _is_single_survey_landing_active() and not featured_path.is_empty():
 		return featured_path
@@ -1140,6 +1330,23 @@ func _resolve_startup_template_path() -> String:
 		if not persisted_path.is_empty() and FileAccess.file_exists(persisted_path):
 			return persisted_path
 	return survey_template_path
+
+func _apply_runtime_build_profile() -> void:
+	_runtime_build_profile = SURVEY_RUNTIME_BUILD_PROFILE.resolve_runtime_profile(feature_flags, survey_template_path)
+	var resolved_flags: Resource = _runtime_build_profile.get("feature_flags") as Resource
+	if resolved_flags != null:
+		feature_flags = resolved_flags
+	var explicit_profile_path := _explicit_runtime_profile_template_path()
+	if not explicit_profile_path.is_empty():
+		survey_template_path = explicit_profile_path
+
+func _runtime_profile_template_path() -> String:
+	return str(_runtime_build_profile.get("template_path", survey_template_path)).strip_edges()
+
+func _explicit_runtime_profile_template_path() -> String:
+	if not bool(_runtime_build_profile.get("is_explicit", false)):
+		return ""
+	return _runtime_profile_template_path()
 
 func _load_persisted_template_path() -> String:
 	if not FileAccess.file_exists(TEMPLATE_SELECTION_STORE_PATH):
@@ -1223,6 +1430,7 @@ func _refresh_theme() -> void:
 	SurveyStyle.apply_secondary_button(_survey_selection_back_button)
 	SurveyStyle.apply_secondary_button(_survey_selection_import_button)
 	SurveyStyle.apply_secondary_button(_survey_selection_export_button)
+	SurveyStyle.apply_secondary_button(_survey_selection_answer_review_button)
 	SurveyStyle.apply_danger_button(_survey_selection_clear_button)
 	SurveyStyle.apply_primary_button(_survey_selection_next_button)
 	_refresh_survey_selection_next_button_theme()
@@ -1248,11 +1456,20 @@ func _refresh_theme() -> void:
 	SurveyStyle.apply_panel(_upload_notice_panel, SurveyStyle.SURFACE_ALT, SurveyStyle.BORDER, 20, 1)
 	SurveyStyle.style_check_box(_upload_scrub_checkbox)
 	SurveyStyle.style_check_box(_upload_consent_checkbox)
+	SurveyStyle.style_check_box(_upload_share_profile_checkbox)
 	SurveyStyle.style_caption(_upload_scrub_summary_label, SurveyStyle.TEXT_MUTED)
+	SurveyStyle.style_caption(_upload_share_profile_summary_label, SurveyStyle.TEXT_MUTED)
 	SurveyStyle.style_caption(_upload_disclosure_label, SurveyStyle.TEXT_PRIMARY)
 	SurveyStyle.style_caption(_upload_status_label, SurveyStyle.TEXT_MUTED)
 	SurveyStyle.apply_primary_button(_upload_submit_button)
 	SurveyStyle.apply_secondary_button(_upload_copy_response_button)
+	if _upload_profile_name_field != null:
+		SurveyStyle.style_line_edit(_upload_profile_name_field)
+	if _upload_profile_add_field_button != null:
+		SurveyStyle.apply_secondary_button(_upload_profile_add_field_button)
+	_style_upload_profile_field_rows()
+	if _upload_profile_purge_button != null:
+		SurveyStyle.apply_danger_button(_upload_profile_purge_button)
 	SurveyStyle.style_text_edit(_upload_response_text_edit)
 	for button in [_export_json_button, _export_copy_details_button, _export_copy_json_button, _export_copy_csv_button, _export_csv_button]:
 		if button == null:
@@ -1285,6 +1502,8 @@ func _refresh_theme() -> void:
 		_profile_overlay.refresh_theme()
 		var profile_save_label := "Download PNG" if _supports_browser_downloads() else "Save PNG"
 		_profile_overlay.set_png_action_capabilities(SURVEY_PLATFORM_EXPORTS.supports_image_clipboard_copy(), profile_save_label)
+	if _answer_review_overlay != null:
+		_answer_review_overlay.refresh_theme()
 	if _gamification_hud != null:
 		_gamification_hud.refresh_theme()
 	if _toast_overlay != null:
@@ -1376,25 +1595,30 @@ func _update_responsive_layout() -> void:
 	SurveyStyle.style_body(_upload_body_label)
 	_upload_body_label.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
 	_upload_scrub_summary_label.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	if _upload_share_profile_summary_label != null:
+		_upload_share_profile_summary_label.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
 	_upload_disclosure_label.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
 	_upload_status_label.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
 	_upload_subtitle_label.add_theme_font_size_override("font_size", int(round((14 if phone_layout else 15) * (journey_scale if phone_layout else 1.0))))
 	_upload_body_label.add_theme_font_size_override("font_size", int(round((14 if phone_layout else 15) * (journey_scale if phone_layout else 1.0))))
 	_upload_scrub_summary_label.add_theme_font_size_override("font_size", int(round((13 if phone_layout else 14) * (journey_scale if phone_layout else 1.0))))
+	if _upload_share_profile_summary_label != null:
+		_upload_share_profile_summary_label.add_theme_font_size_override("font_size", int(round((13 if phone_layout else 14) * (journey_scale if phone_layout else 1.0))))
 	_upload_disclosure_label.add_theme_font_size_override("font_size", int(round((13 if phone_layout else 14) * (journey_scale if phone_layout else 1.0))))
 	_upload_status_label.add_theme_font_size_override("font_size", int(round((13 if phone_layout else 14) * (journey_scale if phone_layout else 1.0))))
 	_upload_response_text_edit.custom_minimum_size = Vector2(0.0, clampf(viewport_size.y * (0.24 if phone_layout else 0.2), 120.0, 240.0))
 	_survey_selection_grid.columns = 1 if viewport_size.x < 920.0 else 2
 	_survey_selection_grid.add_theme_constant_override("h_separation", 10 if phone_layout else 14)
 	_survey_selection_grid.add_theme_constant_override("v_separation", 10 if phone_layout else 14)
-	_survey_selection_manage_grid.columns = 1 if viewport_size.x < 360.0 else 2
+	var review_button_visible := _survey_selection_answer_review_button != null and _survey_selection_answer_review_button.visible
+	_survey_selection_manage_grid.columns = 1 if viewport_size.x < 360.0 else (2 if phone_layout or viewport_size.x < 760.0 else (3 if review_button_visible else 2))
 	_survey_selection_manage_grid.add_theme_constant_override("h_separation", 10 if phone_layout else 12)
 	_survey_selection_manage_grid.add_theme_constant_override("v_separation", 10 if phone_layout else 12)
 	_survey_selection_manage_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL if phone_layout else 0
 	_export_action_grid.columns = 1 if phone_layout or viewport_size.x < 860.0 else 2
 	_export_action_grid.add_theme_constant_override("h_separation", 10 if phone_layout else 12)
 	_export_action_grid.add_theme_constant_override("v_separation", 10 if phone_layout else 12)
-	for width_control in [_export_heading_label, _export_subtitle_label, _export_body_label, _upload_heading_label, _upload_subtitle_label, _upload_body_label, _upload_scrub_summary_label, _upload_disclosure_label, _upload_status_label]:
+	for width_control in [_export_heading_label, _export_subtitle_label, _export_body_label, _upload_heading_label, _upload_subtitle_label, _upload_body_label, _upload_scrub_summary_label, _upload_share_profile_summary_label, _upload_disclosure_label, _upload_status_label]:
 		if width_control == null:
 			continue
 		width_control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1406,6 +1630,7 @@ func _update_responsive_layout() -> void:
 	_browse_surveys_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL if phone_layout else 0
 	_survey_selection_import_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL if phone_layout else 0
 	_survey_selection_export_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL if phone_layout else 0
+	_survey_selection_answer_review_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL if phone_layout else 0
 	_survey_selection_clear_button.size_flags_horizontal = 0
 	_survey_selection_next_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL if phone_layout else 0
 	_focus_previous_button.size_flags_horizontal = 0
@@ -1417,12 +1642,12 @@ func _update_responsive_layout() -> void:
 	_thanks_export_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL if phone_layout else 0
 	_focus_question_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_focus_bottom_spacer.visible = false
-	for button in [_take_survey_button, _get_lore_button, _character_button, _browse_surveys_button, _survey_selection_back_button, _survey_selection_import_button, _survey_selection_export_button, _survey_selection_clear_button, _survey_selection_next_button, _lore_back_button, _lore_take_survey_button, _lore_link_prompt_close_button, _lore_link_prompt_copy_button, _lore_link_prompt_open_button, _focus_back_button, _focus_previous_button, _focus_next_button, _review_back_button, _thanks_review_button, _thanks_export_button, _export_back_button, _export_json_button, _export_upload_answers_button, _export_copy_details_button, _export_copy_json_button, _export_copy_csv_button, _export_csv_button, _upload_back_button, _upload_submit_button, _upload_copy_response_button]:
+	for button in [_take_survey_button, _get_lore_button, _character_button, _browse_surveys_button, _survey_selection_back_button, _survey_selection_import_button, _survey_selection_export_button, _survey_selection_answer_review_button, _survey_selection_clear_button, _survey_selection_next_button, _lore_back_button, _lore_take_survey_button, _lore_link_prompt_close_button, _lore_link_prompt_copy_button, _lore_link_prompt_open_button, _focus_back_button, _focus_previous_button, _focus_next_button, _review_back_button, _thanks_review_button, _thanks_export_button, _export_back_button, _export_json_button, _export_upload_answers_button, _export_copy_details_button, _export_copy_json_button, _export_copy_csv_button, _export_csv_button, _upload_back_button, _upload_submit_button, _upload_copy_response_button]:
 		if button == null:
 			continue
 		button.custom_minimum_size = Vector2(button.custom_minimum_size.x if not phone_layout else 0.0, (56.0 * journey_scale) if phone_layout else maxf(button.custom_minimum_size.y, 44.0))
 		button.add_theme_font_size_override("font_size", int(round(((14 if viewport_size.x <= 420.0 else 15) if phone_layout else 14) * (journey_scale if phone_layout else 1.0))))
-	for manage_button in [_survey_selection_import_button, _survey_selection_export_button]:
+	for manage_button in [_survey_selection_import_button, _survey_selection_export_button, _survey_selection_answer_review_button]:
 		if manage_button == null:
 			continue
 		manage_button.custom_minimum_size = Vector2(0.0 if phone_layout else 118.0, (44.0 * journey_scale) if phone_layout else 34.0)
@@ -1464,6 +1689,8 @@ func _update_responsive_layout() -> void:
 		_help_overlay.refresh_layout(viewport_size)
 	if _profile_overlay != null:
 		_profile_overlay.refresh_layout(viewport_size)
+	if _answer_review_overlay != null:
+		_answer_review_overlay.refresh_layout(viewport_size)
 	if _gamification_hud != null:
 		_gamification_hud.refresh_layout(viewport_size)
 	if _toast_overlay != null:
@@ -1493,7 +1720,7 @@ func _qa_runtime_state() -> Dictionary:
 		"answers": answers.duplicate(true),
 		"preferences": _current_preferences(),
 		"session_state": _current_session_state(),
-		"upload_configured": _is_upload_endpoint_configured()
+		"upload_configured": _is_upload_available_for_current_survey()
 	}
 
 func _handle_qa_action(command: String, payload: Dictionary) -> Dictionary:
@@ -1542,6 +1769,7 @@ func _focus_qa_page(page_node_id: String, use_auto_prep: bool) -> Dictionary:
 	_close_overlay_menu()
 	_close_question_help()
 	_close_profile_overlay()
+	_close_answer_review_overlay()
 	_close_lore_link_prompt()
 	_set_focus_outline_visible(false)
 	match page_node_id:
@@ -1553,6 +1781,11 @@ func _focus_qa_page(page_node_id: String, use_auto_prep: bool) -> Dictionary:
 				_theme_drawer.set_expanded(true)
 		"journey_survey_selection":
 			_show_view(VIEW_SURVEY_SELECTION)
+		"journey_answer_review":
+			_show_view(VIEW_SURVEY_SELECTION)
+			if _selected_template_path.is_empty():
+				_selected_template_path = _current_template_path if not _current_template_path.is_empty() else _default_template_selection_path()
+			_open_selected_template_answer_review()
 		"journey_lore":
 			_show_view(VIEW_LORE)
 		"journey_lore_link":
@@ -1924,7 +2157,7 @@ func _current_qa_page_node_id() -> String:
 	return "journey_landing"
 
 func _qa_menu_status_text() -> String:
-	var feedback_count := _playtest_feedback_controller.issue_count() if _playtest_feedback_controller != null else 0
+	var feedback_count: int = _playtest_feedback_controller.issue_count() if _playtest_feedback_controller != null else 0
 	return "Open the QA guide to run the checklist, capture screenshots, and export the session bundle. %d issue(s) tagged so far." % feedback_count
 
 func _journey_menu_position_text() -> String:
@@ -2240,6 +2473,9 @@ func _refresh_survey_selection_view() -> void:
 	_survey_selection_next_button.text = "DIVE IN!" if _selection_purpose == PURPOSE_SURVEY else "Open Lore"
 	_survey_selection_import_button.text = "Import"
 	_survey_selection_export_button.text = "Save Copy"
+	_survey_selection_answer_review_button.text = "Review Imports"
+	var review_imports_available := _answer_review_enabled()
+	_survey_selection_answer_review_button.visible = review_imports_available
 	_clear_container(_survey_selection_grid)
 	_survey_selection_import_button.disabled = not _supports_template_import()
 	_survey_selection_import_button.tooltip_text = "Import a packaged survey template JSON." if _supports_template_import() else "This build cannot open a template picker right now."
@@ -2252,9 +2488,11 @@ func _refresh_survey_selection_view() -> void:
 		_survey_selection_grid.add_child(empty_label)
 		_survey_selection_next_button.disabled = true
 		_survey_selection_export_button.disabled = true
+		_survey_selection_answer_review_button.disabled = true
 		_survey_selection_clear_button.disabled = true
 		_survey_selection_next_button.tooltip_text = "Import or add a survey template first."
 		_survey_selection_export_button.tooltip_text = "Select a survey with saved answers to export."
+		_survey_selection_answer_review_button.tooltip_text = "Import or add a survey template before reviewing answer folders."
 		return
 	if not _selected_template_path.is_empty() and not _has_template_path(_selected_template_path):
 		_selected_template_path = ""
@@ -2263,6 +2501,8 @@ func _refresh_survey_selection_view() -> void:
 	var selected_template_state := _template_selection_state(_selected_template_path) if not _selected_template_path.is_empty() else {}
 	_survey_selection_export_button.disabled = _selected_template_path.is_empty() or not bool(selected_template_state.get("has_saved_answers", false))
 	_survey_selection_export_button.tooltip_text = "Select a survey with saved answers to save or submit." if _survey_selection_export_button.disabled else "Open save and submit options for the selected survey."
+	_survey_selection_answer_review_button.disabled = not review_imports_available or _selected_template_path.is_empty()
+	_survey_selection_answer_review_button.tooltip_text = "Select a survey before reviewing answer folders." if _survey_selection_answer_review_button.disabled else "Scan a folder of answer JSON files for this survey."
 	_survey_selection_clear_button.disabled = _selected_template_path.is_empty() or not bool(selected_template_state.get("has_saved_answers", false))
 	for template_summary in _available_templates:
 		var template_path := str(template_summary.get("path", "")).strip_edges()
@@ -2360,6 +2600,161 @@ func _open_template_export_workflow() -> void:
 		_export_selected_template_answers,
 		false
 	)
+
+func _open_selected_template_answer_review() -> void:
+	if not _answer_review_enabled():
+		_show_status_message("Imported answer review is available in desktop QA builds.", true)
+		return
+	if _selected_template_path.is_empty():
+		_show_status_message("Select a survey before reviewing imported answers.", true)
+		return
+	var review_survey: SurveyDefinition = SURVEY_TEMPLATE_LOADER.load_from_file(_selected_template_path)
+	if review_survey == null:
+		_show_status_message("Failed to load the selected survey for review.", true)
+		return
+	_answer_review_survey = review_survey
+	_answer_review_template_path = _selected_template_path
+	_answer_review_settings = SURVEY_ANSWER_REVIEW.load_review_settings(review_survey.id)
+	_answer_review_scan_report = {}
+	_ensure_answer_review_overlay()
+	if _answer_review_overlay == null:
+		_show_status_message("Imported answer review could not be opened.", true)
+		return
+	_answer_review_overlay.open_review(_answer_review_survey, _answer_review_settings, _answer_review_scan_report)
+	var remembered_folder := str(_answer_review_settings.get("folder_path", "")).strip_edges()
+	if not remembered_folder.is_empty():
+		_rescan_answer_review_folder()
+
+func _close_answer_review_overlay() -> void:
+	if _answer_review_overlay != null:
+		_answer_review_overlay.close_review()
+
+func _open_answer_review_folder_picker() -> void:
+	if not _answer_review_enabled():
+		_show_status_message("Imported answer review is unavailable in this build.", true)
+		return
+	if _answer_review_folder_dialog == null:
+		_show_status_message("Folder picking is unavailable in this build.", true)
+		return
+	var start_path := str(_answer_review_settings.get("folder_path", "")).strip_edges()
+	if start_path.is_empty():
+		start_path = ProjectSettings.globalize_path("user://exports")
+	_answer_review_folder_dialog.title = "Choose Answer Review Folder"
+	_answer_review_folder_dialog.current_dir = start_path
+	_answer_review_folder_dialog.popup_centered_ratio(0.8)
+
+func _on_answer_review_folder_selected(path: String) -> void:
+	var folder_path := path.strip_edges()
+	if folder_path.is_empty():
+		return
+	_answer_review_settings["folder_path"] = folder_path
+	_save_answer_review_settings()
+	_rescan_answer_review_folder()
+
+func _on_answer_review_settings_changed(
+	recursive: bool,
+	scrub_identifying_info: bool,
+	wrapped_theme_id: String = SURVEY_ANSWER_REVIEW.WRAP_THEME_LIGHT,
+	gradient_preset_id: String = SURVEY_ANSWER_REVIEW.WRAP_DEFAULT_GRADIENT_PRESET,
+	respondent_color_overrides: Dictionary = {},
+	text_summary_mode: String = SURVEY_ANSWER_REVIEW.WRAP_TEXT_SUMMARY_AUTO
+) -> void:
+	_answer_review_settings["recursive"] = recursive
+	_answer_review_settings["scrub_identifying_info"] = scrub_identifying_info
+	_answer_review_settings["wrapped_theme_id"] = wrapped_theme_id
+	_answer_review_settings["wrapped_gradient_preset_id"] = gradient_preset_id
+	_answer_review_settings["respondent_color_overrides"] = respondent_color_overrides.duplicate(true)
+	_answer_review_settings["text_summary_mode"] = text_summary_mode
+	_save_answer_review_settings()
+
+func _rescan_answer_review_folder() -> void:
+	if _answer_review_survey == null:
+		_show_status_message("Select a survey before scanning imported answers.", true)
+		return
+	var folder_path := str(_answer_review_settings.get("folder_path", "")).strip_edges()
+	if folder_path.is_empty():
+		_show_status_message("Choose an answer folder to scan.", true)
+		return
+	if _answer_review_overlay != null:
+		_answer_review_overlay.set_busy(true)
+	var recursive := bool(_answer_review_settings.get("recursive", true))
+	_answer_review_scan_report = SURVEY_ANSWER_REVIEW.scan_folder(_answer_review_survey, folder_path, recursive)
+	_answer_review_settings["last_scan_at"] = str(_answer_review_scan_report.get("generated_at", ""))
+	_answer_review_settings["last_accepted_count"] = int(_answer_review_scan_report.get("accepted_count", 0))
+	var rejected_files_variant: Variant = _answer_review_scan_report.get("rejected_files", [])
+	_answer_review_settings["last_rejected_count"] = rejected_files_variant.size() if rejected_files_variant is Array else 0
+	_save_answer_review_settings()
+	if _answer_review_overlay != null:
+		_answer_review_overlay.update_scan_report(_answer_review_scan_report, _answer_review_settings)
+	var accepted_count := int(_answer_review_scan_report.get("accepted_count", 0))
+	var rejected_count := int(_answer_review_settings.get("last_rejected_count", 0))
+	_show_status_message("Scanned %s. Accepted %d answer file(s), rejected %d." % [folder_path.get_file(), accepted_count, rejected_count], accepted_count == 0)
+
+func _save_answer_review_settings() -> void:
+	if _answer_review_survey == null:
+		return
+	SURVEY_ANSWER_REVIEW.save_review_settings(_answer_review_survey.id, _answer_review_settings)
+
+func _save_answer_review_wrapped_png() -> void:
+	if _answer_review_survey == null or _answer_review_scan_report.is_empty():
+		_show_status_message("Scan compatible answer files before saving wrapped pages.", true)
+		return
+	if int(_answer_review_scan_report.get("accepted_count", 0)) <= 0:
+		_show_status_message("No compatible imported answers are available for wrapped pages.", true)
+		return
+	if _answer_review_overlay == null:
+		_show_status_message("Imported answer review is not open.", true)
+		return
+	var aggregate_variant: Variant = _answer_review_scan_report.get("aggregate", {})
+	var aggregate: Dictionary = aggregate_variant if aggregate_variant is Dictionary else {}
+	var pages_data := SURVEY_ANSWER_REVIEW.build_wrapped_pages_data(
+		_answer_review_survey,
+		aggregate,
+		_answer_review_overlay.current_scrub_identifying_info(),
+		_answer_review_overlay.current_share_profile(),
+		_answer_review_overlay.current_wrapped_theme_id(),
+		_answer_review_overlay.current_wrap_options()
+	)
+	var wrapped_pages: Array[Dictionary] = await _answer_review_overlay.capture_wrapped_pages(pages_data)
+	if wrapped_pages.is_empty():
+		_show_status_message("Failed to render the wrapped answer pages.", true)
+		return
+	if wrapped_pages.size() == 1:
+		var wrapped_image: Image = wrapped_pages[0].get("image", null) as Image
+		_prompt_save_image(
+			wrapped_image,
+			"png",
+			"Imported answer wrapped PNG",
+			"Save Imported Answer Wrapped PNG",
+			str(wrapped_pages[0].get("file_name", SURVEY_ANSWER_REVIEW.suggested_wrapped_filename(_answer_review_survey.id)))
+		)
+		return
+	_save_wrapped_page_set(wrapped_pages, str(pages_data.get("file_stem", SURVEY_ANSWER_REVIEW.suggested_wrapped_folder_name(_answer_review_survey.id))))
+
+func _save_wrapped_page_set(wrapped_pages: Array[Dictionary], folder_name: String) -> void:
+	var safe_folder := folder_name.strip_edges()
+	if safe_folder.is_empty():
+		safe_folder = SURVEY_ANSWER_REVIEW.suggested_wrapped_folder_name(_answer_review_survey.id if _answer_review_survey != null else "survey")
+	var export_dir := ProjectSettings.globalize_path("user://exports").path_join(safe_folder)
+	var ensure_error := DirAccess.make_dir_recursive_absolute(export_dir)
+	if ensure_error != OK and not DirAccess.dir_exists_absolute(export_dir):
+		_show_status_message("Failed to prepare a folder for wrapped pages.", true)
+		return
+	var saved_count := 0
+	for page in wrapped_pages:
+		var image: Image = page.get("image", null) as Image
+		if image == null or image.get_width() <= 0 or image.get_height() <= 0:
+			continue
+		var file_name := str(page.get("file_name", "wrapped_%02d.png" % (saved_count + 1))).strip_edges()
+		var save_error := image.save_png(export_dir.path_join(file_name))
+		if save_error == OK:
+			saved_count += 1
+	if saved_count <= 0:
+		_show_status_message("Failed to save wrapped page PNGs.", true)
+		return
+	SURVEY_UI_FEEDBACK.play_export()
+	_show_status_message("Saved %d wrapped page(s) to %s" % [saved_count, export_dir])
+	OS.shell_open(export_dir)
 
 func _confirm_clear_selected_template_answers() -> void:
 	_confirm_clear_template_answers(_selected_template_path)
@@ -2898,7 +3293,7 @@ func _close_review_view() -> void:
 	_show_view(return_view)
 
 func _on_thanks_submit_pressed() -> void:
-	if _is_upload_endpoint_configured():
+	if _is_upload_available_for_current_survey():
 		_open_upload_view()
 		return
 	_open_export_overlay()
@@ -2983,7 +3378,7 @@ func _refresh_thanks_view() -> void:
 			if question != null and question.is_answer_complete(answers.get(question_id, null)):
 				answered_questions += 1
 		_thanks_body_label.visible = true
-		_thanks_body_label.text = "Thanks for participating in %s.\n\nYou answered %d question(s). When you're ready, use the highlighted action to %s." % [survey.title, answered_questions, "upload your answers" if _is_upload_endpoint_configured() else "save your answers"]
+		_thanks_body_label.text = "Thanks for participating in %s.\n\nYou answered %d question(s). When you're ready, use the highlighted action to %s." % [survey.title, answered_questions, "upload your answers" if _is_upload_available_for_current_survey() else "save your answers"]
 		return
 	_thanks_body_label.visible = false
 	_wrapup_stage.visible = thanks_active
@@ -3001,7 +3396,7 @@ func _refresh_thanks_actions(state: Dictionary) -> void:
 	if _thanks_review_button == null or _thanks_export_button == null:
 		return
 	var survey_complete := _is_final_survey_complete(state)
-	var upload_configured := _is_upload_endpoint_configured()
+	var upload_configured := _is_upload_available_for_current_survey()
 	_thanks_review_button.text = "Review Answers"
 	if survey_complete:
 		_thanks_export_button.text = "Upload Answers" if upload_configured else "Save Answers"
@@ -3127,6 +3522,12 @@ func _refresh_upload_view() -> void:
 	_upload_scrub_checkbox.disabled = not bool(state.get("scrub_option_enabled", false)) or _upload_in_progress
 	_upload_scrub_checkbox.text = str(state.get("scrub_checkbox_label", "Scrub identifying answers from this upload")).strip_edges()
 	_upload_scrub_summary_label.text = str(state.get("scrub_summary", "")).strip_edges()
+	_apply_upload_profile_controls()
+	if _upload_share_profile_checkbox != null:
+		_upload_share_profile_checkbox.disabled = _upload_in_progress or not bool(state.get("share_profile_enabled", false))
+		_upload_share_profile_checkbox.set_pressed_no_signal(bool(state.get("share_profile_include_in_upload", false)))
+	if _upload_share_profile_summary_label != null:
+		_upload_share_profile_summary_label.text = str(state.get("share_profile_summary", "")).strip_edges()
 	_upload_consent_checkbox.disabled = _upload_in_progress or not bool(state.get("consent_enabled", false))
 	_upload_consent_checkbox.text = str(state.get("consent_label", "I agree to send these survey answers.")).strip_edges()
 	_upload_disclosure_label.text = str(state.get("public_repo_acknowledgement", "")).strip_edges()
@@ -3145,19 +3546,25 @@ func _build_export_overlay_state() -> Dictionary:
 	var readiness: Dictionary = _upload_readiness_state(scrub_identifying_info)
 	var destination_name := _upload_destination_display_name()
 	var upload_configured := _is_upload_endpoint_configured()
+	var eligibility := _upload_eligibility_state()
+	var upload_eligible := bool(eligibility.get("ok", false))
 	var identifying_note := ""
 	if survey != null and survey.asks_identifying_info:
 		identifying_note = " The upload flow can scrub answers from questions marked as identifying before submission."
 	var export_summary := "Save a local JSON bundle or CSV snapshot of your answers. JSON includes current answers and Journey context."
 	var upload_ready_message := "Upload is not configured for this build, so save a local copy when you are done."
 	if upload_configured:
-		export_summary = "Upload is the preferred handoff for this build. You can also save a local JSON or CSV copy for your records."
-		upload_ready_message = "%s%s" % [str(readiness.get("message", "")).strip_edges(), identifying_note]
+		if upload_eligible:
+			export_summary = "Upload is available for this allowlisted built-in survey. You can also save a local JSON or CSV copy for your records."
+			upload_ready_message = "%s%s" % [str(readiness.get("message", "")).strip_edges(), identifying_note]
+		else:
+			export_summary = "This survey can be saved locally. Server upload is reserved for allowlisted built-in surveys."
+			upload_ready_message = str(eligibility.get("message", "")).strip_edges()
 	return {
 		"survey_title": survey.title if survey != null else "",
 		"export_summary": export_summary,
 		"export_json_enabled": survey != null,
-		"upload_answers_enabled": survey != null and upload_configured and bool(readiness.get("ok", false)),
+		"upload_answers_enabled": survey != null and upload_configured and upload_eligible and bool(readiness.get("ok", false)),
 		"export_json_label": "Save JSON Copy",
 		"upload_answers_label": "Upload Answers",
 		"export_csv_label": "Save CSV Copy",
@@ -3165,7 +3572,7 @@ func _build_export_overlay_state() -> Dictionary:
 		"upload_destination_url": upload_endpoint_url.strip_edges(),
 		"upload_usage_summary": upload_usage_summary.strip_edges(),
 		"upload_reason_summary": upload_reason_summary.strip_edges(),
-		"upload_metadata_summary": "Spam protection metadata includes an anonymous install ID, upload timestamps, template identity, session timing signals, answer counts, reload history, and a payload hash for duplicate suppression.",
+		"upload_metadata_summary": "Private intake metadata includes an anonymous install ID, upload timestamps, template identity, session timing signals, answer counts, reload history, scrub state, and a payload hash for duplicate suppression.",
 		"upload_ready": bool(readiness.get("ok", false)),
 		"upload_ready_message": upload_ready_message,
 		"upload_busy": _upload_in_progress,
@@ -3187,7 +3594,8 @@ func _build_upload_view_state() -> Dictionary:
 	var scrubbed_response_count: int = int(stats.get("scrubbed_identifying_response_count", identifying_answered_count if scrub_identifying_info else 0))
 	var valid_response_count: int = int(stats.get("valid_response_count", 0))
 	var destination_name := _upload_destination_display_name()
-	var public_repo_name := _upload_public_repo_display_name()
+	var eligibility := _upload_eligibility_state()
+	var upload_eligible := bool(eligibility.get("ok", false))
 	var scrub_summary := "No questions in this survey are marked as identifying."
 	var scrub_option_enabled := identifying_answered_count > 0
 	if identifying_question_count > 0:
@@ -3197,11 +3605,21 @@ func _build_upload_view_state() -> Dictionary:
 			scrub_summary = "%d answered identifying question(s) will be removed before upload." % scrubbed_response_count
 		else:
 			scrub_summary = "%d answered identifying question(s) will be included in the uploaded payload." % identifying_answered_count
+	var normalized_profile := SURVEY_SHARE_PROFILE_STORE.normalize_profile(_share_profile)
+	var profile_has_fields := SURVEY_SHARE_PROFILE_STORE.has_public_fields(normalized_profile)
+	var profile_included := bool(normalized_profile.get("include_in_upload", false)) and profile_has_fields
+	var share_profile_summary := "Optional share profile is local only unless this box is checked."
+	if not profile_has_fields:
+		share_profile_summary = "Add optional profile field values if you want them available for wrapped pages or upload."
+	elif profile_included:
+		share_profile_summary = "This upload will include the optional share profile fields shown here."
 	var consent_summary := "This will send %d survey answer(s) to %s." % [valid_response_count, destination_name]
 	var privacy_summary := "Identifying answers will be removed before upload." if scrubbed_response_count > 0 and scrub_identifying_info else "No identifying answers will be removed before upload."
-	var public_repo_acknowledgement := "%s\n%s\nUploaded answer data will be publicly available at %s." % [consent_summary, privacy_summary, public_repo_name]
-	if not upload_public_repo_url.strip_edges().is_empty():
-		public_repo_acknowledgement += "\n%s" % upload_public_repo_url.strip_edges()
+	if profile_included:
+		privacy_summary += " Optional profile fields will also be included."
+	var public_repo_acknowledgement := "%s\n%s\nRaw uploaded answer data is stored privately. Public sharing should come from curated aggregate summaries or wrapped exports, not direct database rows." % [consent_summary, privacy_summary]
+	if not upload_eligible:
+		public_repo_acknowledgement = "%s\n%s" % [str(eligibility.get("message", "")).strip_edges(), "You can still save JSON and CSV exports locally."]
 	var consent_label := "I understand and agree to upload these answers."
 	var destination_url_summary := "Endpoint URL: %s" % upload_endpoint_url.strip_edges() if not upload_endpoint_url.strip_edges().is_empty() else "No endpoint URL is configured for this build."
 	return {
@@ -3212,12 +3630,15 @@ func _build_upload_view_state() -> Dictionary:
 		"scrub_option_enabled": scrub_option_enabled,
 		"scrub_checkbox_label": "Scrub identifying answers",
 		"scrub_summary": scrub_summary,
-		"consent_enabled": valid_response_count > 0,
+		"share_profile_enabled": profile_has_fields,
+		"share_profile_include_in_upload": profile_included,
+		"share_profile_summary": share_profile_summary,
+		"consent_enabled": valid_response_count > 0 and upload_eligible,
 		"consent_label": consent_label,
 		"public_repo_acknowledgement": public_repo_acknowledgement,
 		"upload_status_text": _last_upload_status_text if not _last_upload_status_text.is_empty() else str(readiness.get("message", "")).strip_edges(),
 		"upload_response_text": _last_upload_response_text,
-		"upload_submit_enabled": bool(readiness.get("ok", false)) and ((not require_upload_consent) or _upload_consent_checkbox.button_pressed) and not _upload_in_progress,
+		"upload_submit_enabled": bool(readiness.get("ok", false)) and upload_eligible and ((not require_upload_consent) or _upload_consent_checkbox.button_pressed) and not _upload_in_progress,
 		"upload_ready_message": str(readiness.get("message", "")).strip_edges()
 	}
 
@@ -3234,6 +3655,7 @@ func _reset_upload_form_state() -> void:
 		_upload_scrub_checkbox.set_pressed_no_signal(_default_upload_scrub_enabled())
 	if _upload_consent_checkbox != null:
 		_upload_consent_checkbox.set_pressed_no_signal(false)
+	_apply_upload_profile_controls(true)
 
 func _default_upload_scrub_enabled() -> bool:
 	return survey != null and survey.identifying_answered_count(answers) > 0
@@ -3242,6 +3664,57 @@ func _current_upload_scrub_selection() -> bool:
 	if _upload_scrub_checkbox == null:
 		return _default_upload_scrub_enabled()
 	return _upload_scrub_checkbox.button_pressed
+
+func _apply_upload_profile_controls(force_rebuild: bool = false) -> void:
+	if _upload_profile_name_field == null:
+		return
+	_updating_upload_profile_controls = true
+	_share_profile = SURVEY_SHARE_PROFILE_STORE.normalize_profile(_share_profile)
+	_upload_profile_name_field.text = str(_share_profile.get("profile_name", SURVEY_SHARE_PROFILE_STORE.DEFAULT_PROFILE_NAME))
+	if force_rebuild or _upload_profile_field_rows.is_empty():
+		_rebuild_upload_profile_field_rows(_share_profile.get("fields", []) as Array)
+	if _upload_share_profile_checkbox != null:
+		_upload_share_profile_checkbox.set_pressed_no_signal(bool(_share_profile.get("include_in_upload", false)))
+	_updating_upload_profile_controls = false
+
+func _rebuild_upload_profile_field_rows(fields: Array) -> void:
+	if _upload_profile_fields_list == null:
+		return
+	_clear_container(_upload_profile_fields_list)
+	_upload_profile_field_rows.clear()
+	for field_value in fields:
+		if field_value is Dictionary:
+			_add_upload_profile_field_row(field_value as Dictionary)
+	if _upload_profile_field_rows.is_empty():
+		_add_upload_profile_field_row()
+
+func _save_upload_profile_from_controls() -> void:
+	if _upload_profile_name_field != null:
+		_share_profile["profile_name"] = _upload_profile_name_field.text
+	var fields: Array[Dictionary] = []
+	for row_value in _upload_profile_field_rows:
+		if not (row_value is Dictionary):
+			continue
+		var row: Dictionary = row_value as Dictionary
+		var label_field: LineEdit = row.get("label_field", null) as LineEdit
+		var value_field: LineEdit = row.get("value_field", null) as LineEdit
+		if label_field == null or value_field == null:
+			continue
+		fields.append({
+			"label": label_field.text,
+			"value": value_field.text
+		})
+	_share_profile["fields"] = fields
+	if _upload_share_profile_checkbox != null:
+		_share_profile["include_in_upload"] = _upload_share_profile_checkbox.button_pressed
+	_share_profile = SURVEY_SHARE_PROFILE_STORE.normalize_profile(_share_profile, true)
+	SURVEY_SHARE_PROFILE_STORE.save_profile(_share_profile)
+
+func _current_upload_share_profile() -> Dictionary:
+	var profile := SURVEY_SHARE_PROFILE_STORE.normalize_profile(_share_profile)
+	if not bool(profile.get("include_in_upload", false)):
+		return {}
+	return profile
 
 func _build_summary_data() -> Dictionary:
 	if survey == null:
@@ -3258,6 +3731,12 @@ func _upload_readiness_state(scrub_identifying_info: bool) -> Dictionary:
 		return {
 			"ok": false,
 			"message": "This survey is missing template identity metadata needed for server validation."
+		}
+	var eligibility := _upload_eligibility_state()
+	if not bool(eligibility.get("ok", false)):
+		return {
+			"ok": false,
+			"message": str(eligibility.get("message", "This survey is not eligible for upload.")).strip_edges()
 		}
 	if _upload_in_progress:
 		return {
@@ -3310,13 +3789,49 @@ func _build_upload_package(scrub_identifying_info: bool) -> Dictionary:
 		upload_cooldown_seconds,
 		upload_max_attempts_per_window,
 		upload_attempt_window_seconds,
-		audit_context
+		audit_context,
+		_current_upload_share_profile()
 	)
 
 func _on_upload_scrub_toggled(_enabled: bool) -> void:
 	if _upload_consent_checkbox != null:
 		_upload_consent_checkbox.set_pressed_no_signal(false)
 	_refresh_upload_view()
+
+func _on_upload_share_profile_toggled(enabled: bool) -> void:
+	if _updating_upload_profile_controls:
+		return
+	_share_profile["include_in_upload"] = enabled
+	_save_upload_profile_from_controls()
+	if _upload_consent_checkbox != null:
+		_upload_consent_checkbox.set_pressed_no_signal(false)
+	_refresh_upload_view()
+
+func _on_upload_profile_text_changed(_text: String) -> void:
+	if _updating_upload_profile_controls:
+		return
+	_save_upload_profile_from_controls()
+	if _upload_consent_checkbox != null:
+		_upload_consent_checkbox.set_pressed_no_signal(false)
+	_refresh_upload_view()
+
+func _on_upload_profile_add_field_pressed() -> void:
+	if _updating_upload_profile_controls:
+		return
+	_add_upload_profile_field_row()
+	_save_upload_profile_from_controls()
+	if _upload_consent_checkbox != null:
+		_upload_consent_checkbox.set_pressed_no_signal(false)
+	_refresh_upload_view()
+
+func _on_upload_profile_purge_pressed() -> void:
+	SURVEY_SHARE_PROFILE_STORE.purge_profile()
+	_share_profile = SURVEY_SHARE_PROFILE_STORE.default_profile()
+	_apply_upload_profile_controls(true)
+	if _upload_consent_checkbox != null:
+		_upload_consent_checkbox.set_pressed_no_signal(false)
+	_refresh_upload_view()
+	_show_status_message("Optional share profile purged from this device.")
 
 func _on_upload_consent_toggled(_enabled: bool) -> void:
 	_refresh_upload_view()
@@ -3334,6 +3849,13 @@ func _submit_upload_answers() -> void:
 		return
 	if not _is_upload_endpoint_configured():
 		_last_upload_status_text = "Server upload is not configured for this build."
+		_last_upload_status_is_error = true
+		_refresh_upload_view()
+		_show_status_message(_last_upload_status_text, true)
+		return
+	var eligibility := _upload_eligibility_state()
+	if not bool(eligibility.get("ok", false)):
+		_last_upload_status_text = str(eligibility.get("message", "This survey is not eligible for upload.")).strip_edges()
 		_last_upload_status_is_error = true
 		_refresh_upload_view()
 		_show_status_message(_last_upload_status_text, true)
@@ -3412,8 +3934,15 @@ func _upload_public_repo_display_name() -> String:
 func _is_upload_endpoint_configured() -> bool:
 	return SURVEY_TRANSFER_SUPPORT.is_upload_endpoint_configured(upload_endpoint_url)
 
+func _upload_eligibility_state() -> Dictionary:
+	var template_path := _current_template_path if not _current_template_path.strip_edges().is_empty() else survey_template_path
+	return SURVEY_UPLOAD_ELIGIBILITY.eligibility_for_survey(survey, template_path)
+
+func _is_upload_available_for_current_survey() -> bool:
+	return _is_upload_endpoint_configured() and bool(_upload_eligibility_state().get("ok", false))
+
 func _on_upload_request_completed(result: int, response_code: int, headers: PackedStringArray, body: PackedByteArray) -> void:
-	var completion := SURVEY_TRANSFER_SUPPORT.build_upload_completion_state(result, response_code, headers, body)
+	var completion := SURVEY_TRANSFER_SUPPORT.build_upload_completion_state(result, response_code, headers, body, _feature_flag_enabled("enable_playful_copy", true))
 	_upload_in_progress = false
 	_last_upload_response_text = str(completion.get("response_text", ""))
 	_last_upload_status_is_error = bool(completion.get("is_error", false))
@@ -5162,6 +5691,8 @@ func _build_wrapup_projectile_entries(state: Dictionary) -> Array[Dictionary]:
 		if answer_state == SurveyQuestion.ANSWER_STATE_UNANSWERED:
 			continue
 		var label_text := _wrapup_attack_summary(question, answer_value)
+		if label_text.is_empty():
+			label_text = _wrapup_attack_fragment(question.display_prompt(), 48)
 		entries.append({
 			"question_id": question_id,
 			"section_index": int(question_section_map.get(question_id, -1)),

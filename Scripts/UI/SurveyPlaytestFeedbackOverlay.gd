@@ -89,7 +89,6 @@ func refresh_layout(viewport_size: Vector2) -> void:
 	if _root == null:
 		return
 	_layout_viewport_size = viewport_size
-	_root.size = viewport_size
 	var compact_sheet: bool = _is_compact_sheet_viewport(viewport_size)
 	var capture_width: float = viewport_size.x - (SAFE_MARGIN * 2.0) if compact_sheet else clampf(viewport_size.x * 0.34, 320.0, 460.0)
 	var capture_thumb_width: float = clampf(capture_width - 36.0, 180.0, SCREENSHOT_SIZE.x)

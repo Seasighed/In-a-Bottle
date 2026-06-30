@@ -99,7 +99,6 @@ func refresh_theme() -> void:
 func refresh_layout(viewport_size: Vector2) -> void:
 	if _root == null or _panel == null:
 		return
-	_root.size = viewport_size
 	var compact_layout := viewport_size.x <= COMPACT_WIDTH
 	var horizontal_inset := clampf(viewport_size.x * 0.03, 12.0, 28.0)
 	var vertical_inset := clampf(viewport_size.y * 0.03, 12.0, 28.0)

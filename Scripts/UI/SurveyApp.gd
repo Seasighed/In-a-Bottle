@@ -12,6 +12,7 @@ const SURVEY_SAVE_BUNDLE = preload("res://Scripts/Survey/SurveySaveBundle.gd")
 const SURVEY_SESSION_STATE_SUPPORT = preload("res://Scripts/Survey/SurveySessionStateSupport.gd")
 const SURVEY_SUMMARY_ANALYZER = preload("res://Scripts/Survey/SurveySummaryAnalyzer.gd")
 const SURVEY_TRANSFER_SUPPORT = preload("res://Scripts/Survey/SurveyTransferSupport.gd")
+const SURVEY_UPLOAD_ELIGIBILITY = preload("res://Scripts/Survey/SurveyUploadEligibility.gd")
 const SURVEY_UPLOAD_AUDIT_STORE = preload("res://Scripts/Survey/SurveyUploadAuditStore.gd")
 const SURVEY_SETTINGS_OVERLAY_SCENE: PackedScene = preload("res://Scenes/UI/SurveySettingsOverlay.tscn")
 const SURVEY_SUMMARY_OVERLAY_SCENE: PackedScene = preload("res://Scenes/UI/SurveySummaryOverlay.tscn")
@@ -24,6 +25,7 @@ const QUESTION_VIEW_REGISTRY = preload("res://Scripts/UI/QuestionViewRegistry.gd
 const SURVEY_PLAYTEST_FEEDBACK_CONTROLLER = preload("res://Scripts/UI/SurveyPlaytestFeedbackController.gd")
 const SURVEY_QA_CONTROLLER = preload("res://Scripts/UI/SurveyQaController.gd")
 const SURVEY_SHELL_SUPPORT = preload("res://Scripts/UI/SurveyShellSupport.gd")
+const SURVEY_RUNTIME_BUILD_PROFILE = preload("res://Scripts/UI/SurveyRuntimeBuildProfile.gd")
 const DEFAULT_DARK_PALETTE = preload("res://Themes/SurveyDarkPalette.tres")
 const DEFAULT_LIGHT_PALETTE = preload("res://Themes/SurveyLightPalette.tres")
 const DEFAULT_THEME_CATALOG = preload("res://Themes/SurveyThemeCatalog.tres")
@@ -46,7 +48,7 @@ const SURVEY_VIEW_MODE_SCROLL := "scroll"
 const SURVEY_VIEW_MODE_FOCUS := "focus"
 const SURVEY_JOURNEY_SCENE_PATH := "res://Scenes/SurveyJourney.tscn"
 
-@export_file("*.json") var survey_template_path := "res://Dev/SurveyTemplates/studio_feedback.json"
+@export_file("*.json") var survey_template_path := "res://Dev/SurveyTemplates/maplestory_pulse.json"
 @export var dark_palette: Resource = DEFAULT_DARK_PALETTE
 @export var light_palette: Resource = DEFAULT_LIGHT_PALETTE
 @export var theme_catalog: Resource = DEFAULT_THEME_CATALOG
@@ -63,8 +65,8 @@ const SURVEY_JOURNEY_SCENE_PATH := "res://Scenes/SurveyJourney.tscn"
 @export_range(0, 250, 1) var max_xp_per_question := 0
 @export var upload_endpoint_url := ""
 @export var upload_destination_name := "Configured upload endpoint"
-@export_multiline var upload_usage_summary := "Submitted answers are used to preserve legitimate survey responses and support aggregate review."
-@export_multiline var upload_reason_summary := "Uploads help move completed answers into a Supabase-backed collection flow for analysis and follow-up."
+@export_multiline var upload_usage_summary := "Submitted answers are stored privately for moderation, duplicate checks, and aggregate community summaries."
+@export_multiline var upload_reason_summary := "Uploads are limited to allowlisted built-in surveys. Public sharing comes from curated summaries and wrapped exports, not raw response rows."
 @export var upload_request_headers: PackedStringArray = PackedStringArray()
 @export var require_upload_consent := true
 @export_range(0, 100, 1) var minimum_answered_questions_for_upload := 3
@@ -148,6 +150,7 @@ var _gamification_completed_questions: Dictionary = {}
 var _gamification_survey_completed := false
 var _playtest_feedback_controller
 var _qa_controller
+var _runtime_build_profile: Dictionary = {}
 
 @onready var _background: ColorRect = $Background
 @onready var _margin: MarginContainer = $Margin
@@ -324,6 +327,15 @@ func _ensure_menu_access_buttons() -> void:
 		menu_button.anchor_right = 1.0
 		menu_button.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 		menu_button.grow_vertical = Control.GROW_DIRECTION_BOTH
+		menu_button.set_meta("feedback_context", {
+			"kind": "floating_menu_button",
+			"summary": "Open menu",
+			"menu_action": {
+				"menu": "floating",
+				"action": "open_menu",
+				"label": "Menu"
+			}
+		})
 		_menu_access_layer.add_child(menu_button)
 		_menu_access_button = menu_button
 	if _help_access_button == null:
@@ -411,6 +423,7 @@ func _ensure_filter_ui_nodes() -> void:
 
 func _ready() -> void:
 	_configure_window_scaling()
+	_apply_runtime_build_profile()
 	_question_modifiers_enabled = _feature_flag_enabled("enable_question_modifiers", true)
 	survey_template_path = _resolve_startup_template_path()
 	_prime_preferences_from_store()
@@ -436,6 +449,23 @@ func _resolved_theme_catalog_resource(candidate: Resource, fallback: Resource) -
 
 func _resolved_feature_flags() -> Resource:
 	return feature_flags if feature_flags != null else DEFAULT_FEATURE_FLAGS
+
+func _apply_runtime_build_profile() -> void:
+	_runtime_build_profile = SURVEY_RUNTIME_BUILD_PROFILE.resolve_runtime_profile(feature_flags, survey_template_path)
+	var resolved_flags: Resource = _runtime_build_profile.get("feature_flags") as Resource
+	if resolved_flags != null:
+		feature_flags = resolved_flags
+	var explicit_profile_path := _explicit_runtime_profile_template_path()
+	if not explicit_profile_path.is_empty():
+		survey_template_path = explicit_profile_path
+
+func _runtime_profile_template_path() -> String:
+	return str(_runtime_build_profile.get("template_path", survey_template_path)).strip_edges()
+
+func _explicit_runtime_profile_template_path() -> String:
+	if not bool(_runtime_build_profile.get("is_explicit", false)):
+		return ""
+	return _runtime_profile_template_path()
 
 func _feature_flag_enabled(property_name: String, default_value: bool = true) -> bool:
 	var flags: Resource = _resolved_feature_flags()
@@ -682,6 +712,9 @@ func _prime_preferences_from_store() -> void:
 		_preferred_audience_id = ""
 
 func _resolve_startup_template_path() -> String:
+	var explicit_profile_path := _explicit_runtime_profile_template_path()
+	if not explicit_profile_path.is_empty() and FileAccess.file_exists(explicit_profile_path):
+		return explicit_profile_path
 	if not use_saved_dev_data:
 		return survey_template_path
 	var persisted_path: String = _load_persisted_template_path()
@@ -1757,9 +1790,34 @@ func _apply_feedback_context_to_question_view(view: SurveyQuestionView, section_
 	var context: Dictionary = view.get_meta("feedback_context", {}) as Dictionary
 	var question_index := _question_index_within_section(section_index, question.id)
 	var question_number := question_index + 1 if question_index >= 0 else 0
+	var answer_value: Variant = answers.get(question.id, null)
+	var answer_state: StringName = question.answer_completion_state(answer_value)
 	context["summary"] = "Question %d: %s" % [question_number, question.display_prompt()] if question_number > 0 else "Question: %s" % question.display_prompt()
 	context["survey_section"] = _section_feedback_context(section_index, survey.sections[section_index] if survey != null and section_index >= 0 and section_index < survey.sections.size() else null).get("survey_section", {})
-	view.set_meta("feedback_context", context)
+	context["survey_question"] = {
+		"question_id": question.id,
+		"prompt": question.prompt.strip_edges(),
+		"type": str(question.type),
+		"required": question.required,
+		"requirement_label": question.requirement_label(),
+		"answer_state": str(answer_state),
+		"answer_summary": str(answer_value).strip_edges()
+	}
+	_apply_feedback_context_to_control_tree(view, context)
+
+func _apply_feedback_context_to_control_tree(control: Control, context: Dictionary) -> void:
+	if control == null:
+		return
+	var merged_context: Dictionary = {}
+	if control.has_meta("feedback_context"):
+		var existing_context: Variant = control.get_meta("feedback_context")
+		if existing_context is Dictionary:
+			merged_context = (existing_context as Dictionary).duplicate(true)
+	merged_context.merge(context.duplicate(true), true)
+	control.set_meta("feedback_context", merged_context)
+	for child in control.get_children():
+		if child is Control:
+			_apply_feedback_context_to_control_tree(child as Control, context)
 
 func _configure_header(header_instance: Control, section: SurveySection) -> void:
 	if header_instance is SurveySectionHeaderView:
@@ -2843,6 +2901,12 @@ func _upload_readiness_state() -> Dictionary:
 			"ok": false,
 			"message": "This survey is missing template identity metadata needed for server validation."
 		}
+	var eligibility := _upload_eligibility_state()
+	if not bool(eligibility.get("ok", false)):
+		return {
+			"ok": false,
+			"message": str(eligibility.get("message", "This survey is not eligible for upload.")).strip_edges()
+		}
 	if _upload_in_progress:
 		return {
 			"ok": false,
@@ -2874,6 +2938,7 @@ func _upload_readiness_state() -> Dictionary:
 	}
 func _build_export_overlay_state() -> Dictionary:
 	var readiness: Dictionary = _upload_readiness_state()
+	var eligibility := _upload_eligibility_state()
 	var survey_title: String = survey.title if survey != null else ""
 	var web_mode: bool = _is_web_platform()
 	var browser_downloads: bool = _supports_browser_downloads()
@@ -2899,9 +2964,9 @@ func _build_export_overlay_state() -> Dictionary:
 		"upload_destination_url": upload_endpoint_url.strip_edges(),
 		"upload_usage_summary": upload_usage_summary.strip_edges(),
 		"upload_reason_summary": upload_reason_summary.strip_edges(),
-		"upload_metadata_summary": "Spam protection metadata includes an anonymous install ID, upload timestamps, template identity, session timing signals, answer counts, reload history, and a payload hash for duplicate suppression.",
+		"upload_metadata_summary": "Private intake metadata includes an anonymous install ID, upload timestamps, template identity, session timing signals, answer counts, reload history, scrub state, and a payload hash for duplicate suppression.",
 		"upload_ready": bool(readiness.get("ok", false)),
-		"upload_ready_message": str(readiness.get("message", "")).strip_edges(),
+		"upload_ready_message": str(readiness.get("message", str(eligibility.get("message", "")))).strip_edges(),
 		"upload_busy": _upload_in_progress,
 		"upload_status_text": _last_upload_status_text if not _last_upload_status_text.is_empty() else "Ready when you are.",
 		"upload_status_error": _last_upload_status_is_error,
@@ -2941,6 +3006,13 @@ func _submit_export_upload() -> void:
 		return
 	if not _is_upload_endpoint_configured():
 		_last_upload_status_text = "Server upload is not configured for this build."
+		_last_upload_status_is_error = true
+		_refresh_export_overlay()
+		_show_status_message(_last_upload_status_text, true)
+		return
+	var eligibility := _upload_eligibility_state()
+	if not bool(eligibility.get("ok", false)):
+		_last_upload_status_text = str(eligibility.get("message", "This survey is not eligible for upload.")).strip_edges()
 		_last_upload_status_is_error = true
 		_refresh_export_overlay()
 		_show_status_message(_last_upload_status_text, true)
@@ -3004,8 +3076,14 @@ func _configured_upload_headers() -> PackedStringArray:
 func _is_upload_endpoint_configured() -> bool:
 	return SURVEY_TRANSFER_SUPPORT.is_upload_endpoint_configured(upload_endpoint_url)
 
+func _upload_eligibility_state() -> Dictionary:
+	return SURVEY_UPLOAD_ELIGIBILITY.eligibility_for_survey(survey, survey_template_path)
+
+func _is_upload_available_for_current_survey() -> bool:
+	return _is_upload_endpoint_configured() and bool(_upload_eligibility_state().get("ok", false))
+
 func _on_upload_request_completed(result: int, response_code: int, headers: PackedStringArray, body: PackedByteArray) -> void:
-	var completion := SURVEY_TRANSFER_SUPPORT.build_upload_completion_state(result, response_code, headers, body)
+	var completion := SURVEY_TRANSFER_SUPPORT.build_upload_completion_state(result, response_code, headers, body, _feature_flag_enabled("enable_playful_copy", true))
 	_upload_in_progress = false
 	_last_upload_response_text = str(completion.get("response_text", ""))
 	_last_upload_status_is_error = bool(completion.get("is_error", false))
@@ -3307,7 +3385,10 @@ func _restart_survey() -> void:
 	_clear_all_answers()
 
 func _available_template_summaries() -> Array[Dictionary]:
-	return SURVEY_TEMPLATE_LOADER.list_available_templates()
+	return SURVEY_RUNTIME_BUILD_PROFILE.reorder_template_summaries(
+		SURVEY_TEMPLATE_LOADER.list_available_templates(),
+		_runtime_profile_template_path()
+	)
 
 func _open_template_import_dialog_from_onboarding() -> void:
 	if _is_web_platform():
@@ -3999,7 +4080,7 @@ func _qa_runtime_state() -> Dictionary:
 		"answers": answers.duplicate(true),
 		"preferences": _current_preferences(),
 		"session_state": _current_session_state(),
-		"upload_configured": _is_upload_endpoint_configured()
+		"upload_configured": _is_upload_available_for_current_survey()
 	}
 
 func _handle_qa_action(command: String, payload: Dictionary) -> Dictionary:
@@ -4085,7 +4166,7 @@ func _current_qa_page_node_id() -> String:
 	return "survey_app_focus" if _focus_mode_active else "survey_app_scroll"
 
 func _qa_menu_status_text() -> String:
-	var feedback_count := _playtest_feedback_controller.issue_count() if _playtest_feedback_controller != null else 0
+	var feedback_count: int = _playtest_feedback_controller.issue_count() if _playtest_feedback_controller != null else 0
 	return "Open the QA guide to run the checklist, capture screenshots, and export the session bundle. %d issue(s) tagged so far." % feedback_count
 
 func _switch_qa_surface(target_surface_id: String) -> void:

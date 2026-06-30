@@ -314,11 +314,11 @@ func _random_edge_position() -> Vector2:
 
 func _focus_lane_position() -> Vector2:
 	var panel_rect := _content_panel.get_global_rect()
-	var boss_rect := _boss_bar.get_global_rect()
-	var verdict_rect := _verdict_label.get_global_rect()
+	var boss_rect: Rect2 = _boss_bar.get_global_rect()
+	var verdict_rect: Rect2 = _verdict_label.get_global_rect()
 	var x_position := panel_rect.get_center().x
-	var min_y := boss_rect.end.y + 20.0
-	var max_y := verdict_rect.position.y - 20.0
+	var min_y: float = boss_rect.end.y + 20.0
+	var max_y: float = verdict_rect.position.y - 20.0
 	var y_position := panel_rect.get_center().y
 	if max_y >= min_y:
 		y_position = lerpf(min_y, max_y, 0.5)

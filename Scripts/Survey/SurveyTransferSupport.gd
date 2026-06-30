@@ -3,8 +3,9 @@ extends RefCounted
 
 const SURVEY_SUBMISSION_BUNDLE = preload("res://Scripts/Survey/SurveySubmissionBundle.gd")
 const SURVEY_UPLOAD_AUDIT_STORE = preload("res://Scripts/Survey/SurveyUploadAuditStore.gd")
+const SURVEY_PLAYFUL_COPY = preload("res://Scripts/Survey/SurveyPlayfulCopy.gd")
 
-static func build_upload_package(survey: SurveyDefinition, template_path: String, answers: Dictionary, summary_data: Dictionary, install_id: String, scrub_identifying_info: bool, session_metrics: Dictionary, minimum_answered_questions_for_upload: int, upload_cooldown_seconds: int, upload_max_attempts_per_window: int, upload_attempt_window_seconds: int, audit_context: Dictionary = {}) -> Dictionary:
+static func build_upload_package(survey: SurveyDefinition, template_path: String, answers: Dictionary, summary_data: Dictionary, install_id: String, scrub_identifying_info: bool, session_metrics: Dictionary, minimum_answered_questions_for_upload: int, upload_cooldown_seconds: int, upload_max_attempts_per_window: int, upload_attempt_window_seconds: int, audit_context: Dictionary = {}, volunteered_profile: Dictionary = {}) -> Dictionary:
 	if survey == null:
 		return {}
 	var upload_package: Dictionary = SURVEY_SUBMISSION_BUNDLE.build_package(
@@ -14,7 +15,8 @@ static func build_upload_package(survey: SurveyDefinition, template_path: String
 		summary_data,
 		install_id,
 		scrub_identifying_info,
-		session_metrics
+		session_metrics,
+		volunteered_profile
 	)
 	if upload_package.is_empty():
 		return {}
@@ -183,13 +185,16 @@ static func format_upload_response(result: int, response_code: int, headers: Pac
 		lines.append(formatted_body)
 	return "\n".join(lines).strip_edges()
 
-static func build_upload_completion_state(result: int, response_code: int, headers: PackedStringArray, body: PackedByteArray) -> Dictionary:
+static func build_upload_completion_state(result: int, response_code: int, headers: PackedStringArray, body: PackedByteArray, playful_copy: bool = true) -> Dictionary:
 	var body_text: String = body.get_string_from_utf8()
 	var accepted := result == HTTPRequest.RESULT_SUCCESS and response_code >= 200 and response_code < 300
+	var response_payload := _dictionary_from_json(body_text)
+	var reason := _upload_result_reason(result, response_code, response_payload)
 	return {
 		"accepted": accepted,
+		"failure_reason": "" if accepted else reason,
 		"response_text": format_upload_response(result, response_code, headers, body_text),
-		"status_text": "Upload accepted by the server." if accepted else "Upload failed or was rejected by the server.",
+		"status_text": _upload_status_text(accepted, result, response_code, response_payload, reason, playful_copy),
 		"is_error": not accepted
 	}
 
@@ -233,6 +238,44 @@ static func _http_request_result_label(result: int) -> String:
 		HTTPRequest.RESULT_TIMEOUT:
 			return "Timeout"
 	return "Unknown result"
+
+static func _dictionary_from_json(text: String) -> Dictionary:
+	var trimmed := text.strip_edges()
+	if trimmed.is_empty():
+		return {}
+	var parsed: Variant = JSON.parse_string(trimmed)
+	return parsed as Dictionary if parsed is Dictionary else {}
+
+static func _upload_result_reason(result: int, response_code: int, response_payload: Dictionary) -> String:
+	var server_reason := str(response_payload.get("reason", "")).strip_edges()
+	if not server_reason.is_empty():
+		return server_reason
+	if result != HTTPRequest.RESULT_SUCCESS:
+		match result:
+			HTTPRequest.RESULT_CANT_CONNECT, HTTPRequest.RESULT_CANT_RESOLVE, HTTPRequest.RESULT_CONNECTION_ERROR, HTTPRequest.RESULT_TLS_HANDSHAKE_ERROR, HTTPRequest.RESULT_NO_RESPONSE, HTTPRequest.RESULT_TIMEOUT:
+				return "network"
+			_:
+				return "request_failed"
+	match response_code:
+		400:
+			return "malformed_payload"
+		403:
+			return "not_allowlisted"
+		409:
+			return "duplicate_payload"
+		415:
+			return "unsupported_media_type"
+		429:
+			return "rate_limited"
+	if response_code >= 500:
+		return "server_error"
+	return "unknown_failure"
+
+static func _upload_status_text(accepted: bool, result: int, response_code: int, response_payload: Dictionary, reason: String, playful_copy: bool) -> String:
+	var server_message := str(response_payload.get("message", "")).strip_edges()
+	if accepted:
+		return SURVEY_PLAYFUL_COPY.upload_success(playful_copy, server_message)
+	return SURVEY_PLAYFUL_COPY.upload_failure(reason, server_message if response_code >= 400 else "")
 
 static func _js_string_literal(value: String) -> String:
 	return JSON.stringify(value)

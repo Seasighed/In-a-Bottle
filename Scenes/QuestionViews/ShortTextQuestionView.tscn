@@ -1,7 +1,6 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=2 format=3]
 
 [ext_resource type="Script" path="res://Scripts/UI/DefaultQuestionView.gd" id="1"]
-[ext_resource type="PackedScene" path="res://Scenes/AnswerPrefabs/TypedAnswerField.tscn" id="2"]
 
 [node name="ShortTextQuestionView" type="Control"]
 size_flags_horizontal = 3
@@ -78,9 +77,3 @@ size_flags_horizontal = 3
 [node name="FieldHost" type="VBoxContainer" parent="Card/Stack"]
 layout_mode = 2
 theme_override_constants/separation = 10
-
-[node name="PreviewField" parent="Card/Stack/FieldHost" instance=ExtResource("2")]
-
-[node name="LineEdit" parent="Card/Stack/FieldHost/PreviewField"]
-text = "Participant 014"
-placeholder_text = "Participant 014"

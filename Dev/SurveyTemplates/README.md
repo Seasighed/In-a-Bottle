@@ -1,10 +1,10 @@
 # Survey Templates
 
-The app loads `studio_feedback.json` by default through `SurveyApp.survey_template_path`.
+The public participant build loads `maplestory_pulse.json` by default through the runtime participant profile. The QA profile keeps using `personal_checkin_debug.json` for broad internal coverage.
 
 ## Quick start
 
-1. Copy `starter_template.json`, `studio_feedback.json`, or `minecraft_modder.json`.
+1. Copy `starter_template.json`, `studio_feedback.json`, `minecraft_modder.json`, or `maplestory_pulse.json`.
 2. Edit it in any text editor.
 3. Pick it from the onboarding template grid, import it into the template folder, or point `SurveyApp.survey_template_path` at it.
 4. Run the scene.
@@ -76,7 +76,7 @@ Validation now checks for:
 - duplicate ids, which are auto-deduped during normalization with warnings
 - reversed `min_value` / `max_value`, which are auto-corrected with warnings
 
-Imported templates are copied into `user://survey_templates`, and the onboarding template grid shows both built-in and imported templates.
+Imported templates are copied into `user://survey_templates`, and the onboarding template grid shows both built-in and imported templates. Imported templates are labeled `Custom Survey`.
 
 ## Supported question types
 
@@ -114,6 +114,7 @@ Authors can also use common survey labels and the loader will normalize them.
 - `view_template: "ranked_choice"`
 - `view_template: "matrix"`
 - `modifier: "loot_box_matrix"` or `modifier: { "key": "loot_box_matrix", ... }`
+- `maplestory_pulse.json` is the public default community RPG survey template
 - `personal_checkin_debug.json` is the built-in playtest/debug template that covers every supported question type
 
 ## Emoji support
@@ -135,6 +136,8 @@ Yes, emojis work in the JSON format as long as the file is saved as UTF-8.
 - Save/export JSON now includes a `question_catalog` with question type, required state, identifying-info flags, modifier metadata, and any configured reward metadata.
 - Questions marked with `asks_identifying_info: true` can be scrubbed from sanitized exports and uploads.
 - Template-based exports and upload bundles now include the template `version` and a derived `schema_hash`, which is useful for server-side whitelists in Supabase or other collection backends.
+- Uploads are allowed only for built-in surveys that match `Resources/Survey/UploadAllowlist.json`; Custom Survey imports can save/export locally but cannot upload in the v1 public release.
+- After editing `maplestory_pulse.json`, run `Scripts/Tools/PrintSurveyIdentity.gd` and update the client allowlist plus Supabase `SURVEY_UPLOAD_ALLOWLIST_JSON` with the new schema hash.
 - The opinion summary uses rating-enabled questions to generate per-question, per-section, and overall score percentages, then lets the respondent export that summary as a PNG.
 - The primary respondent flows now center on Journey focus mode, section outlines, search, onboarding-guided matches, and export/upload handoff.
 

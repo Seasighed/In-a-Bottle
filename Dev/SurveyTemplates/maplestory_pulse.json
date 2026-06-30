@@ -1,0 +1,435 @@
+{
+  "format": "survey_template",
+  "version": 2,
+  "id": "maplestory_pulse",
+  "title": "MapleStory Pulse",
+  "subtitle": "A community survey about play habits, progression, challenge, economy sentiment, events, social spaces, and future priorities.",
+  "description": "A broad but focused pulse survey for MapleStory community polling. It favors aggregate-friendly question types and keeps identifying questions optional and clearly marked.",
+  "onboarding_subject": "the MapleStory community pulse survey",
+  "asks_identifying_info": true,
+  "priority": 150,
+  "single_survey_mode": true,
+  "audience_profiles": [
+    {
+      "id": "active_player",
+      "label": "Active Player",
+      "description": "Playing regularly in the current season or update cycle."
+    },
+    {
+      "id": "returning_player",
+      "label": "Returning Player",
+      "description": "Recently came back or is considering coming back."
+    },
+    {
+      "id": "community_reader",
+      "label": "Community Reader",
+      "description": "Mostly watches discussions, streams, guides, or market chatter."
+    }
+  ],
+  "faq_items": [
+    {
+      "question": "Can I stay anonymous?",
+      "answer": "Yes. Handle and contact questions are optional and marked as identifying so they can be scrubbed before upload or export."
+    },
+    {
+      "question": "What happens to uploaded answers?",
+      "answer": "The public app only uploads allowlisted built-in surveys. Raw responses are intended for private storage and manual aggregate review."
+    }
+  ],
+  "sections": [
+    {
+      "id": "player_snapshot",
+      "title": "Player Snapshot",
+      "description": "Light segmentation so the aggregate results can be compared without forcing personal details.",
+      "icon": "profile",
+      "header_template": "spotlight",
+      "questions": [
+        {
+          "id": "community_handle",
+          "prompt": "Optional identifying handle for this response",
+          "description": "Leave this blank if you want the answer set to stay anonymous.",
+          "type": "short_text",
+          "asks_identifying_info": true,
+          "placeholder": "Anonymous adventurer",
+          "topic_tags": ["identity", "profile"],
+          "keywords": ["handle", "name", "anonymous"]
+        },
+        {
+          "id": "region",
+          "prompt": "Which region do you mainly play in?",
+          "description": "Used only for aggregate comparisons between broad regions.",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "North America",
+            "Europe",
+            "Southeast Asia",
+            "Korea",
+            "Japan",
+            "China",
+            "Other or prefer not to say"
+          ],
+          "topic_tags": ["region", "segmentation"],
+          "keywords": ["region", "server", "world"]
+        },
+        {
+          "id": "weekly_hours",
+          "prompt": "About how many hours do you play in a typical week right now?",
+          "description": "A rough estimate is enough; this helps separate daily, casual, and observer responses.",
+          "type": "number",
+          "min_value": 0,
+          "max_value": 168,
+          "placeholder": "8",
+          "topic_tags": ["playtime", "activity"],
+          "keywords": ["hours", "weekly", "activity"]
+        },
+        {
+          "id": "playstyle",
+          "prompt": "Which playstyle best describes you lately?",
+          "type": "single_choice",
+          "required": true,
+          "options": [
+            "Daily progression focused",
+            "Weekend or event focused",
+            "Bossing focused",
+            "Social or guild focused",
+            "Market or collection focused",
+            "Mostly taking a break"
+          ],
+          "topic_tags": ["playstyle", "segmentation"],
+          "keywords": ["playstyle", "daily", "bossing", "social"]
+        },
+        {
+          "id": "main_archetype",
+          "prompt": "What broad character archetype do you currently treat as your main?",
+          "description": "Keep this generic; the survey is interested in broad groups, not exact class names.",
+          "type": "dropdown",
+          "options": [
+            "Warrior-style",
+            "Mage-style",
+            "Archer-style",
+            "Thief-style",
+            "Pirate-style",
+            "Hybrid or special kit",
+            "I rotate too much to pick one",
+            "Not sure or not applicable"
+          ],
+          "topic_tags": ["main", "class"],
+          "keywords": ["main", "archetype", "class"]
+        }
+      ]
+    },
+    {
+      "id": "progression_and_routine",
+      "title": "Progression And Routine",
+      "description": "How progression systems and recurring tasks feel in practice.",
+      "icon": "progress",
+      "header_template": "spotlight",
+      "questions": [
+        {
+          "id": "progression_sentiment",
+          "prompt": "How do these progression statements feel right now?",
+          "type": "matrix",
+          "required": true,
+          "rows": [
+            "Daily and weekly tasks feel worth the time",
+            "Upgrade systems feel understandable",
+            "The gap to my next goals feels motivating",
+            "Alternate characters feel rewarding",
+            "Catching up after a break feels realistic"
+          ],
+          "options": [
+            "Strongly disagree",
+            "Disagree",
+            "Neutral",
+            "Agree",
+            "Strongly agree",
+            "Not applicable"
+          ],
+          "view_template": "matrix",
+          "topic_tags": ["progression", "routine"],
+          "keywords": ["progression", "dailies", "upgrades", "alts"]
+        },
+        {
+          "id": "routine_focus",
+          "prompt": "Which routine activities matter most to you right now?",
+          "description": "Choose every option that meaningfully affects whether you log in.",
+          "type": "multi_choice",
+          "options": [
+            "Daily tasks",
+            "Weekly tasks",
+            "Boss preparation",
+            "Event missions",
+            "Market or trading checks",
+            "Guild or friend activities",
+            "Character growth projects",
+            "Cosmetic or collection goals",
+            "Not applicable / mostly observing"
+          ],
+          "topic_tags": ["routine", "motivation"],
+          "keywords": ["routine", "daily", "weekly", "event"]
+        },
+        {
+          "id": "burnout_risk",
+          "prompt": "How close are you to taking a break from routine fatigue?",
+          "type": "scale",
+          "required": true,
+          "min_value": 1,
+          "max_value": 5,
+          "left_label": "Not close",
+          "right_label": "Very close",
+          "view_template": "scale_chips",
+          "topic_tags": ["burnout", "routine"],
+          "keywords": ["burnout", "fatigue", "break"]
+        },
+        {
+          "id": "progression_friction",
+          "prompt": "What progression friction would you most want the community to understand?",
+          "type": "long_text",
+          "placeholder": "The biggest pain point is...",
+          "topic_tags": ["progression", "qualitative"],
+          "keywords": ["friction", "pain point", "progression"]
+        }
+      ]
+    },
+    {
+      "id": "bosses_and_challenge",
+      "title": "Bosses And Challenge",
+      "description": "Challenge content, group play, and sources of friction around clears.",
+      "icon": "challenge",
+      "header_template": "spotlight",
+      "questions": [
+        {
+          "id": "boss_frequency",
+          "prompt": "How often do you attempt serious boss or challenge content?",
+          "type": "single_choice",
+          "options": [
+            "Several times a week",
+            "About once a week",
+            "A few times a month",
+            "Rarely",
+            "Not currently",
+            "Not applicable"
+          ],
+          "topic_tags": ["bosses", "challenge"],
+          "keywords": ["boss", "challenge", "frequency"]
+        },
+        {
+          "id": "party_style",
+          "prompt": "How do you usually approach harder content?",
+          "type": "single_choice",
+          "options": [
+            "Mostly solo",
+            "Static group",
+            "Guild or friend groups",
+            "Public recruitment",
+            "Watching or learning before trying",
+            "Not applicable"
+          ],
+          "topic_tags": ["bosses", "party"],
+          "keywords": ["party", "group", "solo"]
+        },
+        {
+          "id": "challenge_priorities",
+          "prompt": "Rank what most improves challenge content for you.",
+          "description": "Put the most important improvement first.",
+          "type": "ranked_choice",
+          "options": [
+            "Clearer practice tools",
+            "Better reward consistency",
+            "Lower party-finding friction",
+            "More readable mechanics",
+            "More paths for gradual improvement",
+            "Not applicable to me"
+          ],
+          "view_template": "ranked_choice",
+          "topic_tags": ["bosses", "priorities"],
+          "keywords": ["rank", "practice", "rewards", "party"]
+        },
+        {
+          "id": "boss_friction",
+          "prompt": "Which challenge-content friction points affect you?",
+          "type": "multi_choice",
+          "options": [
+            "Learning mechanics",
+            "Finding groups",
+            "Damage requirements",
+            "Time scheduling",
+            "Reward variance",
+            "Technical performance",
+            "Social pressure",
+            "None of these"
+          ],
+          "topic_tags": ["bosses", "friction"],
+          "keywords": ["friction", "groups", "mechanics", "rewards"]
+        },
+        {
+          "id": "challenge_story",
+          "prompt": "Optional: describe a recent challenge-content moment that shaped your opinion.",
+          "description": "Please avoid naming or shaming individual players.",
+          "type": "long_text",
+          "placeholder": "A recent moment that stuck with me was...",
+          "topic_tags": ["bosses", "qualitative"],
+          "keywords": ["story", "moment", "challenge"]
+        }
+      ]
+    },
+    {
+      "id": "economy_events_value",
+      "title": "Economy, Events, And Value",
+      "description": "How the in-game economy, event cadence, and optional spending feel.",
+      "icon": "economy",
+      "header_template": "spotlight",
+      "questions": [
+        {
+          "id": "market_feeling",
+          "prompt": "How healthy does the player economy feel to you right now?",
+          "type": "scale",
+          "required": true,
+          "min_value": 1,
+          "max_value": 5,
+          "left_label": "Very unhealthy",
+          "right_label": "Very healthy",
+          "view_template": "scale_chips",
+          "topic_tags": ["economy", "market"],
+          "keywords": ["economy", "market", "healthy"]
+        },
+        {
+          "id": "value_sentiment",
+          "prompt": "How do these value statements land for you?",
+          "type": "matrix",
+          "rows": [
+            "Cosmetic purchases feel fairly priced",
+            "Convenience purchases feel optional",
+            "Events respect my time",
+            "Rewards feel exciting without being mandatory"
+          ],
+          "options": [
+            "Strongly disagree",
+            "Disagree",
+            "Neutral",
+            "Agree",
+            "Strongly agree",
+            "Not applicable"
+          ],
+          "view_template": "matrix",
+          "topic_tags": ["value", "events"],
+          "keywords": ["cash", "value", "events", "rewards"]
+        },
+        {
+          "id": "event_quality",
+          "prompt": "What is your overall feeling about the current style of events?",
+          "type": "single_choice",
+          "options": [
+            "They are a major reason I play",
+            "They are useful but repetitive",
+            "They feel too time demanding",
+            "They mostly miss what I want",
+            "I do not engage with events much",
+            "Not sure or not applicable"
+          ],
+          "topic_tags": ["events", "sentiment"],
+          "keywords": ["events", "quality", "cadence"]
+        },
+        {
+          "id": "event_rewards_rank",
+          "prompt": "Rank the event reward categories you value most.",
+          "type": "ranked_choice",
+          "options": [
+            "Progression materials",
+            "Cosmetics",
+            "Account convenience",
+            "Catch-up support",
+            "Social or minigame rewards",
+            "Not applicable to me"
+          ],
+          "view_template": "ranked_choice",
+          "topic_tags": ["events", "rewards"],
+          "keywords": ["rank", "event", "reward"]
+        },
+        {
+          "id": "economy_concern",
+          "prompt": "What economy or value concern should a future poll investigate more deeply?",
+          "type": "long_text",
+          "placeholder": "A follow-up poll should ask about...",
+          "topic_tags": ["economy", "qualitative"],
+          "keywords": ["economy", "concern", "follow up"]
+        }
+      ]
+    },
+    {
+      "id": "community_future",
+      "title": "Community And Future Priorities",
+      "description": "Community health, information sources, and what to ask next.",
+      "icon": "community",
+      "header_template": "spotlight",
+      "questions": [
+        {
+          "id": "community_spaces",
+          "prompt": "Where do you most often interact with the community?",
+          "type": "multi_choice",
+          "options": [
+            "In-game guild or friends",
+            "Discord communities",
+            "Reddit or forums",
+            "Streams or videos",
+            "Market or trade spaces",
+            "Guides and spreadsheets",
+            "Mostly solo",
+            "Not active in community spaces"
+          ],
+          "topic_tags": ["community", "social"],
+          "keywords": ["community", "discord", "forums", "streams"]
+        },
+        {
+          "id": "social_temperature",
+          "prompt": "How welcoming does the community feel to players at your stage?",
+          "type": "scale",
+          "required": false,
+          "min_value": 1,
+          "max_value": 5,
+          "left_label": "Not welcoming",
+          "right_label": "Very welcoming",
+          "view_template": "scale_chips",
+          "topic_tags": ["community", "sentiment"],
+          "keywords": ["welcoming", "social", "community"]
+        },
+        {
+          "id": "future_priorities",
+          "prompt": "Rank the topics this project should poll next.",
+          "type": "ranked_choice",
+          "required": true,
+          "options": [
+            "Progression systems",
+            "Boss and party content",
+            "Economy and trading",
+            "Events and rewards",
+            "New or returning player experience",
+            "Community health"
+          ],
+          "view_template": "ranked_choice",
+          "topic_tags": ["future", "priorities"],
+          "keywords": ["future", "poll", "priority"]
+        },
+        {
+          "id": "one_change",
+          "prompt": "If you could make one community-facing change, what would it be?",
+          "type": "long_text",
+          "placeholder": "The one change I would make is...",
+          "topic_tags": ["future", "qualitative"],
+          "keywords": ["change", "future", "community"]
+        },
+        {
+          "id": "followup_email",
+          "prompt": "Optional: email for follow-up about future surveys.",
+          "description": "This is identifying and can be scrubbed before upload or export.",
+          "type": "email",
+          "asks_identifying_info": true,
+          "placeholder": "name@example.com",
+          "topic_tags": ["follow up", "identity"],
+          "keywords": ["email", "follow up", "contact"]
+        }
+      ]
+    }
+  ]
+}

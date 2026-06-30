@@ -56,6 +56,8 @@ var _journey_focus_presentation := false
 var _drag_step_threshold := 20.0
 
 func _ready() -> void:
+	if not _ensure_controls():
+		return
 	_configure_column_views()
 	_connect_signals_once()
 	_reset_selection_to_today()
@@ -77,6 +79,8 @@ func sync_selected_value(value: String, _align_display_month: bool = false) -> v
 	_refresh_picker()
 
 func refresh_theme() -> void:
+	if not _ensure_controls():
+		return
 	var panel_style := SurveyStyle.panel(SurveyStyle.SURFACE_ALT, SurveyStyle.BORDER, 16, 1)
 	panel_style.content_margin_left = 12
 	panel_style.content_margin_right = 12
@@ -86,6 +90,8 @@ func refresh_theme() -> void:
 	SurveyStyle.apply_secondary_button(_today_button)
 	SurveyStyle.apply_secondary_button(_clear_button)
 	for button in [_today_button, _clear_button]:
+		if button == null:
+			continue
 		button.add_theme_font_size_override("font_size", 13)
 		button.custom_minimum_size = Vector2(0.0, 36.0)
 		_tune_button_padding(button, 10.0, 6.0)
@@ -94,6 +100,8 @@ func refresh_theme() -> void:
 	_refresh_picker()
 
 func refresh_layout(viewport_size: Vector2, focus_presentation: bool, journey_focus_presentation: bool) -> void:
+	if not _ensure_controls():
+		return
 	_focus_presentation = focus_presentation
 	_journey_focus_presentation = journey_focus_presentation
 	var compact_layout: bool = viewport_size.x <= 640.0
@@ -108,9 +116,12 @@ func refresh_layout(viewport_size: Vector2, focus_presentation: bool, journey_fo
 		tuned_style.content_margin_top = panel_padding
 		tuned_style.content_margin_bottom = panel_padding
 		add_theme_stylebox_override("panel", tuned_style)
-	_stack.add_theme_constant_override("separation", int(round(((10 if compact_layout else 12) * scale) if focus_presentation else (8 if compact_layout else 10))))
-	_picker_row.add_theme_constant_override("separation", int(round(((8 if compact_layout else 10) * scale) if focus_presentation else (6 if compact_layout else 8))))
-	_footer_row.add_theme_constant_override("separation", int(round(((8 if compact_layout else 10) * scale) if focus_presentation else 8)))
+	if _stack != null:
+		_stack.add_theme_constant_override("separation", int(round(((10 if compact_layout else 12) * scale) if focus_presentation else (8 if compact_layout else 10))))
+	if _picker_row != null:
+		_picker_row.add_theme_constant_override("separation", int(round(((8 if compact_layout else 10) * scale) if focus_presentation else (6 if compact_layout else 8))))
+	if _footer_row != null:
+		_footer_row.add_theme_constant_override("separation", int(round(((8 if compact_layout else 10) * scale) if focus_presentation else 8)))
 	var column_height := ((122.0 if compact_layout else 132.0) * scale) if focus_presentation else ((92.0 if compact_layout else 100.0) * scale)
 	var column_stack_separation := int(round(((4 if compact_layout else 5) * scale) if focus_presentation else 3))
 	var header_font_size := int(round(((12 if compact_layout else 13) * scale) if focus_presentation else 10))
@@ -147,6 +158,8 @@ func refresh_layout(viewport_size: Vector2, focus_presentation: bool, journey_fo
 			current.add_theme_font_size_override("font_size", current_font_size)
 	var footer_height := ((42.0 if compact_layout else 46.0) * scale) if focus_presentation else ((34.0 if compact_layout else 36.0) * scale)
 	for button in [_today_button, _clear_button]:
+		if button == null:
+			continue
 		button.custom_minimum_size = Vector2(0.0, footer_height)
 		button.add_theme_font_size_override("font_size", int(round(((14 if compact_layout else 15) * scale) if focus_presentation else ((12 if compact_layout else 13) * scale))))
 		_tune_button_padding(
@@ -156,6 +169,57 @@ func refresh_layout(viewport_size: Vector2, focus_presentation: bool, journey_fo
 		)
 	_drag_step_threshold = ((24.0 if compact_layout else 28.0) * scale) if focus_presentation else ((18.0 if compact_layout else 20.0) * scale)
 	_refresh_picker()
+
+func _ensure_controls() -> bool:
+	if _stack == null:
+		_stack = get_node_or_null("Stack") as VBoxContainer
+	if _picker_row == null:
+		_picker_row = get_node_or_null("Stack/PickerRow") as HBoxContainer
+	if _day_column == null:
+		_day_column = get_node_or_null("Stack/PickerRow/DayColumn") as PanelContainer
+	if _day_stack == null:
+		_day_stack = get_node_or_null("Stack/PickerRow/DayColumn/ColumnStack") as VBoxContainer
+	if _day_header_label == null:
+		_day_header_label = get_node_or_null("Stack/PickerRow/DayColumn/ColumnStack/HeaderLabel") as Label
+	if _day_previous_label == null:
+		_day_previous_label = get_node_or_null("Stack/PickerRow/DayColumn/ColumnStack/PreviousLabel") as Label
+	if _day_current_label == null:
+		_day_current_label = get_node_or_null("Stack/PickerRow/DayColumn/ColumnStack/CurrentLabel") as Label
+	if _day_next_label == null:
+		_day_next_label = get_node_or_null("Stack/PickerRow/DayColumn/ColumnStack/NextLabel") as Label
+	if _month_column == null:
+		_month_column = get_node_or_null("Stack/PickerRow/MonthColumn") as PanelContainer
+	if _month_stack == null:
+		_month_stack = get_node_or_null("Stack/PickerRow/MonthColumn/ColumnStack") as VBoxContainer
+	if _month_header_label == null:
+		_month_header_label = get_node_or_null("Stack/PickerRow/MonthColumn/ColumnStack/HeaderLabel") as Label
+	if _month_previous_label == null:
+		_month_previous_label = get_node_or_null("Stack/PickerRow/MonthColumn/ColumnStack/PreviousLabel") as Label
+	if _month_current_label == null:
+		_month_current_label = get_node_or_null("Stack/PickerRow/MonthColumn/ColumnStack/CurrentLabel") as Label
+	if _month_next_label == null:
+		_month_next_label = get_node_or_null("Stack/PickerRow/MonthColumn/ColumnStack/NextLabel") as Label
+	if _year_column == null:
+		_year_column = get_node_or_null("Stack/PickerRow/YearColumn") as PanelContainer
+	if _year_stack == null:
+		_year_stack = get_node_or_null("Stack/PickerRow/YearColumn/ColumnStack") as VBoxContainer
+	if _year_header_label == null:
+		_year_header_label = get_node_or_null("Stack/PickerRow/YearColumn/ColumnStack/HeaderLabel") as Label
+	if _year_previous_label == null:
+		_year_previous_label = get_node_or_null("Stack/PickerRow/YearColumn/ColumnStack/PreviousLabel") as Label
+	if _year_current_label == null:
+		_year_current_label = get_node_or_null("Stack/PickerRow/YearColumn/ColumnStack/CurrentLabel") as Label
+	if _year_next_label == null:
+		_year_next_label = get_node_or_null("Stack/PickerRow/YearColumn/ColumnStack/NextLabel") as Label
+	if _footer_row == null:
+		_footer_row = get_node_or_null("Stack/FooterRow") as HBoxContainer
+	if _today_button == null:
+		_today_button = get_node_or_null("Stack/FooterRow/TodayButton") as Button
+	if _clear_button == null:
+		_clear_button = get_node_or_null("Stack/FooterRow/ClearButton") as Button
+	if _column_views.is_empty():
+		_configure_column_views()
+	return _stack != null and _picker_row != null and _footer_row != null and _today_button != null and _clear_button != null
 
 func _configure_column_views() -> void:
 	_column_views = {

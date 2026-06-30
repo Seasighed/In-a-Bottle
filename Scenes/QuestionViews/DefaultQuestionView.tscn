@@ -78,8 +78,3 @@ size_flags_horizontal = 3
 [node name="FieldHost" type="VBoxContainer" parent="Card/Stack"]
 layout_mode = 2
 theme_override_constants/separation = 10
-
-[node name="PreviewField" type="LineEdit" parent="Card/Stack/FieldHost"]
-layout_mode = 2
-size_flags_horizontal = 3
-placeholder_text = "Preview answer"

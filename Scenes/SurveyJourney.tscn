@@ -144,7 +144,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/h_separation = 10
 theme_override_constants/v_separation = 10
-columns = 3
+columns = 4
 
 [node name="SurveySelectionImportButton" type="Button" parent="Margin/MainPanel/Stack/SurveySelectionView/SurveySelectionManageGrid" unique_id=1504053382]
 layout_mode = 2
@@ -155,6 +155,11 @@ text = "Import Template"
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Export Answers"
+
+[node name="SurveySelectionAnswerReviewButton" type="Button" parent="Margin/MainPanel/Stack/SurveySelectionView/SurveySelectionManageGrid" unique_id=1374561846]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Review Imports"
 
 [node name="SurveySelectionClearButton" type="Button" parent="Margin/MainPanel/Stack/SurveySelectionView/SurveySelectionManageGrid" unique_id=1947880834]
 layout_mode = 2

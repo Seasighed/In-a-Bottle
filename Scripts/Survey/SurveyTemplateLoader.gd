@@ -62,7 +62,7 @@ static func describe_template_file(path: String) -> Dictionary:
 	if not bool(report.get("ok", false)):
 		return report
 	var normalized_template: Dictionary = _dictionary_from_variant(report.get("normalized_template", {}))
-	var source_label: String = "Built-in" if path.begins_with("res://") else "Imported"
+	var source_label: String = "Built-in" if path.begins_with("res://") else "Custom Survey"
 	var description: String = str(normalized_template.get("description", normalized_template.get("subtitle", ""))).strip_edges()
 	var title: String = str(normalized_template.get("title", path.get_file().get_basename())).strip_edges()
 	var id_text: String = str(normalized_template.get("id", path.get_file().get_basename())).strip_edges()

@@ -1,7 +1,6 @@
 [gd_scene format=3 uid="uid://8y2wj0qrmrkb"]
 
 [ext_resource type="Script" uid="uid://br8u7bbc5xd10" path="res://Scripts/UI/DefaultQuestionView.gd" id="1"]
-[ext_resource type="PackedScene" path="res://Scenes/AnswerPrefabs/TypedAnswerField.tscn" id="2"]
 
 [node name="DateQuestionView" type="Control" unique_id=1557318171]
 layout_mode = 3
@@ -70,6 +69,3 @@ size_flags_horizontal = 3
 [node name="FieldHost" type="VBoxContainer" parent="Card/Stack" unique_id=611616292]
 layout_mode = 2
 theme_override_constants/separation = 10
-
-[node name="PreviewField" parent="Card/Stack/FieldHost" unique_id=1788563963 instance=ExtResource("2")]
-layout_mode = 2

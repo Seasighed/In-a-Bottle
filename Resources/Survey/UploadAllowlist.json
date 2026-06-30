@@ -1,0 +1,13 @@
+{
+  "format": "survey_upload_allowlist",
+  "version": 1,
+  "surveys": [
+    {
+      "survey_id": "maplestory_pulse",
+      "template_version": 2,
+      "schema_hash": "c69e1f63dd9480f644261067dbbf8d4e46d4d6f390702e58ccba8b2748a74c37",
+      "template_path": "res://Dev/SurveyTemplates/maplestory_pulse.json",
+      "label": "MapleStory Pulse"
+    }
+  ]
+}

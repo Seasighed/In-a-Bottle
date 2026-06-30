@@ -230,7 +230,8 @@ func _begin_capture(click_position: Vector2, capture_method: String, input_kind:
 
 func _finalize_capture_popup() -> void:
 	await get_tree().process_frame
-	await RenderingServer.frame_post_draw
+	if DisplayServer.get_name() != "headless":
+		await RenderingServer.frame_post_draw
 	if _pending_capture.is_empty():
 		_capture_in_progress = false
 		return
@@ -256,7 +257,7 @@ func _build_capture_context(click_position: Vector2, capture_method: String, inp
 		var provided_page_context: Variant = _page_context_provider.call()
 		if provided_page_context is Dictionary:
 			page_context = provided_page_context as Dictionary
-	var semantic_context: Dictionary = _merged_feedback_context(target)
+	var semantic_context: Dictionary = _best_semantic_context(target, overlapping_controls)
 	var issue_timestamp: String = Time.get_datetime_string_from_system(true)
 	return {
 		"surface": _surface_id,
@@ -297,7 +298,8 @@ func _capture_screenshot(click_context: Dictionary) -> Dictionary:
 	if _root_control != null:
 		viewport = _root_control.get_viewport()
 	var image: Image = null
-	if viewport != null and viewport.get_texture() != null:
+	var display_server_name := DisplayServer.get_name().strip_edges().to_lower()
+	if viewport != null and viewport.get_texture() != null and display_server_name != "headless":
 		image = viewport.get_texture().get_image()
 	if image == null or image.is_empty():
 		image = _placeholder_capture_image(click_context)
@@ -431,6 +433,29 @@ func _merged_feedback_context(target: Control) -> Dictionary:
 					merged.merge((context_variant as Dictionary).duplicate(true), true)
 		current = current.get_parent()
 	return merged
+
+func _best_semantic_context(target: Control, overlapping_controls: Array[Control]) -> Dictionary:
+	var resolved_context: Dictionary = _merged_feedback_context(target)
+	if _semantic_context_has_signal(resolved_context):
+		return resolved_context
+	var candidates: Array[Control] = []
+	candidates.assign(overlapping_controls)
+	candidates.sort_custom(Callable(self, "_sort_control_candidates"))
+	for index in range(candidates.size() - 1, -1, -1):
+		var candidate: Control = candidates[index] as Control
+		if candidate == null:
+			continue
+		var candidate_context: Dictionary = _merged_feedback_context(candidate)
+		if _semantic_context_has_signal(candidate_context):
+			return candidate_context
+	return resolved_context
+
+func _semantic_context_has_signal(context: Dictionary) -> bool:
+	if context.is_empty():
+		return false
+	if context.has("survey_question") or context.has("journey_review") or context.has("menu_action"):
+		return true
+	return not str(context.get("summary", "")).strip_edges().is_empty()
 
 func _target_summary(target: Control, semantic_context: Dictionary) -> String:
 	var semantic_summary: String = str(semantic_context.get("summary", "")).strip_edges()
