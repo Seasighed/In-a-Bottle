@@ -51,11 +51,15 @@ The worktree is intentionally not ready for one broad commit. It contains severa
 - New `.gd.uid` files for new tracked scripts should travel with their scripts.
 - Do not stage all untracked files blindly; `exports/**` is very large and mostly generated.
 - A commit pass should review each group with `git diff --cached --stat` before committing.
-- In this session, Git branch and commit writes were blocked because the checkout resolves to `X:/Projects/In a Bottle/.git` and lock-file creation was denied. Re-run the curation from a commit-capable shell before treating the release candidate as reviewable.
+- In this session, Git branch and commit writes were blocked in the foreground checkout because the checkout resolves to `X:/Projects/In a Bottle/.git` and lock-file creation was denied.
+- Curation was completed in the safety clone at `build/commit-workspace/In-a-Bottle-rc-commits` on branch `codex-release-candidate-proof-pass`; the bundle backup is `build/commit-workspace/codex-release-candidate-proof-pass.bundle`.
+- Latest safety branch HEAD is `a42d69e03b5f143e39baf6244fb4c2e3f50700a1`, including follow-up fixes for fresh-clone Godot import and allowlisted upload visual proof.
 - `tools/playtest.ps1` now belongs in the release packaging and QA gate group because it isolates Godot AppData for validation and audit while preserving normal AppData for export template lookup.
+- `tools/playtest.ps1` now uses Godot `--import` during bootstrap so a clone without existing `.godot` metadata can pass validation.
 
 ## Change Log
 
+- 2026-06-30 04:55 - Recorded the completed safety-clone branch, bundle backup, latest HEAD, and fresh-clone import fix.
 - 2026-06-30 02:58 - Added the playtest wrapper AppData isolation fix to the release packaging commit group.
 - 2026-06-30 02:04 - Added the current Git lock-file blocker to the commit curation note.
 - 2026-06-29 20:13 - Added commit grouping guidance for the broad public-launch worktree.

@@ -6,7 +6,7 @@
 - The project now has one repo-owned release CLI at `tools/playtest.ps1` with `doctor`, `test`, `build`, `audit`, and `release` commands.
 - Dual runtime profiles are now resolved in code instead of by mutating tracked defaults at export time.
 - Versioned playtest packaging now lands under `build/playtest/<timestamp>/...` and currently exists at `build/playtest/20260617-major-playtest`.
-- The historical renderer-backed visual audit exported one ZIP plus a real `ui_flow.png` atlas with `84` captures and `0` placeholders. That evidence is not a substitute for fresh renderer-backed `MapleStory Pulse` release proof.
+- The historical renderer-backed visual audit exported one ZIP plus a real `ui_flow.png` atlas with `84` captures and `0` placeholders. The current safety-branch release now also has fresh renderer-backed `MapleStory Pulse` proof with `92` captures and `0` placeholders.
 - CI now calls the same playtest CLI on Linux for Web and on Windows for desktop export, and Pages deploy now points at participant Web output only.
 - The older smoke build at `build/windows` still exists for immediate manual use, but the intended handoff artifact is the versioned playtest folder.
 
@@ -17,7 +17,7 @@
 - The CLI contract is PowerShell 7 first. This workstation currently does not have `pwsh` on `PATH`, so local operators either need PowerShell 7 installed or must use `powershell.exe` as a fallback until that environment gap is closed.
 - The build is playable, but there is still warning debt in capture logs. The main noise comes from layout warnings in QA/report overlays and preview-field instance warnings in question card surfaces.
 - Pages should continue to publish only participant Web output. QA Web should remain a downloadable artifact, not the public default.
-- For the public `MapleStory Pulse` release, contract-only or headless placeholder visual audits are useful checks but remain launch blockers until replaced by renderer-backed captures with zero placeholders.
+- For the public `MapleStory Pulse` release, contract-only or headless placeholder visual audits are useful checks, but launch proof should use the renderer-backed 0-placeholder audit from the safety branch.
 
 ## QA Vs Participant Packaging
 
@@ -68,5 +68,6 @@ The current verified folder layout is:
 
 ## Change Log
 
+- 2026-06-30 04:55 - Updated current visual-proof status after the safety-branch renderer-backed audit passed with 92 captures and 0 placeholders.
 - 2026-06-30 02:04 - Marked the older zero-placeholder audit as historical and clarified the current release proof gate.
 - 2026-06-17 04:35 - Added the major playtest readiness audit for dual runtime profiles, packaged Windows and Web handoff folders, CLI validation, and rollout guidance.

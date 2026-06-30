@@ -32,12 +32,13 @@ Known remaining local noise: Godot still reports dummy renderer resource leak me
 - Deploy the `survey-upload` Edge Function.
 - Set `SURVEY_UPLOAD_ALLOWLIST_JSON` with the exact deployed `MapleStory Pulse` schema hash.
 - Configure the hosted participant build with the real upload endpoint and required headers.
-- Run the web participant build and Windows QA/participant artifact builds.
-- Run the visual audit bundle and confirm release captures are not placeholders.
+- Promote or push the safety branch so the canonical repo has the reviewable baseline.
+- Keep the final safety-clone release folder `build/playtest/20260630-044822` as the current local artifact proof until a hosted build supersedes it.
 - Exercise the live endpoint for accepted `MapleStory Pulse`, rejected Custom Survey, duplicate payload, malformed payload, and scrubbed identifying answers.
 - Complete desktop Chrome or Edge, hosted desktop web, mobile Safari or iOS emulation, and Android Chrome or Android emulation smoke coverage.
 - Generate wrapped summary proof for 1, 5, and 100 fake respondents.
 
 ## Change Log
 
+- 2026-06-30 04:55 - Added current safety-branch release proof status and removed visual-audit proof from the remaining local launch blockers.
 - 2026-06-29 17:18 - Added the roadmap implementation handoff note.

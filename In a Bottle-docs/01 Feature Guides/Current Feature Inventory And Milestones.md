@@ -36,7 +36,7 @@
 - Each checklist item can expose `Focus me`, and deterministic items can expose `Try for me`.
 - Issue reporting supports ctrl-click or armed capture, structured review, and ZIP export.
 - Visual audit tooling exports a flow chart plus screenshot coverage for shells, overlays, question types, custom views, summary, and profile states.
-- Previous renderer-backed proof captured real screens, but the current `MapleStory Pulse` release candidate still needs fresh renderer-backed proof with zero placeholders before public launch.
+- The current `MapleStory Pulse` release candidate has fresh renderer-backed proof with 92 captures and 0 placeholders from the safety branch release folder.
 
 ## Build, Devtools, And CI
 
@@ -76,5 +76,6 @@
 
 ## Change Log
 
+- 2026-06-30 04:55 - Updated the visual-audit milestone status after the safety-branch renderer-backed proof pass.
 - 2026-06-30 02:04 - Updated launch-candidate defaults and clarified that older zero-placeholder audit evidence is not current public-launch proof.
 - 2026-06-17 04:35 - Added the current feature inventory and milestone buckets for major playtest planning.
