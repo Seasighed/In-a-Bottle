@@ -16,12 +16,6 @@ run/main_scene="res://Scenes/SurveyJourney.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
 
-[autoload]
-
-SeaShellUiLayers="*uid://7xb7q2cfmcj4"
-SeaShellSettings="*uid://dfy5bhb8uy3pu"
-SeaShellFeedback="*uid://blibbyrh3v2oo"
-
 [display]
 
 window/size/viewport_width=390
@@ -52,3 +46,7 @@ settings/pack_paths=PackedStringArray("res://addons/seashell_devtools/settings/p
 settings/registry_path="res://addons/seashell_devtools/settings/packs/SeaShellDefaultSettingsRegistry.tres"
 settings/store_script_path=""
 settings/value_store_path="user://sea_shell_settings_values.json"
+subscriptions/settings_runtime_enabled=false
+subscriptions/ui_layers_runtime_enabled=false
+subscriptions/feedback_runtime_enabled=false
+subscriptions/performance_runtime_enabled=false

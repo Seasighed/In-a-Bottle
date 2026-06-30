@@ -119,6 +119,13 @@ func _rebuild() -> void:
 		box.add_child(footer)
 		_add_chip(footer, str(setting_item.get("Kind")), _registry_color("item_kind", str(setting_item.get("Kind"))))
 		_add_chip(footer, str(setting_item.get("ValueType")), _registry_color("value_type", str(setting_item.get("ValueType"))))
+		if setting_item.has_method("get_primary_input_device"):
+			var primary_device := str(setting_item.call("get_primary_input_device"))
+			if not primary_device.is_empty():
+				_add_chip(footer, "Device: %s" % primary_device, Color(0.22, 0.58, 0.66))
+			var supported_devices := PackedStringArray(setting_item.call("get_supported_input_devices"))
+			if supported_devices.size() > 1:
+				_add_chip(footer, "Supports: %s" % ", ".join(Array(supported_devices)), Color(0.18, 0.43, 0.50))
 		_add_chip(footer, str(setting_item.get("ApplyPolicy")), Color(0.2, 0.35, 0.45))
 		for tag in setting_item.get("Tags"):
 			_add_chip(footer, str(tag), _registry_color("tag", str(tag)))

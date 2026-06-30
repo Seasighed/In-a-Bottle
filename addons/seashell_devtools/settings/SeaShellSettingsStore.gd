@@ -90,6 +90,9 @@ func build_profile(
 			"display_name": item.display_name(),
 			"group_path": str(item.get("GroupPath")),
 			"tags": Array(item.get("Tags")),
+			"primary_input_device": str(item.call("get_primary_input_device")) if item.has_method("get_primary_input_device") else "",
+			"supported_input_devices": Array(item.call("get_supported_input_devices")) if item.has_method("get_supported_input_devices") else [],
+			"input_device_note": str(item.get("InputDeviceNote")) if item.get("InputDeviceNote") != null else "",
 		}
 	return {
 		"format": "SeaShellSettingsProfile",

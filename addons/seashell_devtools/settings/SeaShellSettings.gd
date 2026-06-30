@@ -21,6 +21,7 @@ const PROFILE_FORMAT := "SeaShellSettingsProfile"
 const PROFILE_VERSION := 1
 const IMPORT_KEEP_MINE := "KeepMine"
 const IMPORT_KEEP_INCOMING := "KeepIncoming"
+const INPUT_DEVICE_ORDER := ["Cursor", "Keyboard", "Gamepad", "Touch", "Mixed", "None"]
 
 signal settings_changed
 signal value_changed(item_id: String, value: Variant)
@@ -385,6 +386,63 @@ func get_tags() -> PackedStringArray:
 	tags.sort()
 	return tags
 
+func get_input_device_order() -> PackedStringArray:
+	return PackedStringArray(INPUT_DEVICE_ORDER)
+
+func get_input_devices() -> PackedStringArray:
+	return PackedStringArray(INPUT_DEVICE_ORDER)
+
+func query_item_view(query := "", filters: Dictionary = {}, view_options: Dictionary = {}) -> Dictionary:
+	return build_item_view(search_items(query, filters), view_options)
+
+func build_item_view(items: Array, view_options: Dictionary = {}) -> Dictionary:
+	var device_filters := _normalize_input_device_filters(view_options.get("device_filters", view_options.get("input_devices", view_options.get("device_filter", PackedStringArray()))))
+	var filtered_items: Array = []
+	for item in items:
+		if not (item is Resource):
+			continue
+		if not device_filters.is_empty() and not _item_matches_any_input_device(item, device_filters):
+			continue
+		filtered_items.append(item)
+
+	var view_mode := str(view_options.get("view_mode", "")).strip_edges().to_lower()
+	var group_by_input_device := bool(view_options.get("group_by_input_device", false)) or bool(view_options.get("device_batches", false)) or view_mode in ["input_device", "input devices", "device", "devices"]
+	var batches: Array = []
+	if group_by_input_device:
+		var grouped := {}
+		for item in filtered_items:
+			var device := _item_primary_input_device(item)
+			if device.is_empty():
+				device = "Mixed"
+			if not grouped.has(device):
+				grouped[device] = []
+			grouped[device].append(item)
+		for device in _ordered_input_devices(grouped.keys()):
+			var batch_items: Array = grouped.get(device, [])
+			if batch_items.is_empty():
+				continue
+			batches.append({
+				"key": device,
+				"label": _input_device_batch_label(device),
+				"primary_input_device": device,
+				"items": batch_items,
+				"count": batch_items.size(),
+			})
+	else:
+		batches.append({
+			"key": "all",
+			"label": "",
+			"items": filtered_items,
+			"count": filtered_items.size(),
+		})
+	return {
+		"items": filtered_items,
+		"batches": batches,
+		"group_by": "input_device" if group_by_input_device else "",
+		"input_devices": get_input_devices(),
+		"count": filtered_items.size(),
+	}
+
 func export_markdown_for_all() -> Dictionary:
 	_initialize()
 	var exported := []
@@ -546,6 +604,9 @@ func preview_profile_data(profile: Dictionary) -> Dictionary:
 				"group_path": str(item.get("GroupPath")) if item != null else "",
 				"tags": Array(item.get("Tags")) if item != null else [],
 				"value_type": str(item.get("ValueType")) if item != null else "",
+				"primary_input_device": _item_primary_input_device(item) if item != null else "",
+				"supported_input_devices": Array(_item_supported_input_devices(item)) if item != null else [],
+				"input_device_note": str(item.get("InputDeviceNote")) if item != null else "",
 				"apply_policy": str(item.get("ApplyPolicy")) if item != null else "",
 				"kind": str(item.get("Kind")) if item != null else "",
 			})
@@ -556,6 +617,9 @@ func preview_profile_data(profile: Dictionary) -> Dictionary:
 			entry_tags = Array(item.get("Tags"))
 		var group_path := str(record.get("group_path", str(item.get("GroupPath")) if item != null else ""))
 		var value_type := str(record.get("value_type", str(item.get("ValueType")) if item != null else ""))
+		var primary_input_device := str(record.get("primary_input_device", _item_primary_input_device(item) if item != null else ""))
+		var supported_input_devices: Array = Array(record.get("supported_input_devices", Array(_item_supported_input_devices(item)) if item != null else []))
+		var input_device_note := str(record.get("input_device_note", str(item.get("InputDeviceNote")) if item != null else ""))
 		if item == null:
 			display_name = str(record.get("display_name", typed_id))
 		var entry := {
@@ -569,6 +633,9 @@ func preview_profile_data(profile: Dictionary) -> Dictionary:
 			"group_path": group_path,
 			"tags": entry_tags,
 			"value_type": value_type,
+			"primary_input_device": primary_input_device,
+			"supported_input_devices": supported_input_devices,
+			"input_device_note": input_device_note,
 			"apply_policy": str(item.get("ApplyPolicy")) if item != null else "",
 			"kind": str(item.get("Kind")) if item != null else "",
 		}
@@ -636,6 +703,9 @@ func build_profile_import_diff(
 			"group_path": str(entry.get("group_path", "")),
 			"tags": Array(entry.get("tags", [])),
 			"value_type": str(entry.get("value_type", str(item.get("ValueType")))),
+			"primary_input_device": str(entry.get("primary_input_device", _item_primary_input_device(item))),
+			"supported_input_devices": Array(entry.get("supported_input_devices", Array(_item_supported_input_devices(item)))),
+			"input_device_note": str(entry.get("input_device_note", str(item.get("InputDeviceNote")))),
 			"apply_policy": str(item.get("ApplyPolicy")),
 			"current_value": current_value,
 			"current_value_text": _describe_profile_value(current_value, str(item.get("ValueType"))),
@@ -926,6 +996,15 @@ func _filter_allows_item(item: Resource, filters: Dictionary) -> bool:
 	for tag in tags:
 		if not item.get("Tags").has(tag):
 			return false
+	var primary_devices := _normalize_input_device_filters(filters.get("primary_input_device", filters.get("primary_device", PackedStringArray())))
+	if not primary_devices.is_empty() and not primary_devices.has(_item_primary_input_device(item)):
+		return false
+	var device_filters := PackedStringArray()
+	for device_key in ["device", "input_device", "input_devices", "supported_input_device", "supported_input_devices"]:
+		if filters.has(device_key):
+			_append_unique_input_devices(device_filters, _normalize_input_device_filters(filters.get(device_key)))
+	if not device_filters.is_empty() and not _item_matches_any_input_device(item, device_filters):
+		return false
 	var modified_filter := String(filters.get("modified", "Any"))
 	if modified_filter == "Definition" and int(item.call("get_definition_modified_unix")) <= 0:
 		return false
@@ -936,6 +1015,109 @@ func _filter_allows_item(item: Resource, filters: Dictionary) -> bool:
 	if filters.has("value_modified_after_unix") and _store.get_value_modified_unix(str(item.get("ItemId"))) <= int(filters.get("value_modified_after_unix", 0)):
 		return false
 	return true
+
+func _normalize_input_device(device: String) -> String:
+	var normalized := device.strip_edges()
+	if normalized.is_empty():
+		return ""
+	match normalized.to_lower():
+		"auto", "infer", "inferred", "default":
+			return ""
+		"cursor", "pointer", "mouse", "trackpad", "touchpad":
+			return "Cursor"
+		"keyboard", "key", "keys", "text":
+			return "Keyboard"
+		"gamepad", "controller", "joypad", "joystick":
+			return "Gamepad"
+		"touch", "touchscreen", "screen":
+			return "Touch"
+		"none", "readonly", "read-only", "no input", "no_input":
+			return "None"
+		"mixed", "multi", "multiple":
+			return "Mixed"
+		_:
+			for device_name in INPUT_DEVICE_ORDER:
+				if normalized.nocasecmp_to(str(device_name)) == 0:
+					return str(device_name)
+	return ""
+
+func _normalize_input_device_filters(value: Variant) -> PackedStringArray:
+	var result := PackedStringArray()
+	var raw_values: Array = []
+	match typeof(value):
+		TYPE_PACKED_STRING_ARRAY:
+			raw_values = Array(value)
+		TYPE_ARRAY:
+			raw_values = value
+		TYPE_STRING:
+			raw_values = String(value).split(",", false)
+		_:
+			raw_values = []
+	for raw_value in raw_values:
+		var device := _normalize_input_device(str(raw_value))
+		if not device.is_empty() and not result.has(device):
+			result.append(device)
+	return result
+
+func _append_unique_input_devices(target: PackedStringArray, devices: PackedStringArray) -> void:
+	for device in devices:
+		if not target.has(device):
+			target.append(device)
+
+func _item_primary_input_device(item: Resource) -> String:
+	if item != null and item.has_method("get_primary_input_device"):
+		return _normalize_input_device(str(item.call("get_primary_input_device")))
+	if item != null:
+		return _normalize_input_device(str(item.get("PrimaryInputDevice")))
+	return ""
+
+func _item_supported_input_devices(item: Resource) -> PackedStringArray:
+	if item != null and item.has_method("get_supported_input_devices"):
+		return _normalize_input_device_filters(item.call("get_supported_input_devices"))
+	if item != null:
+		return _normalize_input_device_filters(item.get("SupportedInputDevices"))
+	return PackedStringArray()
+
+func _item_matches_any_input_device(item: Resource, devices: PackedStringArray) -> bool:
+	var primary := _item_primary_input_device(item)
+	if devices.has(primary):
+		return true
+	for supported_device in _item_supported_input_devices(item):
+		if devices.has(supported_device):
+			return true
+	return false
+
+func _ordered_input_devices(devices: Array) -> PackedStringArray:
+	var available := {}
+	for device_variant in devices:
+		var device := _normalize_input_device(str(device_variant))
+		if not device.is_empty():
+			available[device] = true
+	var result := PackedStringArray()
+	for device in INPUT_DEVICE_ORDER:
+		if available.has(str(device)):
+			result.append(str(device))
+	for device in available.keys():
+		if not result.has(str(device)):
+			result.append(str(device))
+	return result
+
+func _input_device_batch_label(device: String) -> String:
+	match _normalize_input_device(device):
+		"Cursor":
+			return "Cursor-first fields"
+		"Keyboard":
+			return "Keyboard-first fields"
+		"Gamepad":
+			return "Gamepad-first fields"
+		"Touch":
+			return "Touch-first fields"
+		"None":
+			return "Readonly or metadata fields"
+		"Mixed":
+			return "Mixed-input fields"
+		_:
+			return "%s fields" % device
 
 func _rebuild_item_index() -> void:
 	_items_by_id.clear()
@@ -1005,6 +1187,9 @@ func _build_nonimportable_profile_row(entry: Dictionary, row_kind: String) -> Di
 		"group_path": str(entry.get("group_path", "")),
 		"tags": Array(entry.get("tags", [])),
 		"value_type": str(entry.get("value_type", "")),
+		"primary_input_device": str(entry.get("primary_input_device", "")),
+		"supported_input_devices": Array(entry.get("supported_input_devices", [])),
+		"input_device_note": str(entry.get("input_device_note", "")),
 		"kind": row_kind,
 		"error": str(entry.get("error", "")),
 		"incoming_value": entry.get("value"),

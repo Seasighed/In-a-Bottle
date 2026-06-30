@@ -31,6 +31,21 @@ const VALUE_SENSITIVITY_CURVE := "SensitivityCurve"
 const VALUE_LIST := "List"
 const VALUE_TAG_PICKER := "TagPicker"
 
+const INPUT_DEVICE_CURSOR := "Cursor"
+const INPUT_DEVICE_KEYBOARD := "Keyboard"
+const INPUT_DEVICE_GAMEPAD := "Gamepad"
+const INPUT_DEVICE_TOUCH := "Touch"
+const INPUT_DEVICE_NONE := "None"
+const INPUT_DEVICE_MIXED := "Mixed"
+const INPUT_DEVICE_ORDER := [
+	INPUT_DEVICE_CURSOR,
+	INPUT_DEVICE_KEYBOARD,
+	INPUT_DEVICE_GAMEPAD,
+	INPUT_DEVICE_TOUCH,
+	INPUT_DEVICE_MIXED,
+	INPUT_DEVICE_NONE,
+]
+
 @export var ItemId := ""
 @export_enum("Setting", "Info", "Poll") var Kind := KIND_SETTING
 @export_enum("Bool", "Float", "Integer", "Enum", "Choice", "Segmented", "Keybind", "Action", "Text", "MultilineText", "Color", "Path", "Resource", "Resolution", "QualityMatrix", "Language", "FontScale", "SensitivityCurve", "List", "TagPicker") var ValueType := VALUE_TEXT
@@ -40,6 +55,9 @@ const VALUE_TAG_PICKER := "TagPicker"
 @export var GroupPath := ""
 @export var Tags := PackedStringArray()
 @export var Aliases := PackedStringArray()
+@export var PrimaryInputDevice := ""
+@export var SupportedInputDevices := PackedStringArray()
+@export_multiline var InputDeviceNote := ""
 @export var DefaultValue: Variant
 @export var Options := PackedStringArray()
 @export var MinValue := 0.0
@@ -80,6 +98,12 @@ func matches_search(query: String) -> bool:
 	var normalized := query.strip_edges().to_lower()
 	if normalized.is_empty():
 		return true
+	var normalized_device := normalize_input_device(query)
+	if not normalized_device.is_empty():
+		if get_primary_input_device() == normalized_device:
+			return true
+		if get_supported_input_devices().has(normalized_device):
+			return true
 	if ItemId.to_lower().contains(normalized):
 		return true
 	if display_name().to_lower().contains(normalized):
@@ -92,7 +116,102 @@ func matches_search(query: String) -> bool:
 	for alias in Aliases:
 		if String(alias).to_lower().contains(normalized):
 			return true
+	if get_primary_input_device().to_lower().contains(normalized):
+		return true
+	for device in get_supported_input_devices():
+		if String(device).to_lower().contains(normalized):
+			return true
+	if InputDeviceNote.to_lower().contains(normalized):
+		return true
 	return false
+
+func get_primary_input_device() -> String:
+	var explicit := normalize_input_device(PrimaryInputDevice)
+	if not explicit.is_empty():
+		return explicit
+	return _infer_primary_input_device()
+
+func get_supported_input_devices() -> PackedStringArray:
+	var explicit := _normalize_input_devices(SupportedInputDevices)
+	if not explicit.is_empty():
+		var primary := get_primary_input_device()
+		if not primary.is_empty() and not explicit.has(primary):
+			explicit.insert(0, primary)
+		return explicit
+	return _infer_supported_input_devices()
+
+func normalize_input_device(device: String) -> String:
+	var normalized := device.strip_edges()
+	if normalized.is_empty():
+		return ""
+	match normalized.to_lower():
+		"auto", "infer", "inferred", "default":
+			return ""
+		"cursor", "pointer", "mouse", "trackpad", "touchpad":
+			return INPUT_DEVICE_CURSOR
+		"keyboard", "key", "keys", "text":
+			return INPUT_DEVICE_KEYBOARD
+		"gamepad", "controller", "joypad", "joystick":
+			return INPUT_DEVICE_GAMEPAD
+		"touch", "touchscreen", "screen":
+			return INPUT_DEVICE_TOUCH
+		"none", "readonly", "read-only", "no input", "no_input":
+			return INPUT_DEVICE_NONE
+		"mixed", "multi", "multiple":
+			return INPUT_DEVICE_MIXED
+		_:
+			for known in INPUT_DEVICE_ORDER:
+				if normalized.nocasecmp_to(String(known)) == 0:
+					return String(known)
+	return ""
+
+func _normalize_input_devices(devices: Variant) -> PackedStringArray:
+	var result := PackedStringArray()
+	var raw_values: Array = []
+	match typeof(devices):
+		TYPE_PACKED_STRING_ARRAY:
+			raw_values = Array(devices)
+		TYPE_ARRAY:
+			raw_values = devices
+		TYPE_STRING:
+			raw_values = String(devices).split(",", false)
+		_:
+			raw_values = []
+	for raw_device in raw_values:
+		var device := normalize_input_device(String(raw_device))
+		if not device.is_empty() and not result.has(device):
+			result.append(device)
+	return result
+
+func _infer_primary_input_device() -> String:
+	match Kind:
+		KIND_INFO, KIND_POLL:
+			return INPUT_DEVICE_NONE
+	match ValueType:
+		VALUE_KEYBIND, VALUE_TEXT, VALUE_MULTILINE_TEXT, VALUE_PATH, VALUE_RESOURCE, VALUE_LIST, VALUE_TAG_PICKER, VALUE_SENSITIVITY_CURVE:
+			return INPUT_DEVICE_KEYBOARD
+		VALUE_BOOL, VALUE_FLOAT, VALUE_INTEGER, VALUE_ENUM, VALUE_CHOICE, VALUE_SEGMENTED, VALUE_ACTION, VALUE_COLOR, VALUE_RESOLUTION, VALUE_QUALITY_MATRIX, VALUE_LANGUAGE, VALUE_FONT_SCALE:
+			return INPUT_DEVICE_CURSOR
+		_:
+			return INPUT_DEVICE_MIXED
+
+func _infer_supported_input_devices() -> PackedStringArray:
+	match Kind:
+		KIND_INFO, KIND_POLL:
+			return PackedStringArray([INPUT_DEVICE_NONE])
+	match ValueType:
+		VALUE_KEYBIND:
+			return PackedStringArray([INPUT_DEVICE_KEYBOARD, INPUT_DEVICE_GAMEPAD])
+		VALUE_TEXT, VALUE_MULTILINE_TEXT, VALUE_PATH, VALUE_RESOURCE, VALUE_LIST, VALUE_TAG_PICKER, VALUE_SENSITIVITY_CURVE:
+			return PackedStringArray([INPUT_DEVICE_KEYBOARD])
+		VALUE_FLOAT, VALUE_INTEGER, VALUE_FONT_SCALE:
+			return PackedStringArray([INPUT_DEVICE_CURSOR, INPUT_DEVICE_KEYBOARD, INPUT_DEVICE_TOUCH])
+		VALUE_BOOL, VALUE_ENUM, VALUE_CHOICE, VALUE_SEGMENTED, VALUE_ACTION, VALUE_RESOLUTION, VALUE_QUALITY_MATRIX, VALUE_LANGUAGE:
+			return PackedStringArray([INPUT_DEVICE_CURSOR, INPUT_DEVICE_KEYBOARD, INPUT_DEVICE_GAMEPAD, INPUT_DEVICE_TOUCH])
+		VALUE_COLOR:
+			return PackedStringArray([INPUT_DEVICE_CURSOR, INPUT_DEVICE_TOUCH])
+		_:
+			return PackedStringArray([INPUT_DEVICE_MIXED])
 
 func to_dictionary(include_runtime_fields := false) -> Dictionary:
 	var data := {
@@ -104,6 +223,9 @@ func to_dictionary(include_runtime_fields := false) -> Dictionary:
 		"group_path": GroupPath,
 		"tags": Array(Tags),
 		"aliases": Array(Aliases),
+		"primary_input_device": get_primary_input_device(),
+		"supported_input_devices": Array(get_supported_input_devices()),
+		"input_device_note": InputDeviceNote,
 		"default_value": _encode_value(DefaultValue),
 		"options": Array(Options),
 		"min_value": MinValue,
@@ -137,6 +259,9 @@ func apply_dictionary(data: Dictionary) -> void:
 	GroupPath = String(data.get("group_path", GroupPath))
 	Tags = PackedStringArray(data.get("tags", Array(Tags)))
 	Aliases = PackedStringArray(data.get("aliases", Array(Aliases)))
+	PrimaryInputDevice = normalize_input_device(String(data.get("primary_input_device", data.get("input_device", PrimaryInputDevice))))
+	SupportedInputDevices = _normalize_input_devices(data.get("supported_input_devices", data.get("input_devices", Array(SupportedInputDevices))))
+	InputDeviceNote = String(data.get("input_device_note", InputDeviceNote))
 	DefaultValue = _decode_value(data.get("default_value", DefaultValue), ValueType)
 	Options = PackedStringArray(data.get("options", Array(Options)))
 	MinValue = float(data.get("min_value", MinValue))

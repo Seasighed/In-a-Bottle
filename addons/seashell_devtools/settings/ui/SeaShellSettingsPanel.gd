@@ -10,9 +10,10 @@ const IMPORT_KEEP_MINE := "KeepMine"
 const DEFAULT_EXPORT_PATH := "user://sea_shell_settings_profiles/settings_export.json"
 const DEFAULT_IMPORT_PATH := "user://sea_shell_settings_profiles/settings_export.json"
 const SEARCH_SUGGESTION_LIMIT := 10
-const SEARCH_MODIFIER_ORDER := ["group", "tag", "type", "kind", "sync", "modified", "id"]
+const SEARCH_MODIFIER_ORDER := ["group", "device", "tag", "type", "kind", "sync", "modified", "id"]
 const SEARCH_MODIFIER_LABELS := {
 	"group": "Group",
+	"device": "Device",
 	"tag": "Tag",
 	"type": "Type",
 	"kind": "Kind",
@@ -24,6 +25,16 @@ const SEARCH_MODIFIER_ALIASES := {
 	"section": "group",
 	"groups": "group",
 	"path": "group",
+	"input": "device",
+	"inputs": "device",
+	"input_device": "device",
+	"input_devices": "device",
+	"primary_device": "device",
+	"supported_device": "device",
+	"mouse": "device",
+	"keyboard": "device",
+	"controller": "device",
+	"joystick": "device",
 	"tags": "tag",
 	"label": "tag",
 	"value_type": "type",
@@ -43,9 +54,18 @@ const SEARCH_MODIFIED_SUGGESTIONS := [
 	{"value": "definition", "label": "Definition Modified"},
 	{"value": "value", "label": "Value Modified"},
 ]
+const SEARCH_DEVICE_SUGGESTIONS := [
+	{"value": "Cursor", "label": "Cursor", "aliases": ["mouse", "pointer", "trackpad", "touchpad"]},
+	{"value": "Keyboard", "label": "Keyboard", "aliases": ["key", "keys", "text"]},
+	{"value": "Gamepad", "label": "Gamepad", "aliases": ["controller", "joypad", "joystick"]},
+	{"value": "Touch", "label": "Touch", "aliases": ["touchscreen", "screen"]},
+	{"value": "Mixed", "label": "Mixed", "aliases": ["multi", "multiple"]},
+	{"value": "None", "label": "None", "aliases": ["readonly", "read-only", "no input"]},
+]
 const SEARCH_CHIP_LABELS := {
 	"text": "Text",
 	"group": "Group",
+	"device": "Device",
 	"tag": "Tag",
 	"type": "Type",
 	"kind": "Kind",
@@ -56,6 +76,7 @@ const SEARCH_CHIP_LABELS := {
 const SEARCH_CATEGORY_COLORS := {
 	"Modifier": Color(0.47, 0.63, 0.95, 1.0),
 	"Group": Color(0.31, 0.74, 0.55, 1.0),
+	"Device": Color(0.35, 0.78, 0.86, 1.0),
 	"Tag": Color(0.93, 0.64, 0.28, 1.0),
 	"Type": Color(0.68, 0.56, 0.96, 1.0),
 	"Kind": Color(0.96, 0.54, 0.72, 1.0),
@@ -81,6 +102,7 @@ var _kind_filter: OptionButton
 var _type_filter: OptionButton
 var _modified_filter: OptionButton
 var _sync_filter: OptionButton
+var _view_mode_filter: OptionButton
 var _group_tree: Tree
 var _item_container: VBoxContainer
 var _status_label: Label
@@ -95,6 +117,7 @@ var _search_context := {
 	"groups": PackedStringArray(),
 	"tags": PackedStringArray(),
 	"types": PackedStringArray(),
+	"input_devices": PackedStringArray(),
 	"sync_status_by_id": {},
 	"definition_modified_ids": {},
 	"value_modified_ids": {},
@@ -138,7 +161,7 @@ func _build_ui() -> void:
 	split.add_child(left)
 
 	_search_edit = LineEdit.new()
-	_search_edit.placeholder_text = "Search settings or use modifiers like group:, tag:, type:"
+	_search_edit.placeholder_text = "Search settings or use modifiers like group:, device:, tag:, type:"
 	_search_edit.text_changed.connect(_on_search_text_changed)
 	_search_edit.gui_input.connect(_on_search_edit_gui_input)
 	left.add_child(_search_edit)
@@ -189,6 +212,12 @@ func _build_ui() -> void:
 		_sync_filter.add_item(label)
 	_sync_filter.item_selected.connect(func(_index: int) -> void: _refresh_items())
 	left.add_child(_sync_filter)
+
+	_view_mode_filter = OptionButton.new()
+	for label in ["Default order", "Batch by input device"]:
+		_view_mode_filter.add_item(label)
+	_view_mode_filter.item_selected.connect(func(_index: int) -> void: _refresh_items())
+	left.add_child(_view_mode_filter)
 
 	_group_tree = Tree.new()
 	_group_tree.hide_root = true
@@ -307,9 +336,27 @@ func _refresh_items() -> void:
 	_visible_items = settings_service.call("query_items", "", filters)
 	_visible_items = _apply_search_query_filters(_visible_items, parsed_search)
 	_visible_items = _apply_sync_filter(_visible_items)
-	for item in _visible_items:
-		_add_item_row(item)
-	_status_label.text = "%d item%s" % [_visible_items.size(), "" if _visible_items.size() == 1 else "s"]
+	var group_by_input_device := _view_mode_filter != null and _view_mode_filter.selected == 1
+	var view_data := {
+		"items": _visible_items,
+		"batches": [{"key": "all", "label": "", "items": _visible_items, "count": _visible_items.size()}],
+		"count": _visible_items.size(),
+	}
+	if settings_service.has_method("build_item_view"):
+		view_data = settings_service.call("build_item_view", _visible_items, {"group_by_input_device": group_by_input_device})
+	_visible_items = Array(view_data.get("items", _visible_items))
+	var batches: Array = view_data.get("batches", [])
+	for batch_variant in batches:
+		var batch: Dictionary = batch_variant
+		if group_by_input_device:
+			_add_input_device_batch_header(batch)
+		for item in Array(batch.get("items", [])):
+			_add_item_row(item)
+	var count := int(view_data.get("count", _visible_items.size()))
+	if group_by_input_device:
+		_status_label.text = "%d item%s in %d input batch%s" % [count, "" if count == 1 else "s", batches.size(), "" if batches.size() == 1 else "es"]
+	else:
+		_status_label.text = "%d item%s" % [count, "" if count == 1 else "s"]
 
 
 func _build_filters() -> Dictionary:
@@ -463,6 +510,8 @@ func _build_search_suggestions(query: String) -> Array:
 		match active_modifier:
 			"group":
 				suggestions.append_array(_build_group_search_suggestions(active_value, is_negated))
+			"device":
+				suggestions.append_array(_build_device_search_suggestions(active_value, is_negated))
 			"tag":
 				suggestions.append_array(_build_tag_search_suggestions(active_value, is_negated))
 			"type":
@@ -478,6 +527,7 @@ func _build_search_suggestions(query: String) -> Array:
 	else:
 		suggestions.append_array(_build_modifier_search_suggestions(active_value, is_negated))
 		suggestions.append_array(_build_group_search_suggestions(active_value, is_negated, true))
+		suggestions.append_array(_build_device_search_suggestions(active_value, is_negated, true))
 		suggestions.append_array(_build_tag_search_suggestions(active_value, is_negated, true))
 		suggestions.append_array(_build_type_search_suggestions(active_value, is_negated, true))
 		suggestions.append_array(_build_kind_search_suggestions(active_value, is_negated, true))
@@ -519,6 +569,32 @@ func _build_group_search_suggestions(fragment: String, negated := false, _direct
 		if suggestions.size() >= SEARCH_SUGGESTION_LIMIT:
 			break
 	return suggestions
+
+
+func _build_device_search_suggestions(fragment: String, negated := false, _direct := false) -> Array:
+	var suggestions: Array = []
+	var available := {}
+	for device_variant in _search_context.get("input_devices", PackedStringArray()):
+		available[str(device_variant)] = true
+	for entry_variant in SEARCH_DEVICE_SUGGESTIONS:
+		var entry: Dictionary = entry_variant
+		var value := str(entry.get("value", ""))
+		if not available.is_empty() and not available.has(value):
+			continue
+		var label := str(entry.get("label", value))
+		var aliases: Array = entry.get("aliases", [])
+		if not fragment.is_empty() and not value.to_lower().contains(fragment) and not label.to_lower().contains(fragment) and not _device_aliases_match(aliases, fragment):
+			continue
+		suggestions.append(_make_search_suggestion(label, "Device", _build_modifier_token("device", value, negated), fragment))
+	return suggestions
+
+
+func _device_aliases_match(aliases: Array, fragment: String) -> bool:
+	var normalized_fragment := fragment.strip_edges().to_lower()
+	for alias in aliases:
+		if String(alias).to_lower().contains(normalized_fragment):
+			return true
+	return false
 
 
 func _build_tag_search_suggestions(fragment: String, negated := false, _direct := false) -> Array:
@@ -630,6 +706,8 @@ func _parse_search_query(query: String) -> Dictionary:
 		match str(token.get("modifier", "")):
 			"group":
 				_append_search_term(target, "groups", value)
+			"device":
+				_append_search_term(target, "devices", value)
 			"tag":
 				_append_search_term(target, "tags", value)
 			"id":
@@ -650,6 +728,8 @@ func _parse_search_query(query: String) -> Dictionary:
 		"excluded_free_text": negative.get("free_text", PackedStringArray()),
 		"groups": positive.get("groups", PackedStringArray()),
 		"excluded_groups": negative.get("groups", PackedStringArray()),
+		"devices": positive.get("devices", PackedStringArray()),
+		"excluded_devices": negative.get("devices", PackedStringArray()),
 		"tags": positive.get("tags", PackedStringArray()),
 		"excluded_tags": negative.get("tags", PackedStringArray()),
 		"ids": positive.get("ids", PackedStringArray()),
@@ -722,6 +802,69 @@ func _normalize_search_modifier(modifier: String) -> String:
 	return str(SEARCH_MODIFIER_ALIASES.get(normalized, ""))
 
 
+func _normalize_input_device(device: String) -> String:
+	var normalized := device.strip_edges()
+	if normalized.is_empty():
+		return ""
+	match normalized.to_lower():
+		"auto", "infer", "inferred", "default":
+			return ""
+		"cursor", "pointer", "mouse", "trackpad", "touchpad":
+			return "Cursor"
+		"keyboard", "key", "keys", "text":
+			return "Keyboard"
+		"gamepad", "controller", "joypad", "joystick":
+			return "Gamepad"
+		"touch", "touchscreen", "screen":
+			return "Touch"
+		"none", "readonly", "read-only", "no input", "no_input":
+			return "None"
+		"mixed", "multi", "multiple":
+			return "Mixed"
+		_:
+			for entry_variant in SEARCH_DEVICE_SUGGESTIONS:
+				var entry: Dictionary = entry_variant
+				var value := str(entry.get("value", ""))
+				if normalized.nocasecmp_to(value) == 0:
+					return value
+	return ""
+
+
+func _normalize_input_devices(devices: Variant) -> PackedStringArray:
+	var result := PackedStringArray()
+	var raw_values: Array = []
+	match typeof(devices):
+		TYPE_PACKED_STRING_ARRAY:
+			raw_values = Array(devices)
+		TYPE_ARRAY:
+			raw_values = devices
+		TYPE_STRING:
+			raw_values = String(devices).split(",", false)
+		_:
+			raw_values = []
+	for raw_device in raw_values:
+		var device := _normalize_input_device(str(raw_device))
+		if not device.is_empty() and not result.has(device):
+			result.append(device)
+	return result
+
+
+func _item_primary_input_device(item: Resource) -> String:
+	if item != null and item.has_method("get_primary_input_device"):
+		return _normalize_input_device(str(item.call("get_primary_input_device")))
+	if item != null:
+		return _normalize_input_device(str(item.get("PrimaryInputDevice")))
+	return ""
+
+
+func _item_supported_input_devices(item: Resource) -> PackedStringArray:
+	if item != null and item.has_method("get_supported_input_devices"):
+		return _normalize_input_devices(item.call("get_supported_input_devices"))
+	if item != null:
+		return _normalize_input_devices(item.get("SupportedInputDevices"))
+	return PackedStringArray()
+
+
 func _strip_search_quotes(value: String) -> String:
 	var text := value.strip_edges()
 	if text.begins_with("\""):
@@ -735,6 +878,7 @@ func _empty_search_term_map() -> Dictionary:
 	return {
 		"free_text": PackedStringArray(),
 		"groups": PackedStringArray(),
+		"devices": PackedStringArray(),
 		"tags": PackedStringArray(),
 		"ids": PackedStringArray(),
 		"kinds": PackedStringArray(),
@@ -1004,6 +1148,8 @@ func _color_for_search_chip(modifier: String, negated: bool) -> Color:
 	match modifier:
 		"group":
 			category = "Group"
+		"device":
+			category = "Device"
 		"tag":
 			category = "Tag"
 		"type":
@@ -1029,6 +1175,7 @@ func _refresh_search_context() -> void:
 		"groups": PackedStringArray(),
 		"tags": PackedStringArray(),
 		"types": PackedStringArray(),
+		"input_devices": PackedStringArray(),
 		"sync_status_by_id": {},
 		"definition_modified_ids": {},
 		"value_modified_ids": {},
@@ -1040,6 +1187,12 @@ func _refresh_search_context() -> void:
 	var groups := PackedStringArray()
 	var tags := PackedStringArray()
 	var types := PackedStringArray()
+	var input_devices := PackedStringArray()
+	if settings_service.has_method("get_input_devices"):
+		for device_variant in settings_service.call("get_input_devices"):
+			var device := str(device_variant)
+			if not device.is_empty() and not input_devices.has(device):
+				input_devices.append(device)
 	for item in settings_service.call("get_items"):
 		var entry := _build_search_context_entry(item)
 		item_entries.append(entry)
@@ -1050,6 +1203,13 @@ func _refresh_search_context() -> void:
 		var value_type := str(entry.get("value_type", ""))
 		if not value_type.is_empty() and not types.has(value_type):
 			types.append(value_type)
+		var primary_input_device := str(entry.get("primary_input_device", ""))
+		if not primary_input_device.is_empty() and not input_devices.has(primary_input_device):
+			input_devices.append(primary_input_device)
+		for device_variant in entry.get("supported_input_devices", PackedStringArray()):
+			var supported_device := str(device_variant)
+			if not supported_device.is_empty() and not input_devices.has(supported_device):
+				input_devices.append(supported_device)
 		for tag_variant in entry.get("tags", PackedStringArray()):
 			var tag := str(tag_variant)
 			if not tag.is_empty() and not tags.has(tag):
@@ -1084,6 +1244,7 @@ func _refresh_search_context() -> void:
 		"groups": groups,
 		"tags": tags,
 		"types": types,
+		"input_devices": input_devices,
 		"sync_status_by_id": sync_status_by_id,
 		"definition_modified_ids": definition_modified_ids,
 		"value_modified_ids": value_modified_ids,
@@ -1096,6 +1257,11 @@ func _build_search_context_entry(item: Resource) -> Dictionary:
 	var group_path := str(item.get("GroupPath"))
 	var kind := str(item.get("Kind"))
 	var value_type := str(item.get("ValueType"))
+	var primary_input_device := _item_primary_input_device(item)
+	var supported_input_devices := _item_supported_input_devices(item)
+	var supported_input_devices_lc: Array = []
+	for device_variant in supported_input_devices:
+		supported_input_devices_lc.append(str(device_variant).to_lower())
 	var tags := PackedStringArray()
 	var tags_lc: Array = []
 	for tag_variant in item.get("Tags"):
@@ -1121,6 +1287,11 @@ func _build_search_context_entry(item: Resource) -> Dictionary:
 		"kind_lc": kind.to_lower(),
 		"value_type": value_type,
 		"value_type_lc": value_type.to_lower(),
+		"primary_input_device": primary_input_device,
+		"primary_input_device_lc": primary_input_device.to_lower(),
+		"supported_input_devices": supported_input_devices,
+		"supported_input_devices_lc": supported_input_devices_lc,
+		"input_device_note_lc": str(item.get("InputDeviceNote")).to_lower(),
 		"tags": tags,
 		"tags_lc": tags_lc,
 		"aliases": aliases,
@@ -1135,12 +1306,21 @@ func _search_entry_matches_suggestion(entry: Dictionary, fragment: String) -> bo
 	if fragment.is_empty():
 		return true
 	var normalized_fragment := fragment.to_lower()
+	if not _normalize_input_device(fragment).is_empty() and _search_device_matches(entry, fragment):
+		return true
 	if str(entry.get("id_lc", "")).contains(normalized_fragment):
 		return true
 	if str(entry.get("display_name_lc", "")).contains(normalized_fragment):
 		return true
 	if str(entry.get("description_lc", "")).contains(normalized_fragment):
 		return true
+	if str(entry.get("primary_input_device_lc", "")).contains(normalized_fragment):
+		return true
+	if str(entry.get("input_device_note_lc", "")).contains(normalized_fragment):
+		return true
+	for device_variant in entry.get("supported_input_devices_lc", []):
+		if str(device_variant).contains(normalized_fragment):
+			return true
 	for alias_variant in entry.get("aliases_lc", []):
 		if str(alias_variant).contains(normalized_fragment):
 			return true
@@ -1180,6 +1360,8 @@ func _item_matches_search_query(item: Resource, parsed: Dictionary) -> bool:
 		return false
 	if not _matches_any_search_value(str(entry.get("value_type_lc", "")), parsed.get("types", PackedStringArray()), parsed.get("excluded_types", PackedStringArray())):
 		return false
+	if not _matches_device_terms(entry, parsed.get("devices", PackedStringArray()), parsed.get("excluded_devices", PackedStringArray())):
+		return false
 	if not _matches_sync_terms(entry, parsed.get("sync", PackedStringArray()), parsed.get("excluded_sync", PackedStringArray())):
 		return false
 	if not _matches_modified_terms(entry, parsed.get("modified", PackedStringArray()), parsed.get("excluded_modified", PackedStringArray())):
@@ -1201,12 +1383,21 @@ func _entry_matches_free_text(entry: Dictionary, term: String) -> bool:
 	var normalized_term := term.strip_edges().to_lower()
 	if normalized_term.is_empty():
 		return true
+	if not _normalize_input_device(term).is_empty() and _search_device_matches(entry, term):
+		return true
 	if str(entry.get("id_lc", "")).contains(normalized_term):
 		return true
 	if str(entry.get("display_name_lc", "")).contains(normalized_term):
 		return true
 	if str(entry.get("description_lc", "")).contains(normalized_term):
 		return true
+	if str(entry.get("primary_input_device_lc", "")).contains(normalized_term):
+		return true
+	if str(entry.get("input_device_note_lc", "")).contains(normalized_term):
+		return true
+	for device_variant in entry.get("supported_input_devices_lc", []):
+		if str(device_variant).contains(normalized_term):
+			return true
 	for tag_variant in entry.get("tags_lc", []):
 		if str(tag_variant).contains(normalized_term):
 			return true
@@ -1236,6 +1427,32 @@ func _search_value_matches(candidate: String, term: String, path_match := false)
 	if path_match:
 		return candidate == normalized_term or candidate.begins_with(normalized_term) or candidate.contains(normalized_term)
 	return candidate == normalized_term or candidate.contains(normalized_term)
+
+
+func _matches_device_terms(entry: Dictionary, include_terms: PackedStringArray, exclude_terms: PackedStringArray) -> bool:
+	for term in exclude_terms:
+		if _search_device_matches(entry, str(term)):
+			return false
+	if include_terms.is_empty():
+		return true
+	for term in include_terms:
+		if _search_device_matches(entry, str(term)):
+			return true
+	return false
+
+
+func _search_device_matches(entry: Dictionary, term: String) -> bool:
+	var normalized_term := _normalize_input_device(term).to_lower()
+	if normalized_term.is_empty():
+		normalized_term = term.strip_edges().to_lower()
+	if normalized_term.is_empty():
+		return false
+	if str(entry.get("primary_input_device_lc", "")).contains(normalized_term):
+		return true
+	for device_variant in entry.get("supported_input_devices_lc", []):
+		if str(device_variant).contains(normalized_term):
+			return true
+	return false
 
 
 func _matches_any_search_tag(candidate_tags: Array, include_terms: PackedStringArray, exclude_terms: PackedStringArray) -> bool:
@@ -1308,6 +1525,30 @@ func _search_modified_matches(entry: Dictionary, term: String) -> bool:
 	if "value".contains(normalized_term) and bool(entry.get("value_modified", false)):
 		return true
 	return false
+
+
+func _add_input_device_batch_header(batch: Dictionary) -> void:
+	var panel := PanelContainer.new()
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var style := StyleBoxFlat.new()
+	style.bg_color = _color_for_search_category("Device").darkened(0.72)
+	style.border_width_left = 3
+	style.border_color = _color_for_search_category("Device")
+	style.corner_radius_top_left = 4
+	style.corner_radius_top_right = 4
+	style.corner_radius_bottom_left = 4
+	style.corner_radius_bottom_right = 4
+	style.content_margin_left = 10
+	style.content_margin_right = 10
+	style.content_margin_top = 6
+	style.content_margin_bottom = 6
+	panel.add_theme_stylebox_override("panel", style)
+	var label := Label.new()
+	var batch_label := str(batch.get("label", batch.get("key", "Input device"))).strip_edges()
+	var count := int(batch.get("count", Array(batch.get("items", [])).size()))
+	label.text = "%s (%d)" % [batch_label, count]
+	panel.add_child(label)
+	_item_container.add_child(panel)
 
 
 func _add_item_row(setting_item: Resource) -> void:
