@@ -12,13 +12,17 @@ Use this section for architecture, services, pipelines, integrations, and cross-
 
 ## Systems
 
+- [Imported Answer Review Pipeline](Imported%20Answer%20Review%20Pipeline.md)
 - [QA Mode And Guided Test Sessions](QA%20Mode%20And%20Guided%20Test%20Sessions.md)
 - [Playtest Feedback And Response Transfer](Playtest%20Feedback%20And%20Response%20Transfer.md)
 - [SeaShell Devtools And UI Flow Tooling](SeaShell%20Devtools%20And%20UI%20Flow%20Tooling.md)
 - [TechTree Integration](TechTree%20Integration.md)
+- [Upload Allowlist And Supabase Intake](Upload%20Allowlist%20And%20Supabase%20Intake.md)
 
 ## Change Log
 
+- 2026-06-29 17:18 - Added the upload allowlist and Supabase intake system note.
+- 2026-06-27 22:25 - Added the imported answer review pipeline system note.
 - 2026-06-03 23:25 - Added the QA mode and guided test sessions system note.
 - 2026-05-30 02:53 - Added system notes for playtest feedback transfer support and SeaShell devtools UI tooling.
 - 2026-05-09 02:55 - Added the TechTree integration system note.

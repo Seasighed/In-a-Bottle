@@ -6,6 +6,11 @@ The playtest reporting tools are meant for debug or playtest builds. If you do n
 
 In QA Mode, the first tutorial also teaches this system before the guided checklist starts.
 
+The intended QA entry points are:
+
+- `Launch QA.cmd` on Windows packages.
+- `index.html` in the separate QA Web package.
+
 ## How To Capture An Issue
 
 - On desktop, hold `Ctrl` and click the place where the issue happened.
@@ -32,5 +37,7 @@ In QA Mode, the first tutorial also teaches this system before the guided checkl
 
 ## Change Log
 
+- 2026-06-29 20:13 - Updated Web QA entry guidance for separate QA bundles.
+- 2026-06-17 04:35 - Added QA entry-point guidance for Windows and Web playtest packages.
 - 2026-06-03 23:25 - Added the QA mode tutorial and final-bundle guidance for playtest issue reporting.
 - 2026-05-30 02:53 - Added operator guidance for capturing, reviewing, and exporting playtest issue reports.

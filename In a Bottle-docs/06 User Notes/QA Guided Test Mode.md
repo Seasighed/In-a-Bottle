@@ -4,6 +4,12 @@
 
 QA Mode is the tester-friendly build path for this project. It turns the app into a guided checklist with built-in issue reporting, screenshot capture, and one final QA bundle that can be sent back without needing repo context.
 
+Use the QA-specific package on purpose:
+
+- On Windows, open `Launch QA.cmd`.
+- On Web, open the separate QA web bundle's `index.html`.
+- If you only need the normal respondent experience, use the participant build instead. That build intentionally hides the QA and report tools.
+
 ## Start Here
 
 When QA Mode opens, use these actions:
@@ -50,6 +56,12 @@ Use `Export Visual Audit` when you want the larger evidence package.
 - It also includes dedicated question-type screenshots, custom view screenshots, summary/profile export cards, and a `ui_flow.png` chart of the flow catalog.
 - This is the fastest way to hand back "show me every screen" proof from a build without asking the tester to hunt through the app manually.
 
+## Which Build To Open
+
+- `participant` is for normal playtest participants and hides the QA tools.
+- `qa` is for internal testers and exposes the guide, report system, screenshot recorder, and final evidence ZIP.
+- If someone asks you to follow a guided test plan or collect screenshots for every screen, they mean the QA build.
+
 ## Streamlined Pass Tips
 
 - Teach the issue reporter first, then keep the tester on the guided Journey path before asking for any freeform exploration.
@@ -58,5 +70,7 @@ Use `Export Visual Audit` when you want the larger evidence package.
 
 ## Change Log
 
+- 2026-06-29 20:13 - Updated Web QA guidance now that participant bundles no longer include `qa.html`.
+- 2026-06-17 04:35 - Added the participant-versus-QA build distinction plus launcher guidance for Windows and Web handoff packages.
 - 2026-06-04 02:31 - Added the visual audit export path, full-screen screenshot bundle handoff, and streamlined tester guidance.
 - 2026-06-03 23:25 - Added the tester-facing QA mode walkthrough, guided checklist expectations, and final bundle handoff instructions.
