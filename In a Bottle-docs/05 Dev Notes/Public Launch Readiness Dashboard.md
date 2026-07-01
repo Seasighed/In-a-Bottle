@@ -6,16 +6,16 @@ Use this note as the public-release gate for `MapleStory Pulse`. A public link i
 
 | Area | Status | Evidence Needed | Notes |
 | --- | --- | --- | --- |
-| Dirty worktree curation | Promoted | [Public Launch Worktree Curation](Public%20Launch%20Worktree%20Curation.md) plus commits | Clean safety branch `codex-release-candidate-proof-pass` was pushed to GitHub at `adb1ccbae33db7f76ccd52b04ec621f489f70f7e`; foreground checkout still cannot write `.git` refs. |
+| Dirty worktree curation | Promoted | [Public Launch Worktree Curation](Public%20Launch%20Worktree%20Curation.md) plus commits | Clean safety branch `codex-release-candidate-proof-pass` was pushed to GitHub; foreground checkout still cannot write `.git` refs. |
 | Schema identity | Ready | `maplestory_pulse`, template version `2`, schema hash `c69e1f63dd9480f644261067dbbf8d4e46d4d6f390702e58ccba8b2748a74c37` | Re-run after any `maplestory_pulse.json` edit. |
 | Supabase migration | Blocked on credentials | Migration applied to production project | `npx supabase --version` works at `2.109.0`, but this machine is not logged in and no project ref/access token has been supplied. |
 | Supabase function deploy | Blocked on credentials | `survey-upload` deployed with secrets set | Requires Supabase project ref, access token or login, service role secret, and hosted origin. |
 | Supabase local validation | Passed locally | Deno tests and checks pass | `deno test supabase/functions/survey-upload/validation.test.ts` passed 7 tests and `deno check` passed for `index.ts` and `smoke.ts`. |
 | Live endpoint smoke | Not started | `smoke.ts` passes accepted, duplicate, custom, wrong-schema, malformed, and scrubbed cases | Creates private test rows when enabled; blocked until migration/function deployment and endpoint URL exist. |
 | Godot validation | Passed locally | `tools/playtest.ps1 test` and release validation pass | `tools/playtest.ps1` now uses Godot `--import` during bootstrap and isolates validation AppData so fresh clones can build their class/import cache. |
-| Public web build | Packaged locally | `build/playtest/20260630-rc-proof-adb1ccb/release_manifest.json` points at `web/participant` | Final local release package was generated from clean promoted commit `adb1ccbae33db7f76ccd52b04ec621f489f70f7e`. |
-| Windows builds | Packaged locally | Participant and QA folders exist under `build/playtest/20260630-rc-proof-adb1ccb` | Built by `tools/playtest.ps1 release -IncludeAudit` with non-Mono Godot 4.6.1. |
-| Visual audit proof | Passed locally | Renderer-backed audit has zero placeholder captures | Final audit copied `build/playtest/20260630-rc-proof-adb1ccb/audit/survey_visual_audit_2026-07-01t01-17-14.zip` with 92 captures and 0 placeholders. |
+| Public web build | Packaged locally | `build/playtest/20260630-promoted-branch-proof/release_manifest.json` points at `web/participant` | Final local release package is generated from the promoted branch tip recorded in the release manifest. |
+| Windows builds | Packaged locally | Participant and QA folders exist under `build/playtest/20260630-promoted-branch-proof` | Built by `tools/playtest.ps1 release -IncludeAudit` with non-Mono Godot 4.6.1. |
+| Visual audit proof | Passed locally | Renderer-backed audit has zero placeholder captures | Final audit copied under `build/playtest/20260630-promoted-branch-proof/audit/` with 92 captures and 0 placeholders. |
 | Wrapped proof | Layout metrics pass | `exports/survey_fake_answer_screenshots/2026-06-30t00-21-58` | 1, 5, and 100 respondent sample proof had 0 overflow flags but 9 placeholder captures in headless mode. |
 | Desktop smoke | Not started | Chrome or Edge checklist completed | Use the public launch QA smoke script. |
 | iOS/mobile Safari smoke | Not started | Device or emulation checklist completed | Check long prompts, exports, and upload copy. |
@@ -80,9 +80,12 @@ deno run --allow-env --allow-net supabase/functions/survey-upload/smoke.ts
 
 - Release folder: `build/playtest/20260630-wrapper-release-passed`
 - Release manifest: `build/playtest/20260630-wrapper-release-passed/release_manifest.json`
-- Final promoted-branch release folder: `build/playtest/20260630-rc-proof-adb1ccb`
-- Final promoted-branch release manifest: `build/playtest/20260630-rc-proof-adb1ccb/release_manifest.json`
-- Final promoted-branch renderer audit ZIP: `build/playtest/20260630-rc-proof-adb1ccb/audit/survey_visual_audit_2026-07-01t01-17-14.zip`
+- Final promoted-branch release folder: `build/playtest/20260630-promoted-branch-proof`
+- Final promoted-branch release manifest: `build/playtest/20260630-promoted-branch-proof/release_manifest.json`
+- Final promoted-branch renderer audit ZIP: see `build/playtest/20260630-promoted-branch-proof/audit/manifest.json`
+- Previous promoted-branch release folder: `build/playtest/20260630-rc-proof-adb1ccb`
+- Previous promoted-branch release manifest: `build/playtest/20260630-rc-proof-adb1ccb/release_manifest.json`
+- Previous promoted-branch renderer audit ZIP: `build/playtest/20260630-rc-proof-adb1ccb/audit/survey_visual_audit_2026-07-01t01-17-14.zip`
 - Previous safety-clone release folder: `build/playtest/20260630-044822`
 - Previous safety-clone release manifest: `build/playtest/20260630-044822/release_manifest.json`
 - Previous safety-clone renderer audit ZIP: `build/playtest/20260630-044822/audit/survey_visual_audit_2026-06-30t08-48-59.zip`
@@ -93,7 +96,7 @@ deno run --allow-env --allow-net supabase/functions/survey-upload/smoke.ts
 
 ## Change Log
 
-- 2026-06-30 21:21 - Recorded the promoted GitHub branch, final `adb1ccb` release proof, working `npx supabase` CLI path, and refreshed Deno validation results.
+- 2026-06-30 21:21 - Recorded the promoted GitHub branch, final promoted-branch release proof path, working `npx supabase` CLI path, and refreshed Deno validation results.
 - 2026-06-30 04:55 - Recorded the clean safety-branch release, renderer-backed 0-placeholder audit, fresh-clone import fix, and current backend tooling blockers.
 - 2026-06-30 02:58 - Recorded the isolated AppData wrapper fix, passing local Godot validation, and the coherent contract-audit release folder.
 - 2026-06-30 02:26 - Refreshed MapleStory Pulse identity and recorded the build-only web proof package.
