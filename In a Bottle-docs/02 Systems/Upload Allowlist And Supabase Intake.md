@@ -83,6 +83,15 @@ Godot CI covers the built-in upload eligibility path, the blocked Custom Survey 
 
 `supabase/functions/survey-upload/smoke.ts` is the live deployed-endpoint harness. It requires explicit `SURVEY_UPLOAD_SMOKE_WRITE_OK=true` because accepted and scrubbed smoke cases create private rows.
 
+As of the release-candidate proof pass, local backend validation uses:
+
+```powershell
+deno test supabase/functions/survey-upload/validation.test.ts
+deno check supabase/functions/survey-upload/index.ts supabase/functions/survey-upload/smoke.ts
+```
+
+Deployment uses `npx supabase` on this machine because `supabase` is not installed on PATH. A real deploy still requires a Supabase access token or login, project ref, local `supabase/survey-upload.env`, and the hosted origin.
+
 ## Related Notes
 
 - [Public MapleStory Pulse Launch](../01%20Feature%20Guides/Public%20MapleStory%20Pulse%20Launch.md)
@@ -91,5 +100,6 @@ Godot CI covers the built-in upload eligibility path, the blocked Custom Survey 
 
 ## Change Log
 
+- 2026-06-30 21:21 - Added the refreshed Deno validation/type-check commands and the current `npx supabase` deployment note.
 - 2026-06-29 20:13 - Documented CORS, scoped duplicate checks, rate limits, rejection reasons, endpoint versioning, and live smoke tests.
 - 2026-06-29 17:18 - Added the upload allowlist and Supabase intake system note.

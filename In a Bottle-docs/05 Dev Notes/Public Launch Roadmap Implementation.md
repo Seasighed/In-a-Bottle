@@ -21,7 +21,9 @@ This implementation slice moves `In a Bottle` toward a web-first public release 
 - `CiTestBootstrap.gd` passed with 52 passed, 0 failed.
 - `tools/playtest.ps1 doctor` passed.
 - `tools/playtest.ps1 test` passed.
-- `deno test supabase/functions/survey-upload/validation.test.ts` passed with 5 passed, 0 failed.
+- `deno test supabase/functions/survey-upload/validation.test.ts` passed with 7 passed, 0 failed.
+- `deno check supabase/functions/survey-upload/index.ts supabase/functions/survey-upload/smoke.ts` passed.
+- `tools/playtest.ps1 release -IncludeAudit` passed from the promoted branch at `adb1ccb`.
 
 Known remaining local noise: Godot still reports dummy renderer resource leak messages at headless process exit. Those are not currently app test failures, but they should stay visible in release notes until a renderer-level cleanup path is found.
 
@@ -32,13 +34,13 @@ Known remaining local noise: Godot still reports dummy renderer resource leak me
 - Deploy the `survey-upload` Edge Function.
 - Set `SURVEY_UPLOAD_ALLOWLIST_JSON` with the exact deployed `MapleStory Pulse` schema hash.
 - Configure the hosted participant build with the real upload endpoint and required headers.
-- Promote or push the safety branch so the canonical repo has the reviewable baseline.
-- Keep the final safety-clone release folder `build/playtest/20260630-044822` as the current local artifact proof until a hosted build supersedes it.
+- Keep the final promoted-branch release folder `build/playtest/20260630-rc-proof-adb1ccb` as the current local artifact proof until a hosted build supersedes it.
 - Exercise the live endpoint for accepted `MapleStory Pulse`, rejected Custom Survey, duplicate payload, malformed payload, and scrubbed identifying answers.
 - Complete desktop Chrome or Edge, hosted desktop web, mobile Safari or iOS emulation, and Android Chrome or Android emulation smoke coverage.
-- Generate wrapped summary proof for 1, 5, and 100 fake respondents.
+- Review public summary/wrapped exports before posting any community-facing result.
 
 ## Change Log
 
+- 2026-06-30 21:21 - Updated validation counts, promoted-branch release proof, and remaining launch blockers.
 - 2026-06-30 04:55 - Added current safety-branch release proof status and removed visual-audit proof from the remaining local launch blockers.
 - 2026-06-29 17:18 - Added the roadmap implementation handoff note.
